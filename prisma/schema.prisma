@@ -1,0 +1,281 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+  output   = "../node_modules/.prisma/client"
+}
+
+datasource db {
+  provider = "sqlite"
+}
+
+enum Role {
+  DIRETORIA
+  COORDENADOR
+  OPERADOR_CAMPO
+  OPERADOR_ADM
+}
+
+enum ContractStatus {
+  ATIVO
+  CONCLUIDO
+  SUSPENSO
+  RESCINDIDO
+}
+
+enum ContractScope {
+  OBRA
+  SERVICO
+  GERENCIAMENTO
+}
+
+enum TenderStatus {
+  TRIAGEM
+  APROVADO
+  RECUSADO
+  IMPUGNADO
+}
+
+enum MeasurementStatus {
+  EM_ANALISE
+  APROVADO
+  FATURADO
+  PAGO
+  ATRASADO
+}
+
+enum MilestoneStatus {
+  PENDENTE
+  EM_ANDAMENTO
+  CONCLUIDO
+  ATRASADO
+}
+
+enum TaskStatus {
+  ABERTA
+  EM_ANDAMENTO
+  CONCLUIDA
+  CANCELADA
+}
+
+enum TaskPriority {
+  BAIXA
+  MEDIA
+  ALTA
+  URGENTE
+}
+
+model User {
+  id            String   @id @default(cuid())
+  name          String
+  email         String   @unique
+  passwordHash  String
+  role          Role
+  avatarUrl     String?
+  active        Boolean  @default(true)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  contractAssignments ContractAssignment[]
+  dailyLogs           DailyLog[]
+  measurements        Measurement[]
+  tasksCreated        Task[]               @relation("TaskCreator")
+  tasksAssigned       Task[]               @relation("TaskAssignee")
+  auditLogs           AuditLog[]
+  tenderDecisions     Tender[]             @relation("TenderDecision")
+
+  @@map("users")
+}
+
+model Contract {
+  id               String         @id @default(cuid())
+  title            String
+  number           String         @unique
+  organ            String
+  scope            ContractScope
+  status           ContractStatus @default(ATIVO)
+  startDate        DateTime
+  endDate          DateTime?
+  baseDate         DateTime
+  totalValue       Float
+  physicalProgress Float          @default(0)
+  description      String?
+  address          String?
+  deletedAt        DateTime?
+  createdAt        DateTime       @default(now())
+  updatedAt        DateTime       @updatedAt
+
+  assignments  ContractAssignment[]
+  tender       Tender?
+  milestones   Milestone[]
+  measurements Measurement[]
+  tasks        Task[]
+  guarantees   Guarantee[]
+  auditLogs    AuditLog[]
+  dailyLogs    DailyLog[]
+
+  @@map("contracts")
+}
+
+model ContractAssignment {
+  id         String   @id @default(cuid())
+  userId     String
+  contractId String
+  createdAt  DateTime @default(now())
+
+  user     User     @relation(fields: [userId], references: [id])
+  contract Contract @relation(fields: [contractId], references: [id])
+
+  @@unique([userId, contractId])
+  @@map("contract_assignments")
+}
+
+model Tender {
+  id           String       @id @default(cuid())
+  contractId   String       @unique
+  title        String
+  editalUrl    String?
+  aiReport     String?
+  status       TenderStatus @default(TRIAGEM)
+  decisionBy   String?
+  decisionAt   DateTime?
+  decisionNote String?
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+
+  contract Contract @relation(fields: [contractId], references: [id])
+  decider  User?    @relation("TenderDecision", fields: [decisionBy], references: [id])
+
+  @@map("tenders")
+}
+
+model Milestone {
+  id            String          @id @default(cuid())
+  contractId    String
+  title         String
+  description   String?
+  targetDate    DateTime
+  completedDate DateTime?
+  completionPct Float           @default(0)
+  status        MilestoneStatus @default(PENDENTE)
+  order         Int             @default(0)
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+
+  contract  Contract   @relation(fields: [contractId], references: [id])
+  dailyLogs DailyLog[]
+
+  @@map("milestones")
+}
+
+model DailyLog {
+  id          String    @id @default(cuid())
+  contractId  String
+  milestoneId String?
+  date        DateTime
+  weather     String
+  progressPct Float
+  description String
+  photos      String    @default("[]")
+  workforce   Int?
+  lockedAt    DateTime?
+  createdBy   String
+  createdAt   DateTime  @default(now())
+
+  contract  Contract   @relation(fields: [contractId], references: [id])
+  milestone Milestone? @relation(fields: [milestoneId], references: [id])
+  creator   User       @relation(fields: [createdBy], references: [id])
+
+  @@map("daily_logs")
+}
+
+model Measurement {
+  id          String            @id @default(cuid())
+  contractId  String
+  period      String
+  amount      Float
+  description String?
+  status      MeasurementStatus @default(EM_ANALISE)
+  approvedBy  String?
+  approvedAt  DateTime?
+  dueDate     DateTime?
+  paidAt      DateTime?
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
+
+  contract Contract  @relation(fields: [contractId], references: [id])
+  approver User?     @relation(fields: [approvedBy], references: [id])
+  invoice  Invoice?
+
+  @@map("measurements")
+}
+
+model Invoice {
+  id            String    @id @default(cuid())
+  measurementId String    @unique
+  nfNumber      String?
+  nfUrl         String?
+  issuedAt      DateTime?
+  dueAt         DateTime?
+  paidAt        DateTime?
+  amount        Float
+  createdAt     DateTime  @default(now())
+
+  measurement Measurement @relation(fields: [measurementId], references: [id])
+
+  @@map("invoices")
+}
+
+model Guarantee {
+  id              String    @id @default(cuid())
+  contractId      String
+  type            String
+  description     String?
+  expiryDate      DateTime
+  alertDaysBefore Int       @default(30)
+  renewedAt       DateTime?
+  fileUrl         String?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  contract Contract @relation(fields: [contractId], references: [id])
+
+  @@map("guarantees")
+}
+
+model Task {
+  id          String       @id @default(cuid())
+  contractId  String?
+  title       String
+  description String?
+  assignedTo  String
+  assignedBy  String
+  dueDate     DateTime?
+  priority    TaskPriority @default(MEDIA)
+  status      TaskStatus   @default(ABERTA)
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  contract Contract? @relation(fields: [contractId], references: [id])
+  assignee User      @relation("TaskAssignee", fields: [assignedTo], references: [id])
+  creator  User      @relation("TaskCreator", fields: [assignedBy], references: [id])
+
+  @@map("tasks")
+}
+
+model AuditLog {
+  id         String   @id @default(cuid())
+  userId     String
+  action     String
+  entity     String
+  entityId   String?
+  metadata   String   @default("{}")
+  contractId String?
+  createdAt  DateTime @default(now())
+
+  user     User      @relation(fields: [userId], references: [id])
+  contract Contract? @relation(fields: [contractId], references: [id])
+
+  @@map("audit_logs")
+}

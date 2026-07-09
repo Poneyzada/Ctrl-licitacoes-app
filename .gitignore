@@ -1,0 +1,45 @@
+# Dependências
+node_modules/
+.npm
+
+# Next.js
+.next/
+out/
+build/
+
+# Banco de dados local (SQLite)
+prisma/dev.db
+prisma/dev.db-journal
+*.db
+*.db-shm
+*.db-wal
+
+# Variáveis de ambiente (NUNCA subir isso!)
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Uploads locais
+public/uploads/
+
+# Logs
+*.log
+npm-debug.log*
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# TypeScript
+*.tsbuildinfo
+
+# Vercel
+.vercel

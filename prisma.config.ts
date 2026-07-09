@@ -7,7 +7,6 @@ dotenv.config({ path: path.join(process.cwd(), '.env.local') })
 dotenv.config({ path: path.join(process.cwd(), '.env') })
 
 export default defineConfig({
-  earlyAccess: true,
   schema: path.join(process.cwd(), 'prisma/schema.prisma'),
   datasource: {
     url: process.env.DATABASE_URL!,

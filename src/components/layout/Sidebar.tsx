@@ -31,31 +31,31 @@ const navItems: NavItem[] = [
   {
     href: '/dashboard',
     label: 'Dashboard',
-    icon: <LayoutDashboard size={18} />,
+    icon: <LayoutDashboard size={20} />,
     allowedRoles: ['DIRETORIA', 'COORDENADOR', 'OPERADOR_CAMPO', 'OPERADOR_ADM'],
   },
   {
     href: '/dashboard/licitacoes',
     label: 'Licitações',
-    icon: <FileSearch size={18} />,
+    icon: <FileSearch size={20} />,
     allowedRoles: ['DIRETORIA', 'COORDENADOR'],
   },
   {
     href: '/dashboard/contratos',
     label: 'Contratos',
-    icon: <FolderOpen size={18} />,
+    icon: <FolderOpen size={20} />,
     allowedRoles: ['DIRETORIA', 'COORDENADOR'],
   },
   {
     href: '/dashboard/tarefas',
-    label: 'Minhas Tarefas',
-    icon: <CheckSquare size={18} />,
+    label: 'Tarefas',
+    icon: <CheckSquare size={20} />,
     allowedRoles: ['DIRETORIA', 'COORDENADOR', 'OPERADOR_CAMPO', 'OPERADOR_ADM'],
   },
   {
     href: '/dashboard/auditoria',
     label: 'Auditoria',
-    icon: <ClipboardList size={18} />,
+    icon: <ClipboardList size={20} />,
     allowedRoles: ['DIRETORIA'],
   },
 ]
@@ -79,73 +79,104 @@ export function Sidebar() {
     return pathname.startsWith(href)
   }
 
+  const allowedNavItems = navItems.filter((item) => canAccess(role, item.allowedRoles))
+
   return (
-    <aside className="sidebar">
-      {/* Logo */}
-      <div className="sidebar-logo">
-        <div className="sidebar-logo-icon">
-          <FolderOpen size={20} color="#fff" />
+    <>
+      {/* HEADER COMPACTO PARA DISPOSITIVOS MÓVEIS */}
+      <header className="mobile-header">
+        <div className="mobile-header-brand">
+          <FolderOpen size={18} color="#3b82f6" />
+          <span className="mobile-brand-title">Ctrl-Licitação</span>
         </div>
-        <div>
-          <span className="sidebar-logo-text">Ctrl-Licitação</span>
-          <span className="sidebar-logo-sub">Lei 14.133/2021</span>
-        </div>
-      </div>
-
-      {/* Navegação principal */}
-      <nav className="sidebar-nav">
-        <div className="sidebar-section-label">Menu Principal</div>
-        {navItems
-          .filter((item) => canAccess(role, item.allowedRoles))
-          .map((item) => (
-            <Link
-              key={item.href}
-              href={item.href}
-              className={`sidebar-nav-item ${isActive(item.href) ? 'active' : ''}`}
-            >
-              <span className="sidebar-nav-icon">{item.icon}</span>
-              <span className="sidebar-nav-label">{item.label}</span>
-              {isActive(item.href) && <ChevronRight size={14} className="sidebar-nav-chevron" />}
-            </Link>
-          ))}
-
-        {/* Links rápidos */}
-        {(role === 'DIRETORIA' || role === 'COORDENADOR') && (
-          <>
-            <div className="sidebar-section-label" style={{ marginTop: '20px' }}>Acesso Rápido</div>
-            {quickLinks.map((link) => (
-              <Link key={link.label} href={link.href} className="sidebar-quick-link">
-                <span className="sidebar-quick-icon">{link.icon}</span>
-                <span>{link.label}</span>
-              </Link>
-            ))}
-          </>
-        )}
-      </nav>
-
-      {/* Perfil do usuário */}
-      <div className="sidebar-footer">
-        <div className="sidebar-user">
-          <div className="avatar avatar-md" style={{ background: 'linear-gradient(135deg, #3b82f6, #6366f1)' }}>
+        <div className="mobile-header-user">
+          <div className="avatar avatar-sm" style={{ background: 'linear-gradient(135deg, #3b82f6, #6366f1)', fontSize: '0.65rem' }}>
             {getInitials(userName)}
           </div>
-          <div className="sidebar-user-info">
-            <span className="sidebar-user-name">{userName}</span>
-            <span className={`badge ${getRoleBadgeColor(role)}`} style={{ fontSize: '0.65rem' }}>
-              {getRoleLabel(role)}
-            </span>
+          <button
+            onClick={() => signOut({ callbackUrl: '/login' })}
+            className="mobile-logout-btn"
+            title="Sair"
+          >
+            <LogOut size={16} />
+          </button>
+        </div>
+      </header>
+
+      {/* ASIDE (SIDEBAR DESKTOP + BARRA INFERIOR MOBILE) */}
+      <aside className="sidebar">
+        {/* Logo (Desktop) */}
+        <div className="sidebar-logo">
+          <div className="sidebar-logo-icon">
+            <FolderOpen size={20} color="#fff" />
+          </div>
+          <div>
+            <span className="sidebar-logo-text">Ctrl-Licitação</span>
+            <span className="sidebar-logo-sub">Lei 14.133/2021</span>
           </div>
         </div>
-        <button
-          onClick={() => signOut({ callbackUrl: '/login' })}
-          className="sidebar-logout-btn"
-          title="Sair do sistema"
-        >
-          <LogOut size={16} />
-        </button>
-      </div>
+
+        {/* Navegação principal */}
+        <nav className="sidebar-nav">
+          <div className="sidebar-section-label">Menu Principal</div>
+          <div className="sidebar-nav-list">
+            {allowedNavItems.map((item) => (
+              <Link
+                key={item.href}
+                href={item.href}
+                className={`sidebar-nav-item ${isActive(item.href) ? 'active' : ''}`}
+              >
+                <span className="sidebar-nav-icon">{item.icon}</span>
+                <span className="sidebar-nav-label">{item.label}</span>
+                {isActive(item.href) && <ChevronRight size={14} className="sidebar-nav-chevron" />}
+              </Link>
+            ))}
+          </div>
+
+          {/* Links rápidos (Desktop Only) */}
+          {(role === 'DIRETORIA' || role === 'COORDENADOR') && (
+            <div className="sidebar-quick-links-section">
+              <div className="sidebar-section-label" style={{ marginTop: '20px' }}>Acesso Rápido</div>
+              {quickLinks.map((link) => (
+                <Link key={link.label} href={link.href} className="sidebar-quick-link">
+                  <span className="sidebar-quick-icon">{link.icon}</span>
+                  <span>{link.label}</span>
+                </Link>
+              ))}
+            </div>
+          )}
+        </nav>
+
+        {/* Perfil do usuário (Desktop Only) */}
+        <div className="sidebar-footer">
+          <div className="sidebar-user">
+            <div className="avatar avatar-md" style={{ background: 'linear-gradient(135deg, #3b82f6, #6366f1)' }}>
+              {getInitials(userName)}
+            </div>
+            <div className="sidebar-user-info">
+              <span className="sidebar-user-name">{userName}</span>
+              <span className={`badge ${getRoleBadgeColor(role)}`} style={{ fontSize: '0.65rem' }}>
+                {getRoleLabel(role)}
+              </span>
+            </div>
+          </div>
+          <button
+            onClick={() => signOut({ callbackUrl: '/login' })}
+            className="sidebar-logout-btn"
+            title="Sair do sistema"
+          >
+            <LogOut size={16} />
+          </button>
+        </div>
+      </aside>
 
       <style>{`
+        /* --- ESTILOS PADRÃO (DESKTOP) --- */
+        
+        .mobile-header {
+          display: none;
+        }
+
         .sidebar {
           position: fixed;
           left: 0;
@@ -198,6 +229,12 @@ export function Sidebar() {
         .sidebar-nav {
           flex: 1;
           padding: 16px 10px;
+          display: flex;
+          flex-direction: column;
+          gap: 2px;
+        }
+
+        .sidebar-nav-list {
           display: flex;
           flex-direction: column;
           gap: 2px;
@@ -332,7 +369,135 @@ export function Sidebar() {
           border-color: rgba(239, 68, 68, 0.2);
           color: #f87171;
         }
+
+
+        /* --- RESPONSIVIDADE (MOBILE - INSTAGRAM STYLE) --- */
+
+        @media (max-width: 768px) {
+          .mobile-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 50px;
+            background: #111827;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+            padding: 0 16px;
+            z-index: 101;
+          }
+
+          .mobile-header-brand {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+          }
+
+          .mobile-brand-title {
+            font-size: 0.95rem;
+            font-weight: 700;
+            color: var(--text-primary);
+            letter-spacing: -0.01em;
+          }
+
+          .mobile-header-user {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+          }
+
+          .mobile-logout-btn {
+            background: transparent;
+            border: none;
+            color: var(--text-muted);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 4px;
+          }
+
+          .mobile-logout-btn:hover {
+            color: #ef4444;
+          }
+
+          .sidebar {
+            top: auto;
+            bottom: 0;
+            right: 0;
+            width: 100% !important;
+            height: 58px;
+            background: #111827;
+            border-right: none;
+            border-top: 1px solid rgba(255, 255, 255, 0.06);
+            flex-direction: row;
+            overflow-y: visible;
+            box-shadow: 0 -4px 16px rgba(0, 0, 0, 0.25);
+          }
+
+          .sidebar-logo,
+          .sidebar-section-label,
+          .sidebar-quick-links-section,
+          .sidebar-footer {
+            display: none !important;
+          }
+
+          .sidebar-nav {
+            padding: 0;
+            margin: 0;
+            width: 100%;
+            display: flex;
+            flex-direction: row;
+          }
+
+          .sidebar-nav-list {
+            flex-direction: row;
+            justify-content: space-around;
+            align-items: center;
+            width: 100%;
+            height: 100%;
+            gap: 0;
+          }
+
+          .sidebar-nav-item {
+            flex: 1;
+            flex-direction: column;
+            justify-content: center;
+            gap: 4px;
+            padding: 6px 0;
+            height: 100%;
+            border-radius: 0;
+            background: transparent !important;
+            border: none !important;
+          }
+
+          .sidebar-nav-label {
+            font-size: 0.65rem;
+            font-weight: 500;
+          }
+
+          .sidebar-nav-chevron {
+            display: none !important;
+          }
+
+          .sidebar-nav-item.active {
+            color: #60a5fa;
+          }
+
+          .sidebar-nav-item.active::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 25%;
+            right: 25%;
+            height: 3px;
+            background: #3b82f6;
+            border-radius: 3px 3px 0 0;
+          }
+        }
       `}</style>
-    </aside>
+    </>
   )
 }

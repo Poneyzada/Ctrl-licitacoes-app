@@ -1,15 +1,13 @@
 import { defineConfig } from 'prisma/config'
 import path from 'path'
-import dotenv from 'dotenv'
 
-// Carrega o .env.local ou .env
-dotenv.config({ path: path.join(process.cwd(), '.env.local') })
-dotenv.config({ path: path.join(process.cwd(), '.env') })
+const dbPath = path.join(process.cwd(), 'prisma', 'dev.db')
 
 export default defineConfig({
+  earlyAccess: true,
   schema: path.join(process.cwd(), 'prisma/schema.prisma'),
   datasource: {
-    url: process.env.DATABASE_URL!,
+    url: `file:${dbPath}`,
   },
   migrations: {
     seed: 'ts-node --compiler-options {"module":"CommonJS"} prisma/seed.ts',

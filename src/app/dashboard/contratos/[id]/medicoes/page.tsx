@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma'
 import { formatCurrency, formatDate, getReajusteCountdown, daysUntil } from '@/lib/utils'
 import { canAccessFinancial } from '@/lib/rbac'
 import { redirect } from 'next/navigation'
+import Link from 'next/link'
 import {
   DollarSign,
   FileText,
@@ -12,6 +13,7 @@ import {
   Clock,
   AlertTriangle,
   TrendingUp,
+  ArrowLeft,
 } from 'lucide-react'
 import AprovacaoButton from './AprovacaoButton'
 import UploadNFButton from './UploadNFButton'
@@ -170,25 +172,60 @@ export default async function MedicoesPage({ params }: PageProps) {
           font-size: 0.8rem;
           color: var(--text-secondary);
         }
+        .contract-tabs {
+          display: flex;
+          gap: 4px;
+          border-bottom: 1px solid var(--border-color);
+          padding-bottom: 1px;
+        }
+        .contract-tab {
+          padding: 10px 16px;
+          font-size: 0.875rem;
+          font-weight: 500;
+          color: var(--text-secondary);
+          text-decoration: none;
+          border-bottom: 2px solid transparent;
+          transition: all var(--transition-fast);
+          margin-bottom: -1px;
+        }
+        .contract-tab:hover {
+          color: var(--text-primary);
+        }
+        .contract-tab.active {
+          color: var(--color-primary);
+          border-bottom-color: var(--color-primary);
+          font-weight: 600;
+        }
       `}</style>
 
       <div className="animate-fade-in medicoes-layout">
-        {/* Page Header */}
-        <div className="page-header" style={{ marginBottom: 0 }}>
-          <div>
-            <div className="flex items-center gap-2 mb-2">
+        {/* Back + Title */}
+        <div style={{ display: 'flex', alignItems: 'flex-start', gap: 16 }}>
+          <Link href="/dashboard/contratos" className="btn btn-ghost btn-sm btn-icon" style={{ marginTop: 4 }}>
+            <ArrowLeft size={18} />
+          </Link>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div className="flex items-center gap-2 mb-1">
               <span className="badge badge-info-dark" style={{ fontSize: '0.7rem', letterSpacing: '0.06em' }}>
                 MEDIÇÕES & FATURAMENTO
               </span>
             </div>
-            <h1 className="page-title" style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-              <DollarSign size={26} style={{ color: 'var(--color-primary)', flexShrink: 0 }} />
-              Medições e Pagamentos
+            <h1 style={{ margin: 0, fontSize: '1.35rem', fontWeight: 800, color: 'var(--text-primary)', lineHeight: 1.2 }}>
+              {contract.title}
             </h1>
-            <p className="page-subtitle" style={{ marginTop: 6 }}>
-              {contract.title} · Nº {contract.number}
+            <p style={{ margin: 0, fontSize: '0.8rem', color: 'var(--text-muted)' }}>
+              Contrato N. {contract.number}
             </p>
           </div>
+        </div>
+
+        {/* Tab navigation */}
+        <div className="contract-tabs">
+          <Link href={`/dashboard/contratos/${id}`} className="contract-tab">Visao Geral</Link>
+          <Link href={`/dashboard/contratos/${id}/diario`} className="contract-tab">Diario</Link>
+          <Link href={`/dashboard/contratos/${id}/medicoes`} className="contract-tab active">Medicoes</Link>
+          <Link href={`/dashboard/contratos/${id}#milestones`} className="contract-tab">Milestones</Link>
+          <Link href={`/dashboard/contratos/${id}/medicoes#garantias`} className="contract-tab">Garantias</Link>
         </div>
 
         {/* Reajuste Timer - full width */}
@@ -395,7 +432,7 @@ export default async function MedicoesPage({ params }: PageProps) {
         </div>
 
         {/* Guarantees & Certidões */}
-        <div className="card">
+        <div className="card" id="garantias">
           <div className="card-header">
             <span className="card-title">
               <Shield size={16} style={{ display: 'inline', marginRight: 8, verticalAlign: 'middle' }} />

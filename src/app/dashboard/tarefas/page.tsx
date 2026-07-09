@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma'
 import { formatDate, formatDateTime } from '@/lib/utils'
 import { CheckSquare, Clock, AlertTriangle, CheckCircle, Plus } from 'lucide-react'
 import Link from 'next/link'
+import CreateTaskButton from './CreateTaskButton'
 
 async function getTasks(userId: string, role: string) {
   const whereFilter = role === 'DIRETORIA'
@@ -31,6 +32,19 @@ export default async function TarefasPage() {
   const role = session?.user?.role as string
 
   const tasks = await getTasks(userId, role)
+
+  // Busca usuários para atribuição de tarefas
+  const users = await prisma.user.findMany({
+    select: { id: true, name: true, role: true },
+    orderBy: { name: 'asc' },
+  })
+
+  // Busca contratos ativos
+  const contracts = await prisma.contract.findMany({
+    where: { deletedAt: null },
+    select: { id: true, title: true, number: true },
+    orderBy: { number: 'asc' },
+  })
 
   const open = tasks.filter((t) => t.status === 'ABERTA')
   const inProgress = tasks.filter((t) => t.status === 'EM_ANDAMENTO')
@@ -104,10 +118,7 @@ export default async function TarefasPage() {
           </p>
         </div>
         {(role === 'DIRETORIA' || role === 'COORDENADOR') && (
-          <button className="btn btn-primary">
-            <Plus size={16} />
-            Nova Tarefa
-          </button>
+          <CreateTaskButton users={users} contracts={contracts} />
         )}
       </div>
 

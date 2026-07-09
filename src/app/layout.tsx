@@ -7,6 +7,13 @@ export const metadata: Metadata = {
   description: 'Plataforma inteligente para gestão de licitações e contratos públicos conforme Lei 14.133/2021',
 }
 
+export const viewport = {
+  width: 'device-width',
+  initialScale: 1,
+  maximumScale: 1,
+  userScalable: false,
+}
+
 export default function RootLayout({
   children,
 }: {

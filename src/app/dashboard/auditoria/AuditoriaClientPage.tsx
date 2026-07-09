@@ -260,6 +260,22 @@ export default function AuditoriaClientPage({ initialLogs }: { initialLogs: any[
                           if (k === 'amount' && typeof v === 'number') {
                             return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(v)
                           }
+                          if (k === 'weather' && typeof v === 'string') {
+                            const weatherDict: Record<string, string> = {
+                              ENSOLARADO: 'Ensolarado ☀️',
+                              NUBLADO: 'Nublado ☁️',
+                              CHUVOSO: 'Chuvoso 🌧️',
+                              TEMPESTADE: 'Tempestade ⛈️',
+                            }
+                            return weatherDict[v] || v
+                          }
+                          if (k === 'date' && typeof v === 'string') {
+                            try {
+                              return new Date(v).toLocaleDateString('pt-BR')
+                            } catch (e) {
+                              return v
+                            }
+                          }
                           if (v === null || v === undefined) return '—'
                           if (typeof v === 'object') return JSON.stringify(v)
                           return String(v)
@@ -374,7 +390,7 @@ export default function AuditoriaClientPage({ initialLogs }: { initialLogs: any[
         .detail-label {
           font-size: 0.7rem;
           font-weight: 600;
-          color: var(--text-muted);
+          color: var(--text-secondary);
           text-transform: uppercase;
           letter-spacing: 0.05em;
         }
@@ -414,7 +430,7 @@ export default function AuditoriaClientPage({ initialLogs }: { initialLogs: any[
 
         .meta-key {
           font-size: 0.725rem;
-          color: var(--text-muted);
+          color: var(--text-secondary);
           font-weight: 500;
         }
 

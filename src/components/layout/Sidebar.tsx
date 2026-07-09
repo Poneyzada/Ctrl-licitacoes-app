@@ -15,6 +15,7 @@ import {
   ClipboardList,
   LogOut,
   ChevronRight,
+  Plus,
 } from 'lucide-react'
 import { canAccess, getRoleLabel, getRoleBadgeColor, type UserRole } from '@/lib/rbac'
 import { getInitials } from '@/lib/utils'
@@ -60,11 +61,9 @@ const navItems: NavItem[] = [
   },
 ]
 
-const quickLinks = [
-  { label: 'Diário de Obras', icon: <BookOpen size={14} />, href: '/dashboard/contratos' },
-  { label: 'Medições', icon: <DollarSign size={14} />, href: '/dashboard/contratos' },
-  { label: 'Garantias', icon: <Shield size={14} />, href: '/dashboard/contratos' },
-  { label: 'Milestones', icon: <Layers size={14} />, href: '/dashboard/contratos' },
+const quickActions = [
+  { label: 'Nova Licitação', icon: <Plus size={14} />, href: '/dashboard/licitacoes/novo' },
+  { label: 'Novo Contrato', icon: <Plus size={14} />, href: '/dashboard/contratos/novo' },
 ]
 
 export function Sidebar() {
@@ -133,14 +132,14 @@ export function Sidebar() {
             ))}
           </div>
 
-          {/* Links rápidos (Desktop Only) */}
+          {/* Ações Rápidas (Desktop Only) */}
           {(role === 'DIRETORIA' || role === 'COORDENADOR') && (
             <div className="sidebar-quick-links-section">
-              <div className="sidebar-section-label" style={{ marginTop: '20px' }}>Acesso Rápido</div>
-              {quickLinks.map((link) => (
-                <Link key={link.label} href={link.href} className="sidebar-quick-link">
-                  <span className="sidebar-quick-icon">{link.icon}</span>
-                  <span>{link.label}</span>
+              <div className="sidebar-section-label" style={{ marginTop: '20px' }}>Ações Rápidas</div>
+              {quickActions.map((action) => (
+                <Link key={action.label} href={action.href} className="sidebar-quick-link">
+                  <span className="sidebar-quick-icon">{action.icon}</span>
+                  <span>{action.label}</span>
                 </Link>
               ))}
             </div>

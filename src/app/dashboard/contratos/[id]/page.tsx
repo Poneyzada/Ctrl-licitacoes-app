@@ -1,4 +1,4 @@
-﻿import { auth } from '@/lib/auth'
+import { auth } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { formatCurrency, formatDate, getReajusteCountdown, getMeasurementStatusLabel } from '@/lib/utils'
 import { canAccessFieldDiary, canAccessFinancial, canApprove } from '@/lib/rbac'
@@ -83,8 +83,8 @@ export default async function ContractOverviewPage({
     { label: 'Visao Geral',  href: `/dashboard/contratos/${id}`,            active: true  },
     { label: 'Diario',       href: `/dashboard/contratos/${id}/diario`,     active: false, show: canDiary },
     { label: 'Medicoes',     href: `/dashboard/contratos/${id}/medicoes`,   active: false, show: canMeds  },
-    { label: 'Milestones',   href: `/dashboard/contratos/${id}/milestones`, active: false, show: true     },
-    { label: 'Garantias',    href: `/dashboard/contratos/${id}/garantias`,  active: false, show: canMeds  },
+    { label: 'Milestones',   href: `/dashboard/contratos/${id}#milestones`, active: false, show: true     },
+    { label: 'Garantias',    href: `/dashboard/contratos/${id}/medicoes#garantias`,  active: false, show: canMeds  },
   ].filter(t => t.show !== false)
 
   return (
@@ -219,13 +219,13 @@ export default async function ContractOverviewPage({
           </div>
 
           {/* Milestones */}
-          <div className="card">
+          <div className="card" id="milestones">
             <div className="card-header">
               <h3 className="card-title">
                 <TrendingUp size={16} style={{ display: 'inline', marginRight: 6, verticalAlign: 'text-bottom' }} />
                 Milestones ({contract.milestones.length})
               </h3>
-              <Link href={`/dashboard/contratos/${id}/milestones`} className="btn btn-ghost btn-sm">
+              <Link href={`/dashboard/contratos/${id}#milestones`} className="btn btn-ghost btn-sm">
                 Ver todos
               </Link>
             </div>

@@ -2,8 +2,9 @@ import { auth } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { formatDate, formatDateTime, getWeatherIcon, getWeatherLabel } from '@/lib/utils'
 import { redirect } from 'next/navigation'
+import Link from 'next/link'
 import { canAccessFieldDiary } from '@/lib/rbac'
-import { Camera, CloudSun, Users, Lock, BookOpen, AlertTriangle } from 'lucide-react'
+import { Camera, CloudSun, Users, Lock, BookOpen, AlertTriangle, ArrowLeft } from 'lucide-react'
 import CreateDailyLogForm from './CreateDailyLogForm'
 
 interface PageProps {
@@ -145,28 +146,64 @@ export default async function DiarioPage({ params }: PageProps) {
           font-size: 0.75rem;
           font-weight: 600;
         }
+        .contract-tabs {
+          display: flex;
+          gap: 4px;
+          border-bottom: 1px solid var(--border-color);
+          padding-bottom: 1px;
+          margin-bottom: 24px;
+        }
+        .contract-tab {
+          padding: 10px 16px;
+          font-size: 0.875rem;
+          font-weight: 500;
+          color: var(--text-secondary);
+          text-decoration: none;
+          border-bottom: 2px solid transparent;
+          transition: all var(--transition-fast);
+          margin-bottom: -1px;
+        }
+        .contract-tab:hover {
+          color: var(--text-primary);
+        }
+        .contract-tab.active {
+          color: var(--color-primary);
+          border-bottom-color: var(--color-primary);
+          font-weight: 600;
+        }
         @media (max-width: 900px) {
           .diario-layout { grid-template-columns: 1fr; }
         }
       `}</style>
 
       <div className="animate-fade-in">
-        {/* Page Header */}
-        <div className="page-header">
-          <div>
-            <div className="flex items-center gap-2 mb-2">
+        {/* Back + Title */}
+        <div style={{ display: 'flex', alignItems: 'flex-start', gap: 16, marginBottom: 20 }}>
+          <Link href="/dashboard/contratos" className="btn btn-ghost btn-sm btn-icon" style={{ marginTop: 4 }}>
+            <ArrowLeft size={18} />
+          </Link>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div className="flex items-center gap-2 mb-1">
               <span className="badge badge-info-dark" style={{ fontSize: '0.7rem', letterSpacing: '0.06em' }}>
                 DIÁRIO DE OBRAS
               </span>
             </div>
-            <h1 className="page-title" style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-              <BookOpen size={26} style={{ color: 'var(--color-primary)', flexShrink: 0 }} />
-              Diário de Campo
-            </h1>
-            <p className="page-subtitle" style={{ marginTop: 6, maxWidth: 520 }}>
+            <h1 style={{ margin: 0, fontSize: '1.35rem', fontWeight: 800, color: 'var(--text-primary)', lineHeight: 1.2 }}>
               {contract.title}
+            </h1>
+            <p style={{ margin: 0, fontSize: '0.8rem', color: 'var(--text-muted)' }}>
+              Contrato N. {contract.number}
             </p>
           </div>
+        </div>
+
+        {/* Tab navigation */}
+        <div className="contract-tabs">
+          <Link href={`/dashboard/contratos/${id}`} className="contract-tab">Visao Geral</Link>
+          <Link href={`/dashboard/contratos/${id}/diario`} className="contract-tab active">Diario</Link>
+          <Link href={`/dashboard/contratos/${id}/medicoes`} className="contract-tab">Medicoes</Link>
+          <Link href={`/dashboard/contratos/${id}#milestones`} className="contract-tab">Milestones</Link>
+          <Link href={`/dashboard/contratos/${id}/medicoes#garantias`} className="contract-tab">Garantias</Link>
         </div>
 
         {/* Progress bar widget */}

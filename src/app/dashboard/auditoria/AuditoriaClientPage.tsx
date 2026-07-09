@@ -234,16 +234,52 @@ export default function AuditoriaClientPage({ initialLogs }: { initialLogs: any[
                 )}
 
                 <div className="detail-item full-width">
-                  <span className="detail-label">Metadados do Evento (JSON)</span>
-                  <pre className="metadata-json">
+                  <span className="detail-label">Informações Adicionais</span>
+                  <div className="metadata-container bg-elevated">
                     {(() => {
                       try {
-                        return JSON.stringify(JSON.parse(selectedLog.metadata), null, 2)
+                        const meta = JSON.parse(selectedLog.metadata)
+                        const keys = Object.keys(meta)
+                        if (keys.length === 0) return <span className="text-muted text-xs">Nenhuma informação extra registrada.</span>
+                        
+                        const translateKey = (k: string) => {
+                          const dict: Record<string, string> = {
+                            ip: 'Endereço IP',
+                            amount: 'Valor Relacionado',
+                            period: 'Período de Referência',
+                            decision: 'Parecer / Decisão',
+                            note: 'Notas / Justificativa',
+                            nfNumber: 'Número da Nota Fiscal',
+                            date: 'Data informada',
+                            weather: 'Clima lançado',
+                          }
+                          return dict[k] || k.charAt(0).toUpperCase() + k.slice(1)
+                        }
+
+                        const formatValue = (k: string, v: any) => {
+                          if (k === 'amount' && typeof v === 'number') {
+                            return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(v)
+                          }
+                          if (v === null || v === undefined) return '—'
+                          if (typeof v === 'object') return JSON.stringify(v)
+                          return String(v)
+                        }
+
+                        return (
+                          <div className="meta-list">
+                            {keys.map((k) => (
+                              <div key={k} className="meta-row">
+                                <span className="meta-key">{translateKey(k)}</span>
+                                <span className="meta-value">{formatValue(k, meta[k])}</span>
+                              </div>
+                            ))}
+                          </div>
+                        )
                       } catch (e) {
-                        return selectedLog.metadata
+                        return <span className="text-primary text-xs font-mono">{selectedLog.metadata}</span>
                       }
                     })()}
-                  </pre>
+                  </div>
                 </div>
               </div>
             </div>
@@ -348,18 +384,46 @@ export default function AuditoriaClientPage({ initialLogs }: { initialLogs: any[
           border: 1px solid var(--border-color);
         }
 
-        .metadata-json {
-          background: #090d16;
+        .metadata-container {
           border: 1px solid var(--border-color);
           border-radius: var(--radius-md);
           padding: 12px;
-          font-family: var(--font-mono);
-          font-size: 0.725rem;
-          color: #a5b4fc;
           max-height: 180px;
           overflow-y: auto;
-          white-space: pre-wrap;
-          word-break: break-all;
+        }
+
+        .meta-list {
+          display: flex;
+          flex-direction: column;
+          gap: 10px;
+        }
+
+        .meta-row {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          gap: 12px;
+          border-bottom: 1px dashed var(--border-color);
+          padding-bottom: 6px;
+        }
+
+        .meta-row:last-child {
+          border-bottom: none;
+          padding-bottom: 0;
+        }
+
+        .meta-key {
+          font-size: 0.725rem;
+          color: var(--text-muted);
+          font-weight: 500;
+        }
+
+        .meta-value {
+          font-size: 0.75rem;
+          color: var(--text-primary);
+          font-weight: 600;
+          font-family: var(--font-mono);
+          text-align: right;
         }
 
         @media (max-width: 500px) {

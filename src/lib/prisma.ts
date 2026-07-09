@@ -9,10 +9,7 @@ const globalForPrisma = globalThis as unknown as {
 
 function createPrismaClient() {
   const dbPath = path.join(process.cwd(), 'prisma/dev.db')
-  const libsql = createClient({
-    url: `file:${dbPath}`,
-  })
-  const adapter = new PrismaLibSql(libsql)
+  const adapter = new PrismaLibSql({ url: `file:${dbPath}` })
   return new PrismaClient({
     adapter,
     log: process.env.NODE_ENV === 'development' ? ['error', 'warn'] : ['error'],

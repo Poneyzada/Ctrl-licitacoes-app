@@ -8,7 +8,7 @@ export interface RoutePermission {
 export const ROUTE_PERMISSIONS: Record<string, RoutePermission> = {
   '/dashboard': { allowedRoles: ['DIRETORIA', 'COORDENADOR', 'OPERADOR_CAMPO', 'OPERADOR_ADM'] },
   '/dashboard/licitacoes': { allowedRoles: ['DIRETORIA', 'COORDENADOR'] },
-  '/dashboard/contratos': { allowedRoles: ['DIRETORIA', 'COORDENADOR'] },
+  '/dashboard/contratos': { allowedRoles: ['DIRETORIA', 'COORDENADOR', 'OPERADOR_CAMPO', 'OPERADOR_ADM'] },
   '/dashboard/auditoria': { allowedRoles: ['DIRETORIA'] },
   '/dashboard/tarefas': { allowedRoles: ['DIRETORIA', 'COORDENADOR', 'OPERADOR_CAMPO', 'OPERADOR_ADM'] },
 }

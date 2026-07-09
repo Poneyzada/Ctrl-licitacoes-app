@@ -44,7 +44,7 @@ const navItems: NavItem[] = [
     href: '/dashboard/contratos',
     label: 'Contratos',
     icon: <FolderOpen size={20} />,
-    allowedRoles: ['DIRETORIA', 'COORDENADOR'],
+    allowedRoles: ['DIRETORIA', 'COORDENADOR', 'OPERADOR_CAMPO', 'OPERADOR_ADM'],
   },
   {
     href: '/dashboard/tarefas',

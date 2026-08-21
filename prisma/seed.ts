@@ -1,18 +1,15 @@
 import 'dotenv/config'
 import { PrismaClient } from '@prisma/client'
-import { PrismaLibSql } from '@prisma/adapter-libsql'
-import { createClient } from '@libsql/client'
-import path from 'path'
 import bcrypt from 'bcryptjs'
 
-const dbPath = path.join(process.cwd(), 'prisma/dev.db')
-const adapter = new PrismaLibSql({ url: `file:${dbPath}` })
-const prisma = new PrismaClient({ adapter } as any)
+const prisma = new PrismaClient()
 
 async function main() {
-  console.log('🌱 Iniciando seed...')
+  console.log('🌱 Iniciando seed do LicitaControl...')
 
-  // Limpar dados existentes
+  // Limpar dados na ordem correta (FK)
+  await prisma.notificacao.deleteMany().catch(() => {})
+  await prisma.calendarEvent.deleteMany().catch(() => {})
   await prisma.auditLog.deleteMany()
   await prisma.task.deleteMany()
   await prisma.guarantee.deleteMany()
@@ -24,8 +21,56 @@ async function main() {
   await prisma.contractAssignment.deleteMany()
   await prisma.contract.deleteMany()
   await prisma.user.deleteMany()
+  await prisma.acervoMatch.deleteMany().catch(() => {})
+  await prisma.acervoTecnico.deleteMany().catch(() => {})
+  await prisma.complianceDocument.deleteMany().catch(() => {})
+  await prisma.platformRegistration.deleteMany().catch(() => {})
+  await prisma.equipeLicitacao.deleteMany().catch(() => {})
+  await prisma.professional.deleteMany().catch(() => {})
+  await prisma.tenderFollowup.deleteMany().catch(() => {})
+  await prisma.recursoCaso.deleteMany().catch(() => {})
+  await prisma.requisito.deleteMany().catch(() => {})
+  await prisma.analiseEdital.deleteMany().catch(() => {})
+  await prisma.editalVersion.deleteMany().catch(() => {})
+  await prisma.licitacaoDocumento.deleteMany().catch(() => {})
+  await prisma.consorcioMembro.deleteMany().catch(() => {})
+  await prisma.consorcio.deleteMany().catch(() => {})
+  await prisma.licitacao.deleteMany().catch(() => {})
+  await prisma.organization.deleteMany().catch(() => {})
 
   const hash = await bcrypt.hash('123456', 12)
+
+  // ─── ORGANIZAÇÕES ────────────────────────────────────────────────
+  const ufc = await prisma.organization.create({
+    data: {
+      name: 'UFC Engenharia Ltda',
+      tradeName: 'UFC Engenharia',
+      cnpj: '12.345.678/0001-90',
+      type: 'PROPRIA',
+      email: 'contato@ufcengenharia.com.br',
+      phone: '(85) 3333-4444',
+      address: 'Rua das Engenharias, 100',
+      city: 'Fortaleza',
+      state: 'CE',
+    },
+  })
+
+  const portico = await prisma.organization.create({
+    data: {
+      name: 'Pórtico Construções e Serviços Ltda',
+      tradeName: 'Pórtico Construções',
+      cnpj: '98.765.432/0001-10',
+      type: 'PROPRIA',
+      email: 'contato@porticoconstrucoes.com.br',
+      phone: '(85) 3333-5555',
+      address: 'Av. das Construções, 500',
+      city: 'Fortaleza',
+      state: 'CE',
+    },
+  })
+
+  console.log(`✅ Organizações criadas: ${ufc.tradeName} + ${portico.tradeName}`)
+  void portico // usado implicitamente acima
 
   // Criar usuários
   const diretoria = await prisma.user.create({

@@ -1,21 +1,164 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
+// datasource
 generator client {
   provider = "prisma-client-js"
 }
 
 datasource db {
-  provider = "sqlite"
+  provider = "postgresql"
 }
 
-enum Role {
-  DIRETORIA
+enum UserRole {
+  OPERADOR
   COORDENADOR
+  DIRETOR
+  MANUTENCAO_MASTER
+  // Keep legacy for migration compat
+  DIRETORIA
   OPERADOR_CAMPO
   OPERADOR_ADM
 }
 
+enum OrgType {
+  PROPRIA
+  PARCEIRA
+  CONSORCIO
+}
+
+enum LicitacaoStatus {
+  PROSPECCAO
+  EM_ANALISE
+  APROVADA
+  ATENCAO
+  EM_DIA
+  EM_DISPUTA
+  ACOMPANHANDO_RESULTADO
+  FINALIZADA
+  ENCERRADA
+  DESCARTADA
+  PERDIDA
+}
+
+enum LicitacaoModalidade {
+  CONCORRENCIA_ELETRONICA
+  LICITACAO_PRESENCIAL
+  CHAMAMENTO
+  PREGAO_ELETRONICO
+  DISPENSA
+}
+
+enum TipoServico {
+  ELABORACAO_PROJETOS
+  PROJETO_INFRAESTRUTURA
+  CONTRATACAO_INTEGRADA
+  EXECUCAO
+  EXECUCAO_INFRAESTRUTURA
+  SERVICOS_HIDRICOS
+  FISCALIZACAO
+  ASSESSORAMENTO
+  GERENCIAMENTO
+  MANUTENCAO
+  SUPERVISAO
+}
+
+enum LicitacaoFase {
+  CAPTACAO
+  TRIAGEM
+  HABILITACAO
+  PROPOSTA_TECNICA
+  PROPOSTA_COMERCIAL
+  DISPUTA
+  RECURSO
+  ADJUDICACAO
+  HOMOLOGACAO
+  CONTRATACAO
+  ENCERRAMENTO
+}
+
+enum DocumentoStatus {
+  AGUARDANDO
+  PROCESSANDO
+  EXTRAIDO
+  REQUER_OCR
+  ANALISADO
+  FALHOU
+}
+
+enum DocumentoCategoria {
+  EDITAL
+  RETIFICACAO
+  ESCLARECIMENTO
+  IMPUGNACAO_DECISAO
+  SUSPENSAO
+  SINE_DIE
+  REABERTURA
+  CONSOLIDACAO
+  ATA_RESULTADO
+  HABILITACAO
+  PROPOSTA_TECNICA
+  PROPOSTA_COMERCIAL
+  ADVERSARIO
+  DILIGENCIA_RECURSO
+  CONTRATO
+  OUTROS
+}
+
+enum RiscoGravidade {
+  BAIXO
+  MEDIO
+  ALTO
+  CRITICO
+}
+
+enum RecursoTipo {
+  IMPUGNACAO
+  ESCLARECIMENTO
+  INTENCAO_RECURSAL
+  RECURSO
+  CONTRARRAZOES
+  DILIGENCIA
+  JULGAMENTO
+}
+
+enum NotificacaoCategoria {
+  URGENTE
+  PRAZO
+  DOCUMENTO
+  GERAL
+}
+
+enum EventoTipo {
+  SESSAO_PUBLICA
+  IMPUGNACAO
+  ESCLARECIMENTO
+  VISITA
+  ENTREGA
+  DILIGENCIA
+  RECURSO
+  CONTRARRAZOES
+  DECISAO
+  CERTIDAO
+  DOCUMENTO
+  PLATAFORMA
+  MUDANCA_EDITAL
+  POS_JULGAMENTO
+}
+
+enum FollowupFase {
+  PENDENTE
+  EM_ELABORACAO
+  PROTOCOLADO
+  CONCLUIDO
+}
+
+enum VinculoProfissional {
+  CLT
+  PJ
+  AUTONOMO
+  SOCIO
+  PARCEIRO
+}
+
+// Keep old enums for backward compat
 enum ContractStatus {
   ATIVO
   CONCLUIDO
@@ -70,7 +213,7 @@ model User {
   name          String
   email         String   @unique
   passwordHash  String
-  role          Role
+  role          UserRole
   avatarUrl     String?
   active        Boolean  @default(true)
   createdAt     DateTime @default(now())
@@ -83,6 +226,16 @@ model User {
   tasksAssigned       Task[]               @relation("TaskAssignee")
   auditLogs           AuditLog[]
   tenderDecisions     Tender[]             @relation("TenderDecision")
+
+  notificacoes        Notificacao[]        @relation("UserNotificacoes")
+  licitacoesResp      Licitacao[]          @relation("LicitacaoResponsavel")
+  licitacoesCriadas   Licitacao[]          @relation("LicitacaoCriador")
+  documentosUpload    LicitacaoDocumento[] @relation("DocUploader")
+  editalVersions      EditalVersion[]      @relation("EditalVersionCriador")
+  analisesCriadas     AnaliseEdital[]      @relation("AnaliseCriador")
+  analisesConfirmadas AnaliseEdital[]      @relation("AnaliseConfirmador")
+  eventosCalendario   CalendarEvent[]      @relation("EventoCriador")
+  complianceUploads   ComplianceDocument[] @relation("ComplianceUploader")
 
   @@map("users")
 }
@@ -277,4 +430,487 @@ model AuditLog {
   contract Contract? @relation(fields: [contractId], references: [id])
 
   @@map("audit_logs")
+}
+
+// ─── ORGANIZATION (UFC, Pórtico, Parceiras, Consórcios) ───
+model Organization {
+  id          String   @id @default(cuid())
+  name        String
+  tradeName   String?
+  cnpj        String?  @unique
+  type        OrgType  @default(PROPRIA)
+  email       String?
+  phone       String?
+  address     String?
+  city        String?
+  state       String?
+  active      Boolean  @default(true)
+  notes       String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  deletedAt   DateTime?
+
+  licitacoes        Licitacao[]       @relation("OrgLicitacao")
+  acervo            AcervoTecnico[]
+  profissionais     Professional[]
+  consorcioMembros  ConsorcioMembro[]
+  platformRegs      PlatformRegistration[]
+  complianceDocs    ComplianceDocument[]
+
+  @@map("organizations")
+}
+
+// ─── CONSÓRCIO ───
+model Consorcio {
+  id          String   @id @default(cuid())
+  name        String
+  tcccUrl     String?
+  notes       String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  licitacoes Licitacao[]
+  membros    ConsorcioMembro[]
+
+  @@map("consorcios")
+}
+
+model ConsorcioMembro {
+  id           String  @id @default(cuid())
+  consorcioId  String
+  orgId        String
+  percentual   Float
+  isLider      Boolean @default(false)
+  responsabilidade String?
+  createdAt    DateTime @default(now())
+
+  consorcio   Consorcio    @relation(fields: [consorcioId], references: [id])
+  organization Organization @relation(fields: [orgId], references: [id])
+
+  @@map("consorcio_membros")
+}
+
+// ─── LICITACAO (nova entidade central) ───
+model Licitacao {
+  id                String             @id @default(cuid())
+  orgaoNome         String
+  orgaoUasg         String?
+  orgaoUnidade      String?
+  municipio         String?
+  uf                String?
+  modalidade        LicitacaoModalidade?
+  numero            String?
+  numeroProcesso    String?
+  pncpId            String?
+  objeto            String
+  objetoResumo      String?
+  tipoServico       TipoServico?
+  fase              LicitacaoFase      @default(CAPTACAO)
+  status            LicitacaoStatus    @default(PROSPECCAO)
+  risco             RiscoGravidade?
+  plataforma        String?
+  plataformaUrl     String?
+  dataHoraSessao    DateTime?
+  dataEsclarecimento DateTime?
+  dataImpugnacao    DateTime?
+  valorEstimado     Float?
+  orcamentoSigiloso Boolean            @default(false)
+  permiteConsorcio  Boolean            @default(false)
+  permiteSubcontrato Boolean           @default(false)
+  exigeVisita       Boolean            @default(false)
+  exigeGarantia     Boolean            @default(false)
+  organizationId    String?
+  consorcioId       String?
+  responsavelId     String?
+  fonteOrigem       String?            // AXXIA, PNCP, MANUAL
+  pncpUrl           String?
+  observacoes       String?
+  resultado         String?            // VENCEDOR, PERDIDO, DESERTO
+  vencedor          String?
+  valorFinal        Float?
+  dataResultado     DateTime?
+  deletedAt         DateTime?
+  createdBy         String?
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt
+
+  organization   Organization?         @relation("OrgLicitacao", fields: [organizationId], references: [id])
+  consorcio      Consorcio?            @relation(fields: [consorcioId], references: [id])
+  responsavel    User?                 @relation("LicitacaoResponsavel", fields: [responsavelId], references: [id])
+  criador        User?                 @relation("LicitacaoCriador", fields: [createdBy], references: [id])
+  documentos     LicitacaoDocumento[]
+  editalVersions EditalVersion[]
+  requisitos     Requisito[]
+  equipe         EquipeLicitacao[]
+  recursosCasos  RecursoCaso[]
+  followups      TenderFollowup[]
+  notificacoes   Notificacao[]
+  eventos        CalendarEvent[]
+  acervoMatches  AcervoMatch[]
+  analises       AnaliseEdital[]
+
+  @@map("licitacoes")
+}
+
+// ─── DOCUMENTOS ───
+model LicitacaoDocumento {
+  id           String            @id @default(cuid())
+  licitacaoId  String
+  categoria    DocumentoCategoria @default(OUTROS)
+  nome         String
+  mimeType     String?
+  tamanhoBytes Int?
+  storageKey   String?           // R2 / storage key
+  storageUrl   String?           // URL temporária assinada
+  status       DocumentoStatus   @default(AGUARDANDO)
+  textoExtraido String?          // texto extraído do PDF
+  ocrUsado     Boolean           @default(false)
+  ocrQualidade String?
+  adversario   String?           // nome do concorrente se categoria ADVERSARIO
+  uploadedBy   String?
+  createdAt    DateTime          @default(now())
+  updatedAt    DateTime          @updatedAt
+
+  licitacao Licitacao @relation(fields: [licitacaoId], references: [id])
+  uploader  User?     @relation("DocUploader", fields: [uploadedBy], references: [id])
+
+  @@map("licitacao_documentos")
+}
+
+// ─── EDITAL VERSIONADO ───
+model EditalVersion {
+  id           String   @id @default(cuid())
+  licitacaoId  String
+  tipoEvento   String   // ORIGINAL, RETIFICACAO, ESCLARECIMENTO, etc.
+  titulo       String
+  publicadoEm  DateTime?
+  vigencia     DateTime?
+  descricao    String?
+  efeito       String?
+  storageKey   String?
+  storageUrl   String?
+  createdBy    String?
+  createdAt    DateTime @default(now())
+
+  licitacao Licitacao @relation(fields: [licitacaoId], references: [id])
+  criador   User?     @relation("EditalVersionCriador", fields: [createdBy], references: [id])
+
+  @@map("edital_versions")
+}
+
+// ─── ANÁLISE EDITALÍCIA (Agente IA) ───
+model AnaliseEdital {
+  id              String   @id @default(cuid())
+  licitacaoId     String
+  status          String   @default("AGUARDANDO_CONFERENCIA") // AGUARDANDO_CONFERENCIA, CONFIRMADO, REJEITADO
+  resumoExecutivo String?
+  riscos          String?  // JSON
+  lacunas         String?  // JSON
+  conflitos       String?  // JSON
+  proximosPassos  String?  // JSON
+  modelVersion    String?
+  createdBy       String?
+  confirmedBy     String?
+  confirmedAt     DateTime?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  licitacao Licitacao @relation(fields: [licitacaoId], references: [id])
+  criador   User?     @relation("AnaliseCriador", fields: [createdBy], references: [id])
+  confirmador User?   @relation("AnaliseConfirmador", fields: [confirmedBy], references: [id])
+
+  @@map("analises_edital")
+}
+
+// ─── REQUISITOS EXTRAÍDOS ───
+model Requisito {
+  id           String   @id @default(cuid())
+  licitacaoId  String
+  tipo         String   // JURIDICO, FISCAL, ECONOMICO, TECNICA_OPERACIONAL, TECNICA_PROFISSIONAL, DECLARACAO
+  descricao    String
+  fonte        String?
+  obrigatorio  Boolean  @default(true)
+  validade     String?
+  responsavel  String?
+  status       String   @default("NAO_ANALISADO") // ATENDE, ATENDE_PARCIALMENTE, NAO_ATENDE, DEPENDE_DILIGENCIA, NAO_ANALISADO
+  providencia  String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  licitacao Licitacao @relation(fields: [licitacaoId], references: [id])
+
+  @@map("requisitos")
+}
+
+// ─── EQUIPE DA LICITAÇÃO ───
+model EquipeLicitacao {
+  id            String  @id @default(cuid())
+  licitacaoId   String
+  professionalId String
+  funcaoProposta String?
+  observacoes   String?
+  createdAt     DateTime @default(now())
+
+  licitacao    Licitacao    @relation(fields: [licitacaoId], references: [id])
+  professional Professional @relation(fields: [professionalId], references: [id])
+
+  @@unique([licitacaoId, professionalId])
+  @@map("equipe_licitacao")
+}
+
+// ─── PROFISSIONAIS ───
+model Professional {
+  id              String   @id @default(cuid())
+  orgId           String
+  nome            String
+  funcao          String?
+  vinculo         VinculoProfissional @default(CLT)
+  conselho        String?  // CREA, CAU, etc.
+  numeroConselho  String?
+  situacaoConselho String?
+  formacao        String?
+  grau            String?  // GRADUACAO, ESPECIALIZACAO, MESTRADO, DOUTORADO
+  instituicao     String?
+  anoConclusao    Int?
+  especializacoes String?  // JSON array
+  areasExperiencia String? // JSON array
+  resumoProfissional String?
+  ativo           Boolean  @default(true)
+  deletedAt       DateTime?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  organization Organization    @relation(fields: [orgId], references: [id])
+  equipes      EquipeLicitacao[]
+
+  @@map("profissionais")
+}
+
+// ─── ACERVO TÉCNICO ───
+model AcervoTecnico {
+  id              String   @id @default(cuid())
+  orgId           String
+  numeroAtestado  String?
+  numeroCat       String?
+  numeroContrato  String?
+  emitente        String
+  objeto          String
+  tipoServico     String?
+  servicosPrincipais String? // JSON
+  caracteristicas String?
+  quantitativos   String?  // JSON [{descricao, quantidade, unidade}]
+  areaTecnica     String?
+  local           String?
+  uf              String?
+  periodoInicio   DateTime?
+  periodoFim      DateTime?
+  responsavelTecnico String?
+  palavrasChave   String?
+  storageKey      String?  // cópia interna
+  storageUrl      String?
+  urlOrigem       String?  // Google Drive ou outro
+  sincronizadoEm  DateTime?
+  observacoes     String?
+  ativo           Boolean  @default(true)
+  deletedAt       DateTime?
+  createdBy       String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  organization Organization  @relation(fields: [orgId], references: [id])
+  matches      AcervoMatch[]
+
+  @@map("acervo_tecnico")
+}
+
+// ─── MATCH ACERVO x LICITAÇÃO ───
+model AcervoMatch {
+  id           String   @id @default(cuid())
+  licitacaoId  String
+  acervoId     String
+  requisito    String?
+  compatibilidade String? // ATENDE, ATENDE_PARCIALMENTE, NAO_ATENDE
+  justificativa String?
+  analisadoPor String?
+  analisadoEm  DateTime?
+  createdAt    DateTime @default(now())
+
+  licitacao Licitacao     @relation(fields: [licitacaoId], references: [id])
+  acervo    AcervoTecnico @relation(fields: [acervoId], references: [id])
+
+  @@map("acervo_matches")
+}
+
+// ─── DOCUMENTOS DE HABILITAÇÃO/COMPLIANCE ───
+model ComplianceDocument {
+  id          String   @id @default(cuid())
+  orgId       String?
+  professionalId String?
+  nome        String
+  tipo        String   // CND, FGTS, CERTIDAO_ESTADUAL, etc.
+  numero      String?
+  emissor     String?
+  emissao     DateTime?
+  vencimento  DateTime?
+  semVencimento Boolean @default(false)
+  storageKey  String?
+  storageUrl  String?
+  observacoes String?
+  status      String   @default("VIGENTE") // VIGENTE, VENCIDO, RENOVAR
+  uploadedBy  String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  deletedAt   DateTime?
+
+  organization Organization? @relation(fields: [orgId], references: [id])
+  uploader     User?         @relation("ComplianceUploader", fields: [uploadedBy], references: [id])
+
+  @@map("compliance_documents")
+}
+
+// ─── PLATAFORMAS ───
+model PlatformRegistration {
+  id           String   @id @default(cuid())
+  orgId        String
+  plataforma   String
+  codigo       String?
+  email        String?
+  responsavel  String?
+  validade     DateTime?
+  observacoes  String?
+  storageKey   String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  organization Organization @relation(fields: [orgId], references: [id])
+
+  @@map("platform_registrations")
+}
+
+// ─── RECURSOS & PRAZOS ───
+model RecursoCaso {
+  id           String      @id @default(cuid())
+  licitacaoId  String
+  tipo         RecursoTipo
+  posicao      String?
+  prazo        DateTime?
+  responsavel  String?
+  concorrente  String?
+  status       String      @default("ABERTO")
+  resumo       String?
+  fundamento   String?
+  proximaAcao  String?
+  setor        String?     // TECNICO, JURIDICO, LICITACOES, ORCAMENTO, DIRETORIA
+  storageKey   String?
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+
+  licitacao Licitacao @relation(fields: [licitacaoId], references: [id])
+
+  @@map("recurso_casos")
+}
+
+// ─── ACOMPANHAMENTO DE RESULTADO ───
+model TenderFollowup {
+  id            String       @id @default(cuid())
+  licitacaoId   String
+  fase          FollowupFase @default(PENDENTE)
+  tipo          String?
+  proximaAcao   String?
+  prazo         DateTime?
+  responsavel   String?
+  status        String       @default("ATIVO")
+  observacoes   String?
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+
+  licitacao Licitacao @relation(fields: [licitacaoId], references: [id])
+
+  @@map("tender_followups")
+}
+
+// ─── OPORTUNIDADES PNCP ───
+model PncpOportunidade {
+  id              String   @id @default(cuid())
+  numeroControle  String?  @unique
+  modalidade      String?
+  objeto          String
+  orgao           String?
+  municipio       String?
+  uf              String?
+  dataHoraSessao  DateTime?
+  valorEstimado   Float?
+  pncpUrl         String
+  status          String   @default("NOVA") // NOVA, RECOMENDADA, APROVADA, NEGADA, IMPORTADA
+  recomendacao    String?  // UFC, PORTICO, CONSORCIO, INDEFINIDO
+  justificativa   String?
+  captadoEm      DateTime @default(now())
+  decisaoBy      String?
+  decisaoAt      DateTime?
+  licitacaoId    String?  // se foi importada
+  createdAt      DateTime @default(now())
+
+  @@map("pncp_oportunidades")
+}
+
+// ─── EVENTOS DE CALENDÁRIO ───
+model CalendarEvent {
+  id           String     @id @default(cuid())
+  titulo       String
+  tipo         EventoTipo
+  licitacaoId  String?
+  inicio       DateTime
+  fim          DateTime?
+  responsavel  String?
+  prioridade   String     @default("NORMAL") // BAIXA, NORMAL, ALTA, URGENTE
+  localizacao  String?
+  descricao    String?
+  visibilidade String     @default("TODOS")
+  lembretes    String?    // JSON ["30min", "1dia"]
+  status       String     @default("ATIVO") // ATIVO, CANCELADO, CONCLUIDO
+  icsKey       String?    // gerado para exportação
+  createdBy    String?
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+
+  licitacao Licitacao? @relation(fields: [licitacaoId], references: [id])
+  criador   User?      @relation("EventoCriador", fields: [createdBy], references: [id])
+
+  @@map("calendar_events")
+}
+
+// ─── NOTIFICAÇÕES ───
+model Notificacao {
+  id           String                @id @default(cuid())
+  userId       String
+  categoria    NotificacaoCategoria  @default(GERAL)
+  titulo       String
+  mensagem     String
+  licitacaoId  String?
+  entidadeTipo String?
+  entidadeId   String?
+  lida         Boolean               @default(false)
+  lidaEm       DateTime?
+  createdAt    DateTime              @default(now())
+
+  user      User       @relation("UserNotificacoes", fields: [userId], references: [id])
+  licitacao Licitacao? @relation(fields: [licitacaoId], references: [id])
+
+  @@map("notificacoes")
+}
+
+// ─── AUTORIZAÇÃO DE EXCLUSÃO ───
+model DeleteAuthorization {
+  id           String   @id @default(cuid())
+  codigo       String   @unique
+  authorizadoPor String
+  usadoPor     String?
+  entidade     String
+  entidadeId   String
+  motivo       String
+  expiraEm     DateTime
+  usadoEm      DateTime?
+  createdAt    DateTime @default(now())
+
+  @@map("delete_authorizations")
 }

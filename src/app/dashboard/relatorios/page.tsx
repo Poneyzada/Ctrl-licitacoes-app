@@ -22,7 +22,7 @@ export default async function RelatoriosPage() {
   const emAnaliseCount = licitacoes.filter(l => l.status === 'EM_ANALISE').length;
 
   return (
-    <div className="animate-fade-in" style={{ maxWidth: '1400px', margin: '0 auto' }}>
+    <div className="animate-fade-in">
       {/* Header */}
       <div className="page-header" style={{ marginBottom: '24px' }}>
         <div>

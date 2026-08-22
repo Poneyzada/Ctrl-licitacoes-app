@@ -17,7 +17,7 @@ export default async function EquipePage() {
   ]);
 
   return (
-    <div className="animate-fade-in" style={{ maxWidth: '1400px', margin: '0 auto' }}>
+    <div className="animate-fade-in">
       {/* Header */}
       <div className="page-header" style={{ marginBottom: '24px' }}>
         <div>

@@ -39,7 +39,7 @@ export default async function NotificacoesPage() {
   ];
 
   return (
-    <div className="animate-fade-in" style={{ maxWidth: '1000px', margin: '0 auto' }}>
+    <div className="animate-fade-in">
       {/* Header */}
       <div className="page-header" style={{ marginBottom: '24px' }}>
         <div>

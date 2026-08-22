@@ -143,7 +143,7 @@ export default function NovaLicitacaoPage() {
             </div>
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: '1.5fr 1fr 1fr 1fr', gap: '16px', marginTop: '14px' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '16px', marginTop: '14px' }}>
             <div className="form-group">
               <label className="form-label">Código UASG / Unidade</label>
               <input name="orgaoUasg" value={formData.orgaoUasg} onChange={handleChange} className="form-control" placeholder="Ex: 925142" />

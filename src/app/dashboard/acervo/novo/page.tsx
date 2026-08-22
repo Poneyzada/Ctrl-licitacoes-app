@@ -251,7 +251,7 @@ export default function NovoAcervoPage() {
           <h3 style={{ fontSize: '1rem', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '14px', borderBottom: '1px solid var(--border-color)', paddingBottom: '8px' }}>
             4. Localização & Vigência
           </h3>
-          <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1.5fr 1.5fr', gap: '16px' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '16px' }}>
             <div className="form-group">
               <label className="form-label">Município / Local</label>
               <input 
@@ -310,10 +310,10 @@ export default function NovoAcervoPage() {
             </button>
           </div>
 
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
             {quantitativos.map((q, i) => (
-              <div key={i} style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
-                <div style={{ flex: '3' }}>
+              <div key={i} style={{ display: 'grid', gridTemplateColumns: 'minmax(200px, 3fr) minmax(100px, 1fr) minmax(90px, 1fr) auto', gap: '10px', alignItems: 'center', background: 'var(--bg-elevated)', padding: '10px 12px', borderRadius: 'var(--radius-md)' }}>
+                <div>
                   <input 
                     placeholder="Descrição do serviço (ex: Assentamento tubulação PEAD 400mm)" 
                     value={q.descricao} 
@@ -321,7 +321,7 @@ export default function NovoAcervoPage() {
                     className="form-control" 
                   />
                 </div>
-                <div style={{ flex: '1' }}>
+                <div>
                   <input 
                     placeholder="Quantidade (ex: 65.400)" 
                     value={q.quantidade} 
@@ -329,9 +329,9 @@ export default function NovoAcervoPage() {
                     className="form-control" 
                   />
                 </div>
-                <div style={{ flex: '0.8' }}>
+                <div>
                   <input 
-                    placeholder="Unidade (ex: m, m², ton)" 
+                    placeholder="Unidade (m, m², ton)" 
                     value={q.unidade} 
                     onChange={(e) => handleQuantitativoChange(i, 'unidade', e.target.value)} 
                     className="form-control" 
@@ -341,7 +341,7 @@ export default function NovoAcervoPage() {
                   type="button" 
                   onClick={() => removeQuantitativo(i)}
                   className="btn btn-ghost btn-sm"
-                  style={{ color: '#f87171', padding: '8px' }}
+                  style={{ color: '#f87171', padding: '6px' }}
                   title="Remover linha"
                 >
                   <Trash2 size={16} />

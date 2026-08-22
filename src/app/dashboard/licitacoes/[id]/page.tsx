@@ -36,7 +36,7 @@ export default async function LicitacaoDetailsPage({
   if (!licitacao) notFound();
 
   return (
-    <div className="animate-fade-in" style={{ maxWidth: '1400px', margin: '0 auto' }}>
+    <div className="animate-fade-in">
       {/* Detail Page Header */}
       <div className="page-header" style={{ marginBottom: '20px' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>

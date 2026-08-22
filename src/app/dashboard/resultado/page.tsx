@@ -2,40 +2,48 @@
 
 import React, { useState, useEffect } from 'react';
 import { 
-  Kanban, Plus, Clock, AlertCircle, CheckCircle, 
-  ArrowRight, Search, GripVertical 
+  Kanban, Plus, Clock, AlertCircle, CheckCircle2, 
+  ArrowRight, ArrowLeft, Search, Loader2, X, Save, Building2, DollarSign
 } from 'lucide-react';
-
-type Followup = {
-  id: string;
-  licitacaoId: string;
-  fase: string;
-  tipo: string;
-  proximaAcao: string;
-  prazo: string | null;
-  responsavel: string;
-  status: string;
-  licitacao: {
-    orgaoNome: string;
-    numero: string;
-    modalidade: string;
-    valorEstimado: number | null;
-  };
-};
+import { formatCurrency, formatDate } from '@/lib/utils';
 
 const KANBAN_COLUMNS = [
-  { id: 'PENDENTE', title: 'Pendente', color: 'border-yellow-500', bg: 'bg-yellow-500/10' },
-  { id: 'EM_ELABORACAO', title: 'Em Elaboração', color: 'border-blue-500', bg: 'bg-blue-500/10' },
-  { id: 'PROTOCOLADO', title: 'Protocolado', color: 'border-purple-500', bg: 'bg-purple-500/10' },
-  { id: 'CONCLUIDO', title: 'Concluído', color: 'border-green-500', bg: 'bg-green-500/10' },
+  { id: 'PENDENTE', title: 'Pendente', color: '#fbbf24', bg: 'rgba(245, 158, 11, 0.1)', border: 'rgba(245, 158, 11, 0.3)' },
+  { id: 'EM_ELABORACAO', title: 'Em Elaboração', color: '#60a5fa', bg: 'rgba(59, 130, 246, 0.1)', border: 'rgba(59, 130, 246, 0.3)' },
+  { id: 'PROTOCOLADO', title: 'Protocolado', color: '#c084fc', bg: 'rgba(168, 85, 247, 0.1)', border: 'rgba(168, 85, 247, 0.3)' },
+  { id: 'CONCLUIDO', title: 'Concluído', color: '#34d399', bg: 'rgba(34, 197, 94, 0.1)', border: 'rgba(34, 197, 94, 0.3)' },
 ];
 
 export default function ResultadoPage() {
-  const [followups, setFollowups] = useState<Followup[]>([]);
+  const [followups, setFollowups] = useState<any[]>([]);
+  const [licitacoes, setLicitacoes] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
 
+  // Modal State
+  const [modalOpen, setModalOpen] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [newItem, setNewItem] = useState({
+    licitacaoId: '',
+    tipo: 'PROPOSTA_AJUSTADA',
+    fase: 'PENDENTE',
+    proximaAcao: '',
+    prazo: '',
+    responsavel: '',
+    observacoes: ''
+  });
+
   useEffect(() => {
+    fetch('/api/licitacoes')
+      .then(res => res.json())
+      .then(data => {
+        setLicitacoes(data);
+        if (data.length > 0) {
+          setNewItem(prev => ({ ...prev, licitacaoId: data[0].id }));
+        }
+      })
+      .catch(console.error);
+
     fetchFollowups();
   }, []);
 
@@ -69,206 +77,381 @@ export default function ResultadoPage() {
     }
   };
 
+  const handleCreateFollowup = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newItem.licitacaoId || !newItem.proximaAcao) {
+      alert('Preencha os campos obrigatórios.');
+      return;
+    }
+
+    setSaving(true);
+    try {
+      const res = await fetch('/api/resultado', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(newItem)
+      });
+      if (res.ok) {
+        setModalOpen(false);
+        setNewItem({
+          licitacaoId: licitacoes[0]?.id || '',
+          tipo: 'PROPOSTA_AJUSTADA',
+          fase: 'PENDENTE',
+          proximaAcao: '',
+          prazo: '',
+          responsavel: '',
+          observacoes: ''
+        });
+        fetchFollowups();
+      } else {
+        alert('Erro ao salvar item.');
+      }
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setSaving(false);
+    }
+  };
+
   const filtered = followups.filter(f => {
     if (!search) return true;
     const t = search.toLowerCase();
     return (
       f.licitacao?.orgaoNome?.toLowerCase().includes(t) ||
       f.licitacao?.numero?.toLowerCase().includes(t) ||
-      f.responsavel?.toLowerCase().includes(t)
+      f.responsavel?.toLowerCase().includes(t) ||
+      f.proximaAcao?.toLowerCase().includes(t)
     );
   });
 
   const getItemsByColumn = (colId: string) => filtered.filter(f => f.fase === colId);
 
+  const getNextPhase = (current: string) => {
+    const idx = KANBAN_COLUMNS.findIndex(c => c.id === current);
+    if (idx !== -1 && idx < KANBAN_COLUMNS.length - 1) {
+      return KANBAN_COLUMNS[idx + 1].id;
+    }
+    return null;
+  };
+
+  const getPrevPhase = (current: string) => {
+    const idx = KANBAN_COLUMNS.findIndex(c => c.id === current);
+    if (idx > 0) {
+      return KANBAN_COLUMNS[idx - 1].id;
+    }
+    return null;
+  };
+
   return (
-    <div className="p-6 h-full flex flex-col">
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-8">
+    <div className="animate-fade-in" style={{ maxWidth: '1500px', margin: '0 auto' }}>
+      {/* Header */}
+      <div className="page-header" style={{ marginBottom: '24px' }}>
         <div>
-          <h1 className="text-2xl font-bold flex items-center gap-2">
-            <Kanban className="text-purple-500" />
-            Acompanhando Resultado
+          <h1 className="page-title" style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <Kanban size={26} style={{ color: 'var(--color-primary)' }} />
+            Acompanhamento de Resultado (Kanban Pós-Disputa)
           </h1>
-          <p className="text-muted-foreground mt-1 text-sm">
-            Kanban pós-disputa: documentação, homologação e contratação.
+          <p className="page-subtitle">
+            Fluxo ágil pós-sessão pública: adequação de propostas, homologação e assinatura de contrato
           </p>
         </div>
-        <div className="flex gap-3">
-          <div className="relative">
-            <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+
+        <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+          <div style={{ position: 'relative', width: '260px' }}>
+            <Search size={16} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
             <input 
               type="text" 
-              placeholder="Buscar..."
-              className="input pl-9"
-              value={search}
-              onChange={e => setSearch(e.target.value)}
+              value={search} 
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Buscar no Kanban..." 
+              className="form-control"
+              style={{ paddingLeft: '38px', height: '40px', width: '100%' }}
             />
           </div>
-          <button className="btn btn-primary flex items-center gap-2">
-            <Plus size={16} /> Nova Etapa
+
+          <button 
+            onClick={() => setModalOpen(true)}
+            className="btn btn-primary" 
+            style={{ display: 'flex', alignItems: 'center', gap: '8px' }}
+          >
+            <Plus size={18} />
+            Nova Ação
           </button>
         </div>
       </div>
 
+      {/* Kanban Board Grid */}
       {loading ? (
-        <div className="flex-1 flex items-center justify-center text-muted-foreground">
-          Carregando kanban...
+        <div style={{ textAlign: 'center', padding: '80px 0' }}>
+          <Loader2 size={36} className="animate-spin" style={{ margin: '0 auto 12px', color: 'var(--color-primary)' }} />
+          <p style={{ color: 'var(--text-secondary)' }}>Carregando quadro Kanban...</p>
         </div>
       ) : (
-        <div className="flex-1 overflow-x-auto">
-          <div className="flex gap-6 min-w-max h-full pb-4">
-            {KANBAN_COLUMNS.map(col => (
-              <div key={col.id} className="kanban-column">
-                <div className={`kanban-header ${col.bg} border-t-2 ${col.color}`}>
-                  <h3 className="font-semibold">{col.title}</h3>
-                  <span className="kanban-count">{getItemsByColumn(col.id).length}</span>
+        <div style={{ 
+          display: 'grid', 
+          gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', 
+          gap: '18px',
+          alignItems: 'start'
+        }}>
+          {KANBAN_COLUMNS.map((col) => {
+            const items = getItemsByColumn(col.id);
+
+            return (
+              <div 
+                key={col.id}
+                style={{
+                  background: 'var(--bg-surface)',
+                  border: '1px solid var(--border-color)',
+                  borderRadius: 'var(--radius-lg)',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  maxHeight: 'calc(100vh - 220px)',
+                  overflow: 'hidden'
+                }}
+              >
+                {/* Column Header */}
+                <div style={{ 
+                  padding: '16px 18px', 
+                  borderBottom: `2px solid ${col.color}`,
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  background: 'rgba(255,255,255,0.02)'
+                }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: col.color }} />
+                    <h3 style={{ fontSize: '0.95rem', fontWeight: 700, color: 'var(--text-primary)' }}>
+                      {col.title}
+                    </h3>
+                  </div>
+                  <span style={{ 
+                    fontSize: '0.75rem', 
+                    fontWeight: 700, 
+                    padding: '2px 8px', 
+                    borderRadius: 'var(--radius-full)', 
+                    background: col.bg, 
+                    color: col.color 
+                  }}>
+                    {items.length}
+                  </span>
                 </div>
-                
-                <div className="kanban-body">
-                  {getItemsByColumn(col.id).map(item => (
-                    <div key={item.id} className="kanban-card group">
-                      <div className="flex justify-between items-start mb-2">
-                        <div className="flex items-center gap-1 text-xs text-muted-foreground font-medium">
-                          <GripVertical size={14} className="opacity-0 group-hover:opacity-100 cursor-grab" />
-                          {item.licitacao?.numero}
-                        </div>
-                        {item.prazo && (
-                          <div className="flex items-center gap-1 text-xs text-red-400 bg-red-400/10 px-2 py-0.5 rounded-full">
-                            <Clock size={12} />
-                            {new Date(item.prazo).toLocaleDateString()}
-                          </div>
-                        )}
-                      </div>
-                      
-                      <h4 className="font-medium text-sm mb-1">{item.licitacao?.orgaoNome}</h4>
-                      
-                      {item.licitacao?.valorEstimado && (
-                        <p className="text-xs text-green-400 font-medium mb-3">
-                          {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(item.licitacao.valorEstimado)}
-                        </p>
-                      )}
-                      
-                      <div className="bg-background rounded p-2 text-xs text-muted-foreground mb-3 line-clamp-2">
-                        <strong>Próxima ação:</strong> {item.proximaAcao || 'Não definida'}
-                      </div>
-                      
-                      <div className="flex justify-between items-center mt-auto pt-2 border-t border-border">
-                        <div className="flex items-center gap-1">
-                          <div className="w-6 h-6 rounded-full bg-blue-500/20 text-blue-400 flex items-center justify-center text-xs font-bold" title={item.responsavel}>
-                            {item.responsavel ? item.responsavel.substring(0, 2).toUpperCase() : '--'}
-                          </div>
-                        </div>
-                        
-                        <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                          <select 
-                            className="text-xs bg-surface border border-border rounded px-1"
-                            value={item.fase}
-                            onChange={(e) => updatePhase(item.id, e.target.value)}
-                          >
-                            {KANBAN_COLUMNS.map(c => (
-                              <option key={c.id} value={c.id}>{c.title}</option>
-                            ))}
-                          </select>
-                        </div>
-                      </div>
+
+                {/* Column Body */}
+                <div style={{ padding: '14px', display: 'flex', flexDirection: 'column', gap: '12px', overflowY: 'auto', flex: 1 }}>
+                  {items.length === 0 ? (
+                    <div style={{ textAlign: 'center', padding: '30px 10px', color: 'var(--text-muted)', fontSize: '0.82rem' }}>
+                      Nenhum item nesta fase
                     </div>
-                  ))}
-                  
-                  {getItemsByColumn(col.id).length === 0 && (
-                    <div className="text-center p-4 border-2 border-dashed border-border rounded-lg text-sm text-muted-foreground">
-                      Nenhum item
-                    </div>
+                  ) : (
+                    items.map((item) => {
+                      const next = getNextPhase(item.fase);
+                      const prev = getPrevPhase(item.fase);
+
+                      return (
+                        <div 
+                          key={item.id}
+                          className="kanban-item"
+                          style={{
+                            background: 'var(--bg-elevated)',
+                            border: '1px solid var(--border-color)',
+                            borderRadius: 'var(--radius-md)',
+                            padding: '14px',
+                            display: 'flex',
+                            flexDirection: 'column',
+                            gap: '8px',
+                            transition: 'all var(--transition-fast)'
+                          }}
+                        >
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <span style={{ fontSize: '0.7rem', fontWeight: 600, padding: '2px 6px', borderRadius: 'var(--radius-sm)', background: 'rgba(255,255,255,0.06)', color: 'var(--text-secondary)' }}>
+                              {item.tipo}
+                            </span>
+                            {item.prazo && (
+                              <span style={{ fontSize: '0.72rem', color: '#fbbf24', display: 'flex', alignItems: 'center', gap: '3px' }}>
+                                <Clock size={11} /> {formatDate(new Date(item.prazo))}
+                              </span>
+                            )}
+                          </div>
+
+                          <h4 style={{ fontSize: '0.9rem', fontWeight: 700, color: 'var(--text-primary)', lineHeight: 1.3 }}>
+                            {item.licitacao?.orgaoNome}
+                          </h4>
+
+                          <p style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', lineHeight: 1.4 }}>
+                            {item.proximaAcao}
+                          </p>
+
+                          <div style={{ 
+                            display: 'flex', 
+                            justifyContent: 'space-between', 
+                            alignItems: 'center', 
+                            fontSize: '0.75rem', 
+                            color: 'var(--text-muted)',
+                            borderTop: '1px solid var(--border-color)',
+                            paddingTop: '8px',
+                            marginTop: '4px'
+                          }}>
+                            <span>{item.responsavel || 'Equipe'}</span>
+
+                            <div style={{ display: 'flex', gap: '4px' }}>
+                              {prev && (
+                                <button 
+                                  onClick={() => updatePhase(item.id, prev)}
+                                  className="btn btn-ghost btn-sm"
+                                  style={{ padding: '2px 6px', fontSize: '0.72rem' }}
+                                  title="Mover para fase anterior"
+                                >
+                                  <ArrowLeft size={12} />
+                                </button>
+                              )}
+
+                              {next && (
+                                <button 
+                                  onClick={() => updatePhase(item.id, next)}
+                                  className="btn btn-secondary btn-sm"
+                                  style={{ padding: '2px 8px', fontSize: '0.72rem', display: 'flex', alignItems: 'center', gap: '3px' }}
+                                  title="Avançar para próxima fase"
+                                >
+                                  Avançar <ArrowRight size={12} />
+                                </button>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })
                   )}
                 </div>
               </div>
-            ))}
+            );
+          })}
+        </div>
+      )}
+
+      {/* Modal Nova Ação */}
+      {modalOpen && (
+        <div style={{
+          position: 'fixed',
+          inset: 0,
+          background: 'rgba(0, 0, 0, 0.8)',
+          backdropFilter: 'blur(4px)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 999,
+          padding: '20px'
+        }}>
+          <div className="card" style={{ maxWidth: '580px', width: '100%', maxHeight: '90vh', overflowY: 'auto' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <Kanban size={20} style={{ color: 'var(--color-primary)' }} />
+                <h3 style={{ fontSize: '1.2rem', fontWeight: 700 }}>Nova Ação Pós-Disputa</h3>
+              </div>
+              <button onClick={() => setModalOpen(false)} className="btn btn-ghost btn-sm" style={{ padding: '4px' }}>
+                <X size={20} />
+              </button>
+            </div>
+
+            <form onSubmit={handleCreateFollowup} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+              <div className="form-group">
+                <label className="form-label">Licitação Vencedora / Alvo *</label>
+                <select 
+                  value={newItem.licitacaoId} 
+                  onChange={(e) => setNewItem({ ...newItem, licitacaoId: e.target.value })}
+                  className="form-control"
+                  required
+                >
+                  <option value="">Selecione a licitação...</option>
+                  {licitacoes.map(lic => (
+                    <option key={lic.id} value={lic.id}>
+                      {lic.orgaoNome} (Edital nº {lic.numero || 'S/N'})
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px' }}>
+                <div className="form-group">
+                  <label className="form-label">Tipo de Ação</label>
+                  <select 
+                    value={newItem.tipo} 
+                    onChange={(e) => setNewItem({ ...newItem, tipo: e.target.value })}
+                    className="form-control"
+                  >
+                    <option value="PROPOSTA_AJUSTADA">Proposta Ajustada ao Lance</option>
+                    <option value="HABILITACAO_DOCUMENTAL">Envio de Documentação</option>
+                    <option value="HOMOLOGACAO">Acompanhar Homologação</option>
+                    <option value="ASSINATURA_CONTRATO">Assinatura de Contrato</option>
+                    <option value="CAUCAO_GARANTIA">Apresentar Caução/Garantia</option>
+                  </select>
+                </div>
+
+                <div className="form-group">
+                  <label className="form-label">Coluna Inicial</label>
+                  <select 
+                    value={newItem.fase} 
+                    onChange={(e) => setNewItem({ ...newItem, fase: e.target.value })}
+                    className="form-control"
+                  >
+                    <option value="PENDENTE">Pendente</option>
+                    <option value="EM_ELABORACAO">Em Elaboração</option>
+                    <option value="PROTOCOLADO">Protocolado</option>
+                    <option value="CONCLUIDO">Concluído</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="form-group">
+                <label className="form-label">Descrição da Próxima Ação *</label>
+                <input 
+                  value={newItem.proximaAcao} 
+                  onChange={(e) => setNewItem({ ...newItem, proximaAcao: e.target.value })}
+                  className="form-control" 
+                  placeholder="Ex: Readequar planilha orçamentária para o lance vencedor"
+                  required 
+                />
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px' }}>
+                <div className="form-group">
+                  <label className="form-label">Prazo Limite</label>
+                  <input 
+                    type="datetime-local" 
+                    value={newItem.prazo} 
+                    onChange={(e) => setNewItem({ ...newItem, prazo: e.target.value })}
+                    className="form-control" 
+                  />
+                </div>
+
+                <div className="form-group">
+                  <label className="form-label">Responsável</label>
+                  <input 
+                    value={newItem.responsavel} 
+                    onChange={(e) => setNewItem({ ...newItem, responsavel: e.target.value })}
+                    className="form-control" 
+                    placeholder="Ex: Fernanda Lima" 
+                  />
+                </div>
+              </div>
+
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '10px' }}>
+                <button type="button" onClick={() => setModalOpen(false)} className="btn btn-secondary">
+                  Cancelar
+                </button>
+                <button type="submit" disabled={saving} className="btn btn-primary">
+                  {saving ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
+                  Adicionar ao Kanban
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}
 
       <style>{`
-        .bg-surface { background-color: var(--bg-surface); }
-        .bg-background { background-color: var(--bg-background); }
-        .border-border { border-color: var(--border-color); }
-        .text-muted-foreground { color: var(--text-muted); }
-        
-        .kanban-column {
-          width: 320px;
-          display: flex;
-          flex-direction: column;
-          background: var(--bg-surface);
-          border-radius: var(--radius-lg);
-          border: 1px solid var(--border-color);
-          overflow: hidden;
-        }
-        
-        .kanban-header {
-          padding: 1rem;
-          display: flex;
-          justify-content: space-between;
-          align-items: center;
-          border-bottom: 1px solid var(--border-color);
-        }
-        
-        .kanban-count {
-          background: var(--bg-background);
-          padding: 0.125rem 0.5rem;
-          border-radius: 9999px;
-          font-size: 0.75rem;
-          font-weight: 600;
-        }
-        
-        .kanban-body {
-          padding: 1rem;
-          flex: 1;
-          overflow-y: auto;
-          display: flex;
-          flex-direction: column;
-          gap: 0.75rem;
-        }
-        
-        .kanban-card {
-          background: var(--bg-elevated);
-          border: 1px solid var(--border-color);
-          border-radius: var(--radius-md);
-          padding: 1rem;
-          cursor: pointer;
-          transition: all 0.2s;
-        }
-        
-        .kanban-card:hover {
-          border-color: rgba(168, 85, 247, 0.4);
-          box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
-        }
-        
-        .btn {
-          padding: 0.5rem 1rem;
-          border-radius: var(--radius-md);
-          font-weight: 500;
-          font-size: 0.875rem;
-          transition: all 0.2s;
-          cursor: pointer;
-        }
-        .btn-primary {
-          background: #a855f7;
-          color: white;
-          border: none;
-        }
-        .btn-primary:hover {
-          background: #9333ea;
-        }
-        
-        .input {
-          background: var(--bg-background);
-          border: 1px solid var(--border-color);
-          border-radius: var(--radius-md);
-          padding: 0.5rem 0.75rem;
-          color: var(--text-primary);
-          font-size: 0.875rem;
-        }
-        .input:focus {
-          outline: none;
-          border-color: #a855f7;
+        .kanban-item:hover {
+          border-color: rgba(232, 93, 93, 0.35) !important;
+          transform: translateY(-2px);
         }
       `}</style>
     </div>

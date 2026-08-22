@@ -1,13 +1,35 @@
 "use client";
 
 import React, { useState, useEffect } from 'react';
-import { ShieldCheck, Search, Filter, Plus, AlertCircle, CheckCircle2, Clock } from 'lucide-react';
+import { 
+  ShieldCheck, Search, Filter, Plus, AlertCircle, 
+  CheckCircle2, Clock, FileText, Building2, Calendar, 
+  AlertTriangle, XCircle, ArrowUpRight, Loader2, X, Save
+} from 'lucide-react';
+import { formatDate } from '@/lib/utils';
 
 export default function DocumentosPage() {
   const [documents, setDocuments] = useState<any[]>([]);
+  const [organizations, setOrganizations] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [filterEmpresa, setFilterEmpresa] = useState('');
-  const [filterTipo, setFilterTipo] = useState('');
+  const [filterStatus, setFilterStatus] = useState('ALL');
+  const [search, setSearch] = useState('');
+
+  // Modal State
+  const [modalOpen, setModalOpen] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [newDoc, setNewDoc] = useState({
+    orgId: '',
+    nome: '',
+    tipo: 'CND_FEDERAL',
+    numero: '',
+    emissor: '',
+    emissao: '',
+    vencimento: '',
+    semVencimento: false,
+    observacoes: ''
+  });
 
   const [stats, setStats] = useState({
     validos: 0,
@@ -17,21 +39,30 @@ export default function DocumentosPage() {
   });
 
   useEffect(() => {
+    fetch('/api/empresas')
+      .then(res => res.json())
+      .then(data => {
+        setOrganizations(data);
+        if (data.length > 0) {
+          setNewDoc(prev => ({ ...prev, orgId: data[0].id }));
+        }
+      })
+      .catch(console.error);
+  }, []);
+
+  useEffect(() => {
     fetchDocuments();
-  }, [filterEmpresa, filterTipo]);
+  }, [filterEmpresa, filterStatus, search]);
 
   const fetchDocuments = async () => {
     setLoading(true);
     try {
       let url = '/api/documentos?';
       if (filterEmpresa) url += `orgId=${filterEmpresa}&`;
-      if (filterTipo) url += `tipo=${filterTipo}&`;
 
       const res = await fetch(url);
       if (res.ok) {
         const data = await res.json();
-        
-        // Calculate days to expire to set statuses if needed (client side display logic)
         const now = new Date();
         let v = 0, a = 0, c = 0, x = 0;
         
@@ -67,8 +98,21 @@ export default function DocumentosPage() {
           return { ...doc, uiStatus, daysLeft };
         });
 
-        setDocuments(processed);
-        if (!filterEmpresa && !filterTipo) {
+        let filtered = processed;
+        if (filterStatus !== 'ALL') {
+          filtered = filtered.filter((d: any) => d.uiStatus === filterStatus);
+        }
+        if (search) {
+          const s = search.toLowerCase();
+          filtered = filtered.filter((d: any) => 
+            d.nome?.toLowerCase().includes(s) ||
+            d.emissor?.toLowerCase().includes(s) ||
+            d.numero?.toLowerCase().includes(s)
+          );
+        }
+
+        setDocuments(filtered);
+        if (!filterEmpresa && filterStatus === 'ALL' && !search) {
           setStats({ validos: v, atencao: a, critico: c, vencidos: x });
         }
       }
@@ -79,168 +123,413 @@ export default function DocumentosPage() {
     }
   };
 
-  const getStatusColor = (status: string) => {
-    switch(status) {
-      case 'VIGENTE': return { bg: 'rgba(16, 185, 129, 0.1)', text: '#10b981', border: '#10b981' };
-      case 'ATENCAO': return { bg: 'rgba(234, 179, 8, 0.1)', text: '#eab308', border: '#eab308' };
-      case 'CRITICO': return { bg: 'rgba(249, 115, 22, 0.1)', text: '#f97316', border: '#f97316' };
-      case 'VENCIDO': return { bg: 'rgba(239, 68, 68, 0.1)', text: '#ef4444', border: '#ef4444' };
-      default: return { bg: 'var(--bg-elevated)', text: 'var(--text-primary)', border: 'var(--border-color)' };
+  const handleCreateDoc = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newDoc.nome || !newDoc.orgId) {
+      alert('Preencha os campos obrigatórios.');
+      return;
+    }
+
+    setSaving(true);
+    try {
+      const res = await fetch('/api/documentos', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(newDoc)
+      });
+      if (res.ok) {
+        setModalOpen(false);
+        setNewDoc({
+          orgId: organizations[0]?.id || '',
+          nome: '',
+          tipo: 'CND_FEDERAL',
+          numero: '',
+          emissor: '',
+          emissao: '',
+          vencimento: '',
+          semVencimento: false,
+          observacoes: ''
+        });
+        fetchDocuments();
+      } else {
+        alert('Erro ao salvar certidão.');
+      }
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const getStatusBadge = (uiStatus: string, daysLeft: number, semVencimento: boolean) => {
+    if (semVencimento) {
+      return (
+        <span style={{ fontSize: '0.75rem', fontWeight: 600, padding: '3px 8px', borderRadius: 'var(--radius-sm)', background: 'rgba(34, 197, 94, 0.15)', color: '#34d399' }}>
+          Sem Vencimento
+        </span>
+      );
+    }
+
+    switch (uiStatus) {
+      case 'VENCIDO':
+        return (
+          <span style={{ fontSize: '0.75rem', fontWeight: 700, padding: '3px 8px', borderRadius: 'var(--radius-sm)', background: 'rgba(239, 68, 68, 0.18)', color: '#f87171', border: '1px solid rgba(239, 68, 68, 0.3)' }}>
+            ✕ Vencido ({Math.abs(daysLeft)}d atrás)
+          </span>
+        );
+      case 'CRITICO':
+        return (
+          <span style={{ fontSize: '0.75rem', fontWeight: 700, padding: '3px 8px', borderRadius: 'var(--radius-sm)', background: 'rgba(249, 115, 22, 0.18)', color: '#fb923c', border: '1px solid rgba(249, 115, 22, 0.3)' }}>
+            ⚠ Crítico ({daysLeft}d restantes)
+          </span>
+        );
+      case 'ATENCAO':
+        return (
+          <span style={{ fontSize: '0.75rem', fontWeight: 700, padding: '3px 8px', borderRadius: 'var(--radius-sm)', background: 'rgba(245, 158, 11, 0.18)', color: '#fbbf24', border: '1px solid rgba(245, 158, 11, 0.3)' }}>
+            ⚡ Atenção ({daysLeft}d)
+          </span>
+        );
+      default:
+        return (
+          <span style={{ fontSize: '0.75rem', fontWeight: 600, padding: '3px 8px', borderRadius: 'var(--radius-sm)', background: 'rgba(34, 197, 94, 0.15)', color: '#34d399' }}>
+            ✓ Vigente ({daysLeft === 999 ? 'Ativo' : `${daysLeft}d`})
+          </span>
+        );
     }
   };
 
   return (
-    <div className="container-fluid animate-fade-in">
-      <div className="page-header">
+    <div className="animate-fade-in" style={{ maxWidth: '1400px', margin: '0 auto' }}>
+      {/* Header */}
+      <div className="page-header" style={{ marginBottom: '24px' }}>
         <div>
-          <h1 className="page-title">Documentos & Habilitação</h1>
-          <p className="page-subtitle">Controle de certidões, balanços e documentos legais</p>
+          <h1 className="page-title" style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <ShieldCheck size={26} style={{ color: 'var(--color-primary)' }} />
+            Central de Documentos & Radar de Vencimentos
+          </h1>
+          <p className="page-subtitle">
+            Monitoramento de CNDs, regularidade fiscal, balanços e certidões para habilitação imediata
+          </p>
         </div>
-        <div className="flex gap-3">
-          <button className="btn btn-primary">
-            <Plus size={16} />
-            Novo Documento
+        <button 
+          onClick={() => setModalOpen(true)}
+          className="btn btn-primary" 
+          style={{ display: 'flex', alignItems: 'center', gap: '8px' }}
+        >
+          <Plus size={18} />
+          Nova Certidão / Documento
+        </button>
+      </div>
+
+      {/* Radar de Vencimentos - Stats Grid */}
+      <div className="stats-grid" style={{ marginBottom: '28px' }}>
+        <div className="stat-card">
+          <div className="stat-icon" style={{ background: 'rgba(34, 197, 94, 0.12)', color: '#34d399' }}>
+            <CheckCircle2 size={22} />
+          </div>
+          <div className="stat-value" style={{ color: '#34d399' }}>{stats.validos}</div>
+          <div className="stat-label">Certidões Vigentes (&gt;30d)</div>
+        </div>
+
+        <div className="stat-card">
+          <div className="stat-icon" style={{ background: 'rgba(245, 158, 11, 0.12)', color: '#fbbf24' }}>
+            <Clock size={22} />
+          </div>
+          <div className="stat-value" style={{ color: '#fbbf24' }}>{stats.atencao}</div>
+          <div className="stat-label">Vencendo em até 30 dias</div>
+        </div>
+
+        <div className="stat-card">
+          <div className="stat-icon" style={{ background: 'rgba(249, 115, 22, 0.12)', color: '#fb923c' }}>
+            <AlertTriangle size={22} />
+          </div>
+          <div className="stat-value" style={{ color: '#fb923c' }}>{stats.critico}</div>
+          <div className="stat-label">Crítico (Vence em ≤15 dias)</div>
+        </div>
+
+        <div className="stat-card">
+          <div className="stat-icon" style={{ background: 'rgba(239, 68, 68, 0.12)', color: '#f87171' }}>
+            <XCircle size={22} />
+          </div>
+          <div className="stat-value" style={{ color: '#f87171' }}>{stats.vencidos}</div>
+          <div className="stat-label">Certidões Vencidas</div>
+        </div>
+      </div>
+
+      {/* Search & Filter Bar */}
+      <div className="card" style={{ marginBottom: '28px', padding: '16px 20px', background: 'var(--bg-surface)' }}>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '12px', alignItems: 'center' }}>
+          <div style={{ position: 'relative', flex: '1 1 300px' }}>
+            <Search size={16} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
+            <input 
+              type="text" 
+              value={search} 
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Buscar por certidão, emissor, número..." 
+              className="form-control"
+              style={{ paddingLeft: '38px', height: '40px', width: '100%' }}
+            />
+          </div>
+
+          <select 
+            value={filterEmpresa} 
+            onChange={(e) => setFilterEmpresa(e.target.value)}
+            className="form-control" 
+            style={{ width: 'auto', height: '40px', minWidth: '180px' }}
+          >
+            <option value="">Empresa: Todas</option>
+            {organizations.map(org => (
+              <option key={org.id} value={org.id}>{org.tradeName || org.name}</option>
+            ))}
+          </select>
+
+          <select 
+            value={filterStatus} 
+            onChange={(e) => setFilterStatus(e.target.value)}
+            className="form-control" 
+            style={{ width: 'auto', height: '40px', minWidth: '160px' }}
+          >
+            <option value="ALL">Status: Todos</option>
+            <option value="VIGENTE">Vigente</option>
+            <option value="ATENCAO">Atenção (≤30d)</option>
+            <option value="CRITICO">Crítico (≤15d)</option>
+            <option value="VENCIDO">Vencido</option>
+          </select>
+
+          {(search || filterEmpresa || filterStatus !== 'ALL') && (
+            <button 
+              onClick={() => { setSearch(''); setFilterEmpresa(''); setFilterStatus('ALL'); }}
+              className="btn btn-ghost btn-sm" 
+              style={{ height: '40px' }}
+            >
+              Limpar Filtros
+            </button>
+          )}
+        </div>
+      </div>
+
+      {/* Documents Table */}
+      {loading ? (
+        <div style={{ textAlign: 'center', padding: '60px 0' }}>
+          <Loader2 size={36} className="animate-spin" style={{ margin: '0 auto 12px', color: 'var(--color-primary)' }} />
+          <p style={{ color: 'var(--text-secondary)' }}>Carregando radar de documentos...</p>
+        </div>
+      ) : documents.length === 0 ? (
+        <div className="card" style={{ textAlign: 'center', padding: '60px 20px' }}>
+          <ShieldCheck size={44} style={{ margin: '0 auto 16px', opacity: 0.3, color: 'var(--text-muted)' }} />
+          <h3 style={{ fontSize: '1.15rem', marginBottom: '8px', color: 'var(--text-primary)' }}>Nenhum documento encontrado</h3>
+          <p style={{ color: 'var(--text-secondary)', marginBottom: '24px', fontSize: '0.9rem' }}>
+            Cadastre as certidões e balanços para manter o radar atualizado.
+          </p>
+          <button onClick={() => setModalOpen(true)} className="btn btn-primary btn-sm">
+            <Plus size={16} /> Cadastrar Documento
           </button>
         </div>
-      </div>
-
-      {/* Radar de Vencimentos */}
-      <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
-        <ShieldCheck className="text-primary" /> Radar de Vencimentos
-      </h2>
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
-        <div className="card p-4 flex items-center gap-4 border-l-4" style={{ borderLeftColor: '#10b981' }}>
-          <div className="p-3 rounded-full" style={{ background: 'rgba(16, 185, 129, 0.1)' }}>
-            <CheckCircle2 color="#10b981" size={24} />
-          </div>
-          <div>
-            <div className="text-sm text-muted">Vigentes ({'>'} 30 dias)</div>
-            <div className="text-2xl font-bold">{stats.validos}</div>
-          </div>
-        </div>
-        
-        <div className="card p-4 flex items-center gap-4 border-l-4" style={{ borderLeftColor: '#eab308' }}>
-          <div className="p-3 rounded-full" style={{ background: 'rgba(234, 179, 8, 0.1)' }}>
-            <Clock color="#eab308" size={24} />
-          </div>
-          <div>
-            <div className="text-sm text-muted">Atenção (≤ 30 dias)</div>
-            <div className="text-2xl font-bold">{stats.atencao}</div>
-          </div>
-        </div>
-
-        <div className="card p-4 flex items-center gap-4 border-l-4" style={{ borderLeftColor: '#f97316' }}>
-          <div className="p-3 rounded-full" style={{ background: 'rgba(249, 115, 22, 0.1)' }}>
-            <AlertCircle color="#f97316" size={24} />
-          </div>
-          <div>
-            <div className="text-sm text-muted">Crítico (≤ 15 dias)</div>
-            <div className="text-2xl font-bold">{stats.critico}</div>
-          </div>
-        </div>
-
-        <div className="card p-4 flex items-center gap-4 border-l-4" style={{ borderLeftColor: '#ef4444' }}>
-          <div className="p-3 rounded-full" style={{ background: 'rgba(239, 68, 68, 0.1)' }}>
-            <AlertCircle color="#ef4444" size={24} />
-          </div>
-          <div>
-            <div className="text-sm text-muted">Vencidos</div>
-            <div className="text-2xl font-bold">{stats.vencidos}</div>
-          </div>
-        </div>
-      </div>
-
-      <div className="card">
-        <div className="p-4 border-b border-[var(--border-color)] flex gap-4 items-center">
-          <div className="flex-1 min-w-[200px] max-w-sm relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted" size={18} />
-            <input type="text" placeholder="Buscar documento..." className="input pl-10 w-full" />
-          </div>
-          <select 
-            className="input w-48"
-            value={filterEmpresa}
-            onChange={e => setFilterEmpresa(e.target.value)}
-          >
-            <option value="">Todas as Empresas</option>
-          </select>
-          <select 
-            className="input w-48"
-            value={filterTipo}
-            onChange={e => setFilterTipo(e.target.value)}
-          >
-            <option value="">Todos os Tipos</option>
-            <option value="CND_FEDERAL">CND Federal</option>
-            <option value="FGTS">FGTS</option>
-            <option value="TRABALHISTA">Trabalhista</option>
-            <option value="BALANCO">Balanço Patrimonial</option>
-          </select>
-        </div>
-
-        <div className="overflow-x-auto">
-          <table className="table w-full">
+      ) : (
+        <div className="table-wrapper">
+          <table className="table">
             <thead>
               <tr>
-                <th>Documento</th>
+                <th>Documento / Certidão</th>
                 <th>Empresa</th>
+                <th>Órgão Emissor</th>
                 <th>Emissão</th>
                 <th>Vencimento</th>
-                <th>Status</th>
-                <th className="text-right">Ações</th>
+                <th>Radar de Validade</th>
+                <th>Ações</th>
               </tr>
             </thead>
             <tbody>
-              {loading ? (
-                <tr>
-                  <td colSpan={6} className="text-center py-8">Carregando...</td>
-                </tr>
-              ) : documents.length === 0 ? (
-                <tr>
-                  <td colSpan={6} className="text-center py-8 text-muted">Nenhum documento encontrado.</td>
-                </tr>
-              ) : (
-                documents.map((doc) => {
-                  const colors = getStatusColor(doc.uiStatus);
-                  return (
-                    <tr key={doc.id}>
-                      <td>
-                        <div className="font-medium text-sm">{doc.nome}</div>
-                        <div className="text-xs text-muted mt-1">{doc.tipo} {doc.numero ? `- ${doc.numero}` : ''}</div>
-                      </td>
-                      <td>
-                        <span className="badge badge-ghost text-xs">
-                          {doc.organization?.name || 'S/ Empresa'}
-                        </span>
-                      </td>
-                      <td className="text-sm">
-                        {doc.emissao ? new Date(doc.emissao).toLocaleDateString() : '-'}
-                      </td>
-                      <td className="text-sm font-medium">
-                        {doc.semVencimento ? 'Sem vencimento' : (doc.vencimento ? new Date(doc.vencimento).toLocaleDateString() : '-')}
-                        {doc.daysLeft !== 999 && (
-                          <div className="text-xs mt-1" style={{ color: colors.text }}>
-                            {doc.daysLeft < 0 ? `Vencido há ${Math.abs(doc.daysLeft)} dias` : `Faltam ${doc.daysLeft} dias`}
-                          </div>
-                        )}
-                      </td>
-                      <td>
-                        <span 
-                          className="px-2 py-1 rounded text-xs font-semibold border"
-                          style={{ backgroundColor: colors.bg, color: colors.text, borderColor: colors.border }}
-                        >
-                          {doc.uiStatus}
-                        </span>
-                      </td>
-                      <td className="text-right">
-                        <button className="btn btn-ghost btn-sm">Ver</button>
-                      </td>
-                    </tr>
-                  );
-                })
-              )}
+              {documents.map((doc) => {
+                const isUfc = doc.organization?.name?.toLowerCase().includes('ufc');
+
+                return (
+                  <tr key={doc.id}>
+                    <td>
+                      <div style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{doc.nome}</div>
+                      {doc.numero && (
+                        <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Nº {doc.numero}</div>
+                      )}
+                    </td>
+
+                    <td>
+                      <span style={{ 
+                        fontSize: '0.72rem', 
+                        fontWeight: 600, 
+                        padding: '2px 7px', 
+                        borderRadius: 'var(--radius-sm)',
+                        background: isUfc ? 'rgba(34, 197, 94, 0.12)' : 'rgba(245, 158, 11, 0.12)',
+                        color: isUfc ? '#34d399' : '#fbbf24',
+                      }}>
+                        {doc.organization?.tradeName || doc.organization?.name || 'N/A'}
+                      </span>
+                    </td>
+
+                    <td style={{ color: 'var(--text-secondary)', fontSize: '0.85rem' }}>
+                      {doc.emissor || 'Órgão Competente'}
+                    </td>
+
+                    <td style={{ color: 'var(--text-muted)', fontSize: '0.82rem' }}>
+                      {doc.emissao ? formatDate(new Date(doc.emissao)) : '--/--/----'}
+                    </td>
+
+                    <td style={{ color: 'var(--text-primary)', fontSize: '0.85rem', fontWeight: 600 }}>
+                      {doc.semVencimento ? 'Indeterminado' : (doc.vencimento ? formatDate(new Date(doc.vencimento)) : 'Não informado')}
+                    </td>
+
+                    <td>
+                      {getStatusBadge(doc.uiStatus, doc.daysLeft, doc.semVencimento)}
+                    </td>
+
+                    <td>
+                      <button className="btn btn-secondary btn-sm" style={{ padding: '4px 10px', fontSize: '0.75rem' }}>
+                        Ver / Renovar
+                      </button>
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </div>
-      </div>
+      )}
+
+      {/* Modal Novo Documento */}
+      {modalOpen && (
+        <div style={{
+          position: 'fixed',
+          inset: 0,
+          background: 'rgba(0, 0, 0, 0.8)',
+          backdropFilter: 'blur(4px)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 999,
+          padding: '20px'
+        }}>
+          <div className="card" style={{ maxWidth: '600px', width: '100%', maxHeight: '90vh', overflowY: 'auto' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <ShieldCheck size={20} style={{ color: 'var(--color-primary)' }} />
+                <h3 style={{ fontSize: '1.2rem', fontWeight: 700 }}>Nova Certidão / Documento Legal</h3>
+              </div>
+              <button onClick={() => setModalOpen(false)} className="btn btn-ghost btn-sm" style={{ padding: '4px' }}>
+                <X size={20} />
+              </button>
+            </div>
+
+            <form onSubmit={handleCreateDoc} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+              <div className="form-group">
+                <label className="form-label">Empresa Titular *</label>
+                <select 
+                  value={newDoc.orgId} 
+                  onChange={(e) => setNewDoc({ ...newDoc, orgId: e.target.value })}
+                  className="form-control" 
+                  required
+                >
+                  <option value="">Selecione a empresa...</option>
+                  {organizations.map(org => (
+                    <option key={org.id} value={org.id}>{org.tradeName || org.name}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="form-group">
+                <label className="form-label">Nome do Documento / Certidão *</label>
+                <input 
+                  value={newDoc.nome} 
+                  onChange={(e) => setNewDoc({ ...newDoc, nome: e.target.value })}
+                  className="form-control" 
+                  placeholder="Ex: Certidão Negativa Federal PGFN"
+                  required 
+                />
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px' }}>
+                <div className="form-group">
+                  <label className="form-label">Tipo</label>
+                  <select 
+                    value={newDoc.tipo} 
+                    onChange={(e) => setNewDoc({ ...newDoc, tipo: e.target.value })}
+                    className="form-control"
+                  >
+                    <option value="CND_FEDERAL">CND Federal / PGFN</option>
+                    <option value="TRABALHISTA">CNDT Trabalhista (TST)</option>
+                    <option value="FGTS">CRF FGTS (Caixa)</option>
+                    <option value="CERTIDAO_ESTADUAL">CND Estadual (SEFAZ)</option>
+                    <option value="CERTIDAO_MUNICIPAL">CND Municipal (ISS/IPTU)</option>
+                    <option value="BALANCO_PATRIMONIAL">Balanço Patrimonial</option>
+                    <option value="OUTROS">Outros</option>
+                  </select>
+                </div>
+
+                <div className="form-group">
+                  <label className="form-label">Nº do Documento / Autenticidade</label>
+                  <input 
+                    value={newDoc.numero} 
+                    onChange={(e) => setNewDoc({ ...newDoc, numero: e.target.value })}
+                    className="form-control" 
+                    placeholder="Ex: PGFN-2026-991" 
+                  />
+                </div>
+              </div>
+
+              <div className="form-group">
+                <label className="form-label">Órgão Emissor</label>
+                <input 
+                  value={newDoc.emissor} 
+                  onChange={(e) => setNewDoc({ ...newDoc, emissor: e.target.value })}
+                  className="form-control" 
+                  placeholder="Ex: Receita Federal, Caixa Econômica..." 
+                />
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px' }}>
+                <div className="form-group">
+                  <label className="form-label">Data de Emissão</label>
+                  <input 
+                    type="date" 
+                    value={newDoc.emissao} 
+                    onChange={(e) => setNewDoc({ ...newDoc, emissao: e.target.value })}
+                    className="form-control" 
+                  />
+                </div>
+
+                <div className="form-group">
+                  <label className="form-label">Data de Vencimento</label>
+                  <input 
+                    type="date" 
+                    value={newDoc.vencimento} 
+                    onChange={(e) => setNewDoc({ ...newDoc, vencimento: e.target.value })}
+                    disabled={newDoc.semVencimento}
+                    className="form-control" 
+                  />
+                </div>
+              </div>
+
+              <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '0.85rem', color: 'var(--text-primary)' }}>
+                <input 
+                  type="checkbox" 
+                  checked={newDoc.semVencimento} 
+                  onChange={(e) => setNewDoc({ ...newDoc, semVencimento: e.target.checked })}
+                  style={{ width: '16px', height: '16px' }}
+                />
+                Documento sem prazo de validade (ex: Balanço, Contrato Social)
+              </label>
+
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '10px' }}>
+                <button type="button" onClick={() => setModalOpen(false)} className="btn btn-secondary">
+                  Cancelar
+                </button>
+                <button type="submit" disabled={saving} className="btn btn-primary">
+                  {saving ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
+                  Salvar no Radar
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -1,27 +1,29 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { ArrowLeft, Save } from 'lucide-react';
+import { ArrowLeft, Save, Loader2, Gavel, Building2, MapPin, Calendar, DollarSign, FileText } from 'lucide-react';
 import Link from 'next/link';
 
 export default function NovaLicitacaoPage() {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
+  const [organizations, setOrganizations] = useState<any[]>([]);
+
   const [formData, setFormData] = useState({
     organizationId: '',
     orgaoNome: '',
     orgaoUasg: '',
     municipio: '',
-    uf: '',
-    modalidade: '',
+    uf: 'CE',
+    modalidade: 'CONCORRENCIA_ELETRONICA',
     numero: '',
     numeroProcesso: '',
-    plataforma: '',
+    plataforma: 'Compras.gov.br',
     plataformaUrl: '',
     objeto: '',
     objetoResumo: '',
-    tipoServico: '',
+    tipoServico: 'EXECUCAO_INFRAESTRUTURA',
     dataHoraSessao: '',
     dataImpugnacao: '',
     dataEsclarecimento: '',
@@ -34,6 +36,18 @@ export default function NovaLicitacaoPage() {
     observacoes: '',
   });
 
+  useEffect(() => {
+    fetch('/api/empresas')
+      .then(res => res.json())
+      .then(data => {
+        setOrganizations(data);
+        if (data.length > 0) {
+          setFormData(prev => ({ ...prev, organizationId: data[0].id }));
+        }
+      })
+      .catch(err => console.error(err));
+  }, []);
+
   const handleChange = (e: any) => {
     const { name, value, type, checked } = e.target;
     setFormData(prev => ({
@@ -44,6 +58,11 @@ export default function NovaLicitacaoPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!formData.orgaoNome || !formData.objeto) {
+      alert('Por favor, preencha os campos obrigatórios.');
+      return;
+    }
+
     setLoading(true);
     try {
       const res = await fetch('/api/licitacoes', {
@@ -51,6 +70,7 @@ export default function NovaLicitacaoPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(formData),
       });
+
       if (res.ok) {
         const data = await res.json();
         router.push(`/dashboard/licitacoes/${data.id}`);
@@ -66,194 +86,251 @@ export default function NovaLicitacaoPage() {
   };
 
   return (
-    <div className="animate-fade-in p-6 max-w-5xl mx-auto">
-      <div className="flex items-center gap-4 mb-6">
-        <Link href="/dashboard/licitacoes" className="btn btn-ghost p-2 rounded-full hover:bg-gray-200">
-          <ArrowLeft size={20} />
-        </Link>
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">Nova Licitação</h1>
-          <p className="text-sm text-gray-500">Cadastre uma nova oportunidade de negócio</p>
+    <div className="animate-fade-in" style={{ maxWidth: '1000px', margin: '0 auto' }}>
+      {/* Header */}
+      <div className="page-header" style={{ marginBottom: '24px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+          <Link href="/dashboard/licitacoes" className="btn btn-secondary btn-sm" style={{ padding: '8px' }}>
+            <ArrowLeft size={18} />
+          </Link>
+          <div>
+            <h1 className="page-title" style={{ fontSize: '1.4rem' }}>Nova Licitação</h1>
+            <p className="page-subtitle">Cadastrar nova oportunidade de edital ou disputa</p>
+          </div>
         </div>
+
+        <button 
+          onClick={handleSubmit} 
+          disabled={loading} 
+          className="btn btn-primary"
+          style={{ display: 'flex', alignItems: 'center', gap: '8px' }}
+        >
+          {loading ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
+          Salvar Licitação
+        </button>
       </div>
 
-      <form onSubmit={handleSubmit} className="bg-white rounded-lg shadow border border-gray-200 p-6 space-y-8">
+      <form onSubmit={handleSubmit} className="card" style={{ display: 'flex', flexDirection: 'column', gap: '28px' }}>
         
-        {/* Bloco 1: Empresa Responsável */}
-        <section>
-          <h2 className="text-lg font-semibold border-b pb-2 mb-4">Empresa Responsável</h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium mb-1">Empresa</label>
-              <select name="organizationId" value={formData.organizationId} onChange={handleChange} className="w-full border rounded-md px-3 py-2 text-sm focus:ring-blue-500" required>
-                <option value="">Selecione a empresa</option>
-                {/* Normally dynamically fetched, statically listed for prompt */}
-                <option value="UFC">UFC Engenharia</option>
-                <option value="PORTICO">Pórtico Construções</option>
-                <option value="CONSORCIO">Nova parceria (Consórcio)</option>
+        {/* Bloco 1: Empresa Titular & Órgão */}
+        <div>
+          <h3 style={{ fontSize: '1rem', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '16px', borderBottom: '1px solid var(--border-color)', paddingBottom: '8px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <Building2 size={18} style={{ color: 'var(--color-primary)' }} />
+            1. Empresa Responsável & Órgão Licitante
+          </h3>
+
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '16px' }}>
+            <div className="form-group">
+              <label className="form-label">Empresa Concorrente *</label>
+              <select name="organizationId" value={formData.organizationId} onChange={handleChange} className="form-control" required>
+                <option value="">Selecione a empresa...</option>
+                {organizations.map(org => (
+                  <option key={org.id} value={org.id}>{org.tradeName || org.name}</option>
+                ))}
               </select>
             </div>
-          </div>
-        </section>
 
-        {/* Bloco 2: Órgão e Localização */}
-        <section>
-          <h2 className="text-lg font-semibold border-b pb-2 mb-4">Órgão e Localização</h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-            <div className="lg:col-span-2">
-              <label className="block text-sm font-medium mb-1">Órgão Contratante</label>
-              <input type="text" name="orgaoNome" value={formData.orgaoNome} onChange={handleChange} className="w-full border rounded-md px-3 py-2 text-sm" required />
-            </div>
-            <div>
-              <label className="block text-sm font-medium mb-1">UASG</label>
-              <input type="text" name="orgaoUasg" value={formData.orgaoUasg} onChange={handleChange} className="w-full border rounded-md px-3 py-2 text-sm" />
-            </div>
-            <div>
-              <label className="block text-sm font-medium mb-1">Município/UF</label>
-              <div className="flex gap-2">
-                <input type="text" name="municipio" placeholder="Cidade" value={formData.municipio} onChange={handleChange} className="w-2/3 border rounded-md px-3 py-2 text-sm" required />
-                <input type="text" name="uf" placeholder="UF" maxLength={2} value={formData.uf} onChange={handleChange} className="w-1/3 border rounded-md px-3 py-2 text-sm" required />
-              </div>
+            <div className="form-group">
+              <label className="form-label">Nome do Órgão Licitante *</label>
+              <input 
+                name="orgaoNome" 
+                value={formData.orgaoNome} 
+                onChange={handleChange} 
+                className="form-control" 
+                placeholder="Ex: SEINFRA/CE, SOP/CE, Prefeitura de Sobral..." 
+                required 
+              />
             </div>
           </div>
-        </section>
 
-        {/* Bloco 3: Dados do Edital */}
-        <section>
-          <h2 className="text-lg font-semibold border-b pb-2 mb-4">Dados do Edital</h2>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
-            <div>
-              <label className="block text-sm font-medium mb-1">Modalidade</label>
-              <select name="modalidade" value={formData.modalidade} onChange={handleChange} className="w-full border rounded-md px-3 py-2 text-sm">
-                <option value="">Selecione...</option>
+          <div style={{ display: 'grid', gridTemplateColumns: '1.5fr 1fr 1fr 1fr', gap: '16px', marginTop: '14px' }}>
+            <div className="form-group">
+              <label className="form-label">Código UASG / Unidade</label>
+              <input name="orgaoUasg" value={formData.orgaoUasg} onChange={handleChange} className="form-control" placeholder="Ex: 925142" />
+            </div>
+
+            <div className="form-group">
+              <label className="form-label">Município</label>
+              <input name="municipio" value={formData.municipio} onChange={handleChange} className="form-control" placeholder="Ex: Fortaleza" />
+            </div>
+
+            <div className="form-group">
+              <label className="form-label">UF</label>
+              <input name="uf" value={formData.uf} onChange={handleChange} className="form-control" maxLength={2} placeholder="CE" />
+            </div>
+
+            <div className="form-group">
+              <label className="form-label">Plataforma</label>
+              <input name="plataforma" value={formData.plataforma} onChange={handleChange} className="form-control" placeholder="Ex: Compras.gov.br" />
+            </div>
+          </div>
+        </div>
+
+        {/* Bloco 2: Modalidade & Identificação do Edital */}
+        <div>
+          <h3 style={{ fontSize: '1rem', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '16px', borderBottom: '1px solid var(--border-color)', paddingBottom: '8px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <Gavel size={18} style={{ color: '#60a5fa' }} />
+            2. Modalidade & Números do Processo
+          </h3>
+
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '16px' }}>
+            <div className="form-group">
+              <label className="form-label">Modalidade de Licitação</label>
+              <select name="modalidade" value={formData.modalidade} onChange={handleChange} className="form-control">
                 <option value="CONCORRENCIA_ELETRONICA">Concorrência Eletrônica</option>
                 <option value="PREGAO_ELETRONICO">Pregão Eletrônico</option>
-                <option value="RDC">RDC</option>
-                <option value="TOMADA_PRECOS">Tomada de Preços</option>
-                <option value="DISPENSA">Dispensa</option>
-                <option value="INEXIGIBILIDADE">Inexigibilidade</option>
+                <option value="LICITACAO_PRESENCIAL">Licitação Presencial</option>
+                <option value="CHAMAMENTO">Chamamento Público</option>
+                <option value="DISPENSA">Dispensa Eletrônica</option>
               </select>
             </div>
-            <div>
-              <label className="block text-sm font-medium mb-1">Número do Edital</label>
-              <input type="text" name="numero" value={formData.numero} onChange={handleChange} className="w-full border rounded-md px-3 py-2 text-sm" />
+
+            <div className="form-group">
+              <label className="form-label">Nº do Edital / Licitação</label>
+              <input name="numero" value={formData.numero} onChange={handleChange} className="form-control" placeholder="Ex: 042/2026" />
             </div>
-            <div>
-              <label className="block text-sm font-medium mb-1">Processo Adm.</label>
-              <input type="text" name="numeroProcesso" value={formData.numeroProcesso} onChange={handleChange} className="w-full border rounded-md px-3 py-2 text-sm" />
+
+            <div className="form-group">
+              <label className="form-label">Nº do Processo Administrativo</label>
+              <input name="numeroProcesso" value={formData.numeroProcesso} onChange={handleChange} className="form-control" placeholder="Ex: 2026/00142-CE" />
             </div>
-          </div>
-          
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium mb-1">Plataforma</label>
-              <select name="plataforma" value={formData.plataforma} onChange={handleChange} className="w-full border rounded-md px-3 py-2 text-sm">
-                <option value="">Selecione...</option>
-                <option value="COMPRAS_GOV">Compras.gov.br</option>
-                <option value="PORTAL_COMPRAS_PUBLICAS">Portal de Compras Públicas</option>
-                <option value="LICITACOES_E">Licitações-e (BB)</option>
-                <option value="BLL">BLL Compras</option>
-                <option value="OUTRO">Outro</option>
+
+            <div className="form-group">
+              <label className="form-label">Tipo de Serviço</label>
+              <select name="tipoServico" value={formData.tipoServico} onChange={handleChange} className="form-control">
+                <option value="EXECUCAO_INFRAESTRUTURA">Obras de Infraestrutura</option>
+                <option value="SERVICOS_HIDRICOS">Saneamento & Recursos Hídricos</option>
+                <option value="EXECUCAO">Construção Civil & Edificações</option>
+                <option value="ELABORACAO_PROJETOS">Elaboração de Projetos</option>
+                <option value="GERENCIAMENTO">Gerenciamento e Fiscalização</option>
+                <option value="MANUTENCAO">Manutenção Predial / Preventiva</option>
               </select>
             </div>
-            <div>
-              <label className="block text-sm font-medium mb-1">URL do Edital</label>
-              <input type="url" name="plataformaUrl" value={formData.plataformaUrl} onChange={handleChange} className="w-full border rounded-md px-3 py-2 text-sm" placeholder="https://" />
-            </div>
           </div>
-        </section>
+        </div>
 
-        {/* Bloco 4: Objeto e Escopo */}
-        <section>
-          <h2 className="text-lg font-semibold border-b pb-2 mb-4">Objeto e Escopo</h2>
-          <div className="grid grid-cols-1 gap-4 mb-4">
-            <div>
-              <label className="block text-sm font-medium mb-1">Objeto Completo</label>
-              <textarea name="objeto" rows={3} value={formData.objeto} onChange={handleChange} className="w-full border rounded-md px-3 py-2 text-sm" required />
-            </div>
-            <div>
-              <label className="block text-sm font-medium mb-1">Resumo Executivo</label>
-              <input type="text" name="objetoResumo" value={formData.objetoResumo} onChange={handleChange} className="w-full border rounded-md px-3 py-2 text-sm" placeholder="Breve descrição em 1 linha" />
-            </div>
-          </div>
-          <div className="w-full md:w-1/3">
-            <label className="block text-sm font-medium mb-1">Tipo de Serviço</label>
-            <select name="tipoServico" value={formData.tipoServico} onChange={handleChange} className="w-full border rounded-md px-3 py-2 text-sm">
-              <option value="">Selecione...</option>
-              <option value="OBRA">Execução de Obras</option>
-              <option value="PROJETO">Elaboração de Projetos</option>
-              <option value="SUPERVISAO">Supervisão/Gerenciamento</option>
-              <option value="MANUTENCAO">Manutenção Predial</option>
-              <option value="TECNOLOGIA">Tecnologia da Informação</option>
-              <option value="OUTROS">Outros</option>
-            </select>
-          </div>
-        </section>
+        {/* Bloco 3: Objeto */}
+        <div>
+          <h3 style={{ fontSize: '1rem', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '16px', borderBottom: '1px solid var(--border-color)', paddingBottom: '8px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <FileText size={18} style={{ color: '#34d399' }} />
+            3. Objeto & Escopo Editalício
+          </h3>
 
-        {/* Bloco 5: Prazos e Valores */}
-        <section>
-          <h2 className="text-lg font-semibold border-b pb-2 mb-4">Prazos e Valores</h2>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
-            <div>
-              <label className="block text-sm font-medium mb-1">Data/Hora Sessão</label>
-              <input type="datetime-local" name="dataHoraSessao" value={formData.dataHoraSessao} onChange={handleChange} className="w-full border rounded-md px-3 py-2 text-sm" required />
-            </div>
-            <div>
-              <label className="block text-sm font-medium mb-1">Limite Esclarecimentos</label>
-              <input type="date" name="dataEsclarecimento" value={formData.dataEsclarecimento} onChange={handleChange} className="w-full border rounded-md px-3 py-2 text-sm" />
-            </div>
-            <div>
-              <label className="block text-sm font-medium mb-1">Limite Impugnação</label>
-              <input type="date" name="dataImpugnacao" value={formData.dataImpugnacao} onChange={handleChange} className="w-full border rounded-md px-3 py-2 text-sm" />
-            </div>
+          <div className="form-group" style={{ marginBottom: '14px' }}>
+            <label className="form-label">Objeto Completo (conforme Edital) *</label>
+            <textarea 
+              name="objeto" 
+              value={formData.objeto} 
+              onChange={handleChange} 
+              className="form-control" 
+              rows={4}
+              placeholder="Cole o texto integral do objeto do edital..."
+              required
+            />
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium mb-1">Valor Estimado (R$)</label>
-              <input type="number" step="0.01" name="valorEstimado" value={formData.valorEstimado} onChange={handleChange} className="w-full border rounded-md px-3 py-2 text-sm" placeholder="Ex: 150000.00" />
-            </div>
-            <div className="flex items-end mb-2">
-              <label className="flex items-center gap-2 cursor-pointer">
-                <input type="checkbox" name="orcamentoSigiloso" checked={formData.orcamentoSigiloso} onChange={handleChange} className="rounded text-blue-600 focus:ring-blue-500" />
-                <span className="text-sm font-medium">Orçamento Sigiloso</span>
-              </label>
-            </div>
-          </div>
-        </section>
 
-        {/* Bloco 6: Condicionantes */}
-        <section>
-          <h2 className="text-lg font-semibold border-b pb-2 mb-4">Condicionantes e Exigências</h2>
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-            <label className="flex items-center gap-2 cursor-pointer">
-              <input type="checkbox" name="permiteConsorcio" checked={formData.permiteConsorcio} onChange={handleChange} className="rounded text-blue-600" />
-              <span className="text-sm">Permite Consórcio</span>
+          <div className="form-group">
+            <label className="form-label">Resumo do Objeto (para visualização rápida nos cards)</label>
+            <input 
+              name="objetoResumo" 
+              value={formData.objetoResumo} 
+              onChange={handleChange} 
+              className="form-control" 
+              placeholder="Ex: Pavimentação CBUQ (120.000 m²) e drenagem pluvial (14 km)"
+            />
+          </div>
+        </div>
+
+        {/* Bloco 4: Prazos e Sessão Pública */}
+        <div>
+          <h3 style={{ fontSize: '1rem', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '16px', borderBottom: '1px solid var(--border-color)', paddingBottom: '8px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <Calendar size={18} style={{ color: '#fbbf24' }} />
+            4. Prazos & Sessão Pública
+          </h3>
+
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '16px' }}>
+            <div className="form-group">
+              <label className="form-label">Data e Hora da Sessão de Disputa</label>
+              <input type="datetime-local" name="dataHoraSessao" value={formData.dataHoraSessao} onChange={handleChange} className="form-control" />
+            </div>
+
+            <div className="form-group">
+              <label className="form-label">Limite para Pedido de Esclarecimento</label>
+              <input type="datetime-local" name="dataEsclarecimento" value={formData.dataEsclarecimento} onChange={handleChange} className="form-control" />
+            </div>
+
+            <div className="form-group">
+              <label className="form-label">Limite para Impugnação do Edital</label>
+              <input type="datetime-local" name="dataImpugnacao" value={formData.dataImpugnacao} onChange={handleChange} className="form-control" />
+            </div>
+          </div>
+        </div>
+
+        {/* Bloco 5: Valores & Condicionantes */}
+        <div>
+          <h3 style={{ fontSize: '1rem', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '16px', borderBottom: '1px solid var(--border-color)', paddingBottom: '8px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <DollarSign size={18} style={{ color: '#a855f7' }} />
+            5. Orçamento & Condicionantes
+          </h3>
+
+          <div style={{ display: 'grid', gridTemplateColumns: '1.5fr 1fr', gap: '16px', marginBottom: '16px' }}>
+            <div className="form-group">
+              <label className="form-label">Valor Estimado Total (R$)</label>
+              <input 
+                type="number" 
+                step="0.01" 
+                name="valorEstimado" 
+                value={formData.valorEstimado} 
+                onChange={handleChange} 
+                className="form-control" 
+                placeholder="Ex: 24500000.00" 
+              />
+            </div>
+
+            <div className="form-group">
+              <label className="form-label">Link da Disputa / Portal</label>
+              <input 
+                type="url" 
+                name="plataformaUrl" 
+                value={formData.plataformaUrl} 
+                onChange={handleChange} 
+                className="form-control" 
+                placeholder="https://..." 
+              />
+            </div>
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '14px', background: 'var(--bg-elevated)', padding: '16px', borderRadius: 'var(--radius-md)' }}>
+            <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '0.86rem', color: 'var(--text-primary)' }}>
+              <input type="checkbox" name="orcamentoSigiloso" checked={formData.orcamentoSigiloso} onChange={handleChange} style={{ width: '18px', height: '18px' }} />
+              Orçamento Sigiloso
             </label>
-            <label className="flex items-center gap-2 cursor-pointer">
-              <input type="checkbox" name="permiteSubcontrato" checked={formData.permiteSubcontrato} onChange={handleChange} className="rounded text-blue-600" />
-              <span className="text-sm">Permite Subcontratação</span>
+
+            <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '0.86rem', color: 'var(--text-primary)' }}>
+              <input type="checkbox" name="permiteConsorcio" checked={formData.permiteConsorcio} onChange={handleChange} style={{ width: '18px', height: '18px' }} />
+              Permite Consórcio
             </label>
-            <label className="flex items-center gap-2 cursor-pointer">
-              <input type="checkbox" name="exigeVisita" checked={formData.exigeVisita} onChange={handleChange} className="rounded text-blue-600" />
-              <span className="text-sm">Exige Visita Técnica</span>
+
+            <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '0.86rem', color: 'var(--text-primary)' }}>
+              <input type="checkbox" name="exigeVisita" checked={formData.exigeVisita} onChange={handleChange} style={{ width: '18px', height: '18px' }} />
+              Visita Técnica Obrigatória
             </label>
-            <label className="flex items-center gap-2 cursor-pointer">
-              <input type="checkbox" name="exigeGarantia" checked={formData.exigeGarantia} onChange={handleChange} className="rounded text-blue-600" />
-              <span className="text-sm">Garantia de Proposta</span>
+
+            <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '0.86rem', color: 'var(--text-primary)' }}>
+              <input type="checkbox" name="exigeGarantia" checked={formData.exigeGarantia} onChange={handleChange} style={{ width: '18px', height: '18px' }} />
+              Exige Garantia de Proposta
             </label>
           </div>
-        </section>
+        </div>
 
-        {/* Bloco 7: Observações */}
-        <section>
-          <h2 className="text-lg font-semibold border-b pb-2 mb-4">Observações Internas</h2>
-          <textarea name="observacoes" rows={3} value={formData.observacoes} onChange={handleChange} className="w-full border rounded-md px-3 py-2 text-sm" placeholder="Anotações para a equipe..." />
-        </section>
-
-        <div className="flex justify-end gap-3 pt-4 border-t">
-          <Link href="/dashboard/licitacoes" className="px-5 py-2 border rounded-md text-gray-700 font-medium hover:bg-gray-50">Cancelar</Link>
-          <button type="submit" disabled={loading} className="px-5 py-2 bg-blue-600 text-white rounded-md font-medium hover:bg-blue-700 flex items-center gap-2 disabled:opacity-50">
-            <Save size={18} /> {loading ? 'Salvando...' : 'Salvar Licitação'}
+        {/* Action Footer */}
+        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px', paddingTop: '16px', borderTop: '1px solid var(--border-color)' }}>
+          <Link href="/dashboard/licitacoes" className="btn btn-secondary">
+            Cancelar
+          </Link>
+          <button type="submit" disabled={loading} className="btn btn-primary">
+            {loading ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
+            Cadastrar Licitação
           </button>
         </div>
       </form>

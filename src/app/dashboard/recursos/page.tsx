@@ -2,50 +2,58 @@
 
 import React, { useState, useEffect } from 'react';
 import { 
-  AlertTriangle, Clock, Filter, Plus, Search, 
-  Scale, FileText, CheckCircle, XCircle, 
-  ChevronRight, Calendar, ArrowRight
+  Scale, Clock, Filter, Plus, Search, 
+  FileText, CheckCircle2, AlertTriangle, 
+  ChevronRight, Calendar, ArrowRight, Loader2, X, Save, Gavel
 } from 'lucide-react';
-import Link from 'next/link';
-
-type Recurso = {
-  id: string;
-  licitacaoId: string;
-  tipo: string;
-  posicao: string;
-  prazo: string | null;
-  responsavel: string;
-  concorrente: string | null;
-  status: string;
-  resumo: string;
-  fundamento: string;
-  proximaAcao: string;
-  setor: string;
-  licitacao: {
-    orgaoNome: string;
-    numero: string;
-    modalidade: string;
-  };
-};
+import { formatDate } from '@/lib/utils';
 
 export default function RecursosPage() {
-  const [recursos, setRecursos] = useState<Recurso[]>([]);
+  const [recursos, setRecursos] = useState<any[]>([]);
+  const [licitacoes, setLicitacoes] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [filterTipo, setFilterTipo] = useState('');
-  const [filterStatus, setFilterStatus] = useState('');
+  const [filterSetor, setFilterSetor] = useState('');
   const [search, setSearch] = useState('');
-  const [showModal, setShowModal] = useState(false);
+  
+  // Modal State
+  const [modalOpen, setModalOpen] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [newRecurso, setNewRecurso] = useState({
+    licitacaoId: '',
+    tipo: 'ESCLARECIMENTO',
+    posicao: 'NOSSA_EMPRESA',
+    prazo: '',
+    responsavel: '',
+    concorrente: '',
+    setor: 'JURIDICO',
+    resumo: '',
+    fundamento: '',
+    proximaAcao: ''
+  });
+
+  useEffect(() => {
+    fetch('/api/licitacoes')
+      .then(res => res.json())
+      .then(data => {
+        setLicitacoes(data);
+        if (data.length > 0) {
+          setNewRecurso(prev => ({ ...prev, licitacaoId: data[0].id }));
+        }
+      })
+      .catch(console.error);
+  }, []);
 
   useEffect(() => {
     fetchRecursos();
-  }, [filterTipo, filterStatus]);
+  }, [filterTipo, filterSetor]);
 
   const fetchRecursos = async () => {
     setLoading(true);
     try {
       const params = new URLSearchParams();
       if (filterTipo) params.append('tipo', filterTipo);
-      if (filterStatus) params.append('status', filterStatus);
+      if (filterSetor) params.append('setor', filterSetor);
       
       const res = await fetch(`/api/recursos?${params.toString()}`);
       if (res.ok) {
@@ -65,11 +73,58 @@ export default function RecursosPage() {
     return Math.ceil(diff / (1000 * 3600 * 24));
   };
 
-  const getUrgencyClass = (days: number | null) => {
-    if (days === null) return 'badge-neutral';
-    if (days < 0) return 'badge-error';
-    if (days <= 2) return 'badge-warning';
-    return 'badge-success';
+  const handleCreateRecurso = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newRecurso.licitacaoId || !newRecurso.resumo) {
+      alert('Por favor, preencha os campos obrigatórios.');
+      return;
+    }
+
+    setSaving(true);
+    try {
+      const res = await fetch('/api/recursos', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(newRecurso)
+      });
+      if (res.ok) {
+        setModalOpen(false);
+        setNewRecurso({
+          licitacaoId: licitacoes[0]?.id || '',
+          tipo: 'ESCLARECIMENTO',
+          posicao: 'NOSSA_EMPRESA',
+          prazo: '',
+          responsavel: '',
+          concorrente: '',
+          setor: 'JURIDICO',
+          resumo: '',
+          fundamento: '',
+          proximaAcao: ''
+        });
+        fetchRecursos();
+      } else {
+        alert('Erro ao salvar recurso');
+      }
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const updateStatus = async (id: string, newStatus: string) => {
+    try {
+      const res = await fetch(`/api/recursos/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: newStatus })
+      });
+      if (res.ok) {
+        fetchRecursos();
+      }
+    } catch (e) {
+      console.error(e);
+    }
   };
 
   const filteredRecursos = recursos.filter(r => {
@@ -78,7 +133,8 @@ export default function RecursosPage() {
     return (
       r.licitacao?.orgaoNome?.toLowerCase().includes(termo) ||
       r.licitacao?.numero?.toLowerCase().includes(termo) ||
-      r.resumo?.toLowerCase().includes(termo)
+      r.resumo?.toLowerCase().includes(termo) ||
+      r.responsavel?.toLowerCase().includes(termo)
     );
   });
 
@@ -89,193 +145,417 @@ export default function RecursosPage() {
     .slice(0, 3);
 
   return (
-    <div className="p-6">
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-8">
+    <div className="animate-fade-in" style={{ maxWidth: '1400px', margin: '0 auto' }}>
+      {/* Header */}
+      <div className="page-header" style={{ marginBottom: '24px' }}>
         <div>
-          <h1 className="text-2xl font-bold flex items-center gap-2">
-            <Scale className="text-blue-500" />
-            Recursos & Prazos
+          <h1 className="page-title" style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <Scale size={26} style={{ color: 'var(--color-primary)' }} />
+            Recursos & Prazos Administrativos
           </h1>
-          <p className="text-muted-foreground mt-1 text-sm">
-            Gestão de impugnações, esclarecimentos e recursos administrativos.
+          <p className="page-subtitle">
+            Gestão estratégica de impugnações, pedidos de esclarecimento, recursos e contrarrazões
           </p>
         </div>
         <button 
-          onClick={() => setShowModal(true)}
-          className="btn btn-primary flex items-center gap-2"
+          onClick={() => setModalOpen(true)}
+          className="btn btn-primary" 
+          style={{ display: 'flex', alignItems: 'center', gap: '8px' }}
         >
-          <Plus size={16} /> Novo Caso
+          <Plus size={18} />
+          Novo Recurso / Peça
         </button>
       </div>
 
       {/* Radar de Prazos Críticos */}
       {prazosCriticos.length > 0 && (
-        <div className="mb-8">
-          <h2 className="text-lg font-semibold mb-3 flex items-center gap-2 text-red-400">
-            <AlertTriangle size={20} /> Prazos Críticos Radar
-          </h2>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            {prazosCriticos.map(p => (
-              <div key={p.id} className={`p-4 rounded-lg border border-red-500/30 bg-red-500/10`}>
-                <div className="flex justify-between items-start mb-2">
-                  <span className="text-xs font-semibold text-red-300 uppercase">{p.tipo.replace('_', ' ')}</span>
-                  <span className="text-lg font-bold text-red-400 flex items-center gap-1">
-                    <Clock size={16} /> 
-                    {p.daysLeft !== null ? (p.daysLeft < 0 ? 'Vencido' : `${p.daysLeft} dias`) : 'Sem prazo'}
-                  </span>
+        <div style={{ marginBottom: '28px' }}>
+          <div style={{ fontSize: '0.85rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--color-primary)', marginBottom: '12px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+            <Clock size={16} /> Radar de Prazos Iminentes (Contagem Regressiva)
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '16px' }}>
+            {prazosCriticos.map((p) => {
+              const isOverdue = p.daysLeft !== null && p.daysLeft < 0;
+              const isUrgent = p.daysLeft !== null && p.daysLeft <= 2;
+
+              return (
+                <div 
+                  key={p.id}
+                  style={{
+                    background: 'linear-gradient(135deg, rgba(22,22,24,0.95) 0%, rgba(26,10,15,0.7) 100%)',
+                    border: `1px solid ${isOverdue ? '#ef4444' : (isUrgent ? '#f59e0b' : 'var(--border-color)')}`,
+                    borderRadius: 'var(--radius-lg)',
+                    padding: '18px 20px',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '10px',
+                    boxShadow: isUrgent ? '0 0 20px rgba(245, 158, 11, 0.15)' : 'none'
+                  }}
+                >
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <span style={{ 
+                      fontSize: '0.72rem', 
+                      fontWeight: 700, 
+                      padding: '2px 8px', 
+                      borderRadius: 'var(--radius-sm)',
+                      background: 'rgba(232, 93, 93, 0.15)',
+                      color: 'var(--color-primary)'
+                    }}>
+                      {p.tipo}
+                    </span>
+                    <span style={{ 
+                      fontSize: '0.8rem', 
+                      fontWeight: 800, 
+                      color: isOverdue ? '#f87171' : (isUrgent ? '#fbbf24' : '#34d399')
+                    }}>
+                      {isOverdue ? `Vencido há ${Math.abs(p.daysLeft!)} dias` : (p.daysLeft === 0 ? 'Vence HOJE' : `Vence em ${p.daysLeft} dias`)}
+                    </span>
+                  </div>
+
+                  <div>
+                    <h3 style={{ fontSize: '0.95rem', fontWeight: 700, color: 'var(--text-primary)', lineHeight: 1.3 }}>
+                      {p.licitacao?.orgaoNome}
+                    </h3>
+                    <p style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', marginTop: '4px' }}>
+                      {p.resumo}
+                    </p>
+                  </div>
+
+                  <div style={{ fontSize: '0.76rem', color: 'var(--text-muted)', display: 'flex', justifyContent: 'space-between', borderTop: '1px solid var(--border-color)', paddingTop: '8px', marginTop: 'auto' }}>
+                    <span>Resp: {p.responsavel}</span>
+                    <span>Setor: {p.setor}</span>
+                  </div>
                 </div>
-                <h3 className="font-medium text-sm truncate mb-1">{p.licitacao?.orgaoNome}</h3>
-                <p className="text-xs text-muted-foreground truncate">{p.resumo}</p>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
       )}
 
-      {/* Filtros */}
-      <div className="bg-surface border border-border rounded-lg p-4 mb-6 flex flex-wrap gap-4 items-center">
-        <div className="relative flex-1 min-w-[200px]">
-          <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
-          <input 
-            type="text" 
-            placeholder="Buscar órgão, edital, resumo..."
-            className="input w-full pl-9"
-            value={search}
-            onChange={e => setSearch(e.target.value)}
-          />
-        </div>
-        
-        <select className="input" value={filterTipo} onChange={e => setFilterTipo(e.target.value)}>
-          <option value="">Todos os Tipos</option>
-          <option value="IMPUGNACAO">Impugnação</option>
-          <option value="ESCLARECIMENTO">Esclarecimento</option>
-          <option value="RECURSO">Recurso Adm.</option>
-          <option value="CONTRARRAZOES">Contrarrazões</option>
-        </select>
+      {/* Filter / Search Bar */}
+      <div className="card" style={{ marginBottom: '28px', padding: '16px 20px', background: 'var(--bg-surface)' }}>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '12px', alignItems: 'center' }}>
+          <div style={{ position: 'relative', flex: '1 1 300px' }}>
+            <Search size={16} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
+            <input 
+              type="text" 
+              value={search} 
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Buscar por órgão, resumo, número ou responsável..." 
+              className="form-control"
+              style={{ paddingLeft: '38px', height: '40px', width: '100%' }}
+            />
+          </div>
 
-        <select className="input" value={filterStatus} onChange={e => setFilterStatus(e.target.value)}>
-          <option value="">Todos os Status</option>
-          <option value="ABERTO">Aberto</option>
-          <option value="EM_ANDAMENTO">Em Andamento</option>
-          <option value="PROTOCOLADO">Protocolado</option>
-          <option value="DEFERIDO">Deferido</option>
-          <option value="INDEFERIDO">Indeferido</option>
-        </select>
+          <select 
+            value={filterTipo} 
+            onChange={(e) => setFilterTipo(e.target.value)}
+            className="form-control" 
+            style={{ width: 'auto', height: '40px', minWidth: '180px' }}
+          >
+            <option value="">Tipo: Todos</option>
+            <option value="IMPUGNACAO">Impugnação</option>
+            <option value="ESCLARECIMENTO">Esclarecimento</option>
+            <option value="INTENCAO_RECURSAL">Intenção Recursal</option>
+            <option value="RECURSO">Recurso Administrativo</option>
+            <option value="CONTRARRAZOES">Contrarrazões</option>
+          </select>
+
+          <select 
+            value={filterSetor} 
+            onChange={(e) => setFilterSetor(e.target.value)}
+            className="form-control" 
+            style={{ width: 'auto', height: '40px', minWidth: '150px' }}
+          >
+            <option value="">Setor: Todos</option>
+            <option value="JURIDICO">Jurídico</option>
+            <option value="TECNICO">Técnico</option>
+            <option value="ORCAMENTO">Orçamento</option>
+            <option value="LICITACOES">Licitações</option>
+            <option value="DIRETORIA">Diretoria</option>
+          </select>
+
+          {(search || filterTipo || filterSetor) && (
+            <button 
+              onClick={() => { setSearch(''); setFilterTipo(''); setFilterSetor(''); }}
+              className="btn btn-ghost btn-sm" 
+              style={{ height: '40px' }}
+            >
+              Limpar Filtros
+            </button>
+          )}
+        </div>
       </div>
 
-      {/* Lista de Casos */}
+      {/* Table of Recursos */}
       {loading ? (
-        <div className="text-center py-12 text-muted-foreground">Carregando...</div>
+        <div style={{ textAlign: 'center', padding: '60px 0' }}>
+          <Loader2 size={36} className="animate-spin" style={{ margin: '0 auto 12px', color: 'var(--color-primary)' }} />
+          <p style={{ color: 'var(--text-secondary)' }}>Carregando recursos e prazos...</p>
+        </div>
       ) : filteredRecursos.length === 0 ? (
-        <div className="text-center py-12 text-muted-foreground border border-dashed border-border rounded-lg">
-          Nenhum recurso encontrado.
+        <div className="card" style={{ textAlign: 'center', padding: '60px 20px' }}>
+          <Scale size={44} style={{ margin: '0 auto 16px', opacity: 0.3, color: 'var(--text-muted)' }} />
+          <h3 style={{ fontSize: '1.15rem', marginBottom: '8px', color: 'var(--text-primary)' }}>Nenhum recurso encontrado</h3>
+          <p style={{ color: 'var(--text-secondary)', marginBottom: '24px', fontSize: '0.9rem' }}>
+            Cadastre impugnações e peças recursais para manter o controle de prazos da Lei 14.133.
+          </p>
+          <button onClick={() => setModalOpen(true)} className="btn btn-primary btn-sm">
+            <Plus size={16} /> Cadastrar Nova Peça
+          </button>
         </div>
       ) : (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-          {filteredRecursos.map(recurso => {
-            const daysLeft = calculateDaysLeft(recurso.prazo);
-            
-            return (
-              <div key={recurso.id} className="case-card">
-                <div className="flex justify-between items-start mb-3">
-                  <div className="flex gap-2">
-                    <span className="badge badge-primary">{recurso.tipo.replace('_', ' ')}</span>
-                    <span className="badge badge-outline">{recurso.setor}</span>
-                  </div>
-                  {recurso.prazo && (
-                    <span className={`badge ${getUrgencyClass(daysLeft)} flex items-center gap-1`}>
-                      <Calendar size={12} />
-                      {new Date(recurso.prazo).toLocaleDateString()} 
-                      {daysLeft !== null && ` (${daysLeft}d)`}
-                    </span>
-                  )}
-                </div>
-                
-                <h3 className="font-semibold text-lg mb-1">{recurso.licitacao?.orgaoNome}</h3>
-                <p className="text-sm text-muted-foreground mb-3">Edital: {recurso.licitacao?.numero} ({recurso.licitacao?.modalidade})</p>
-                
-                <div className="bg-background p-3 rounded-md mb-4 border border-border/50">
-                  <p className="text-sm line-clamp-2"><strong>Resumo:</strong> {recurso.resumo}</p>
-                </div>
-                
-                <div className="flex justify-between items-center mt-auto pt-3 border-t border-border">
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs text-muted-foreground">Status:</span>
-                    <span className="text-sm font-medium">{recurso.status}</span>
-                  </div>
-                  <button className="text-blue-400 hover:text-blue-300 text-sm flex items-center gap-1">
-                    Ver detalhes <ArrowRight size={14} />
-                  </button>
-                </div>
-              </div>
-            );
-          })}
+        <div className="table-wrapper">
+          <table className="table">
+            <thead>
+              <tr>
+                <th>Tipo & Posição</th>
+                <th>Órgão Licitante</th>
+                <th>Resumo do Caso</th>
+                <th>Prazo Fatal</th>
+                <th>Responsável / Setor</th>
+                <th>Status</th>
+                <th>Ações</th>
+              </tr>
+            </thead>
+            <tbody>
+              {filteredRecursos.map((r) => {
+                const days = calculateDaysLeft(r.prazo);
+                return (
+                  <tr key={r.id}>
+                    <td>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                        <span style={{ fontWeight: 700, color: 'var(--text-primary)', fontSize: '0.85rem' }}>{r.tipo}</span>
+                        <span style={{ fontSize: '0.7rem', color: r.posicao === 'NOSSA_EMPRESA' ? '#34d399' : '#fbbf24' }}>
+                          {r.posicao === 'NOSSA_EMPRESA' ? '➔ Nossa Empresa' : '➔ Concorrente'}
+                        </span>
+                      </div>
+                    </td>
+
+                    <td>
+                      <div style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{r.licitacao?.orgaoNome}</div>
+                      <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Edital nº {r.licitacao?.numero || 'S/N'}</div>
+                    </td>
+
+                    <td style={{ maxWidth: '350px' }}>
+                      <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', lineHeight: 1.4 }}>{r.resumo}</p>
+                      {r.proximaAcao && (
+                        <div style={{ fontSize: '0.76rem', color: '#60a5fa', marginTop: '4px' }}>
+                          <strong>Ação:</strong> {r.proximaAcao}
+                        </div>
+                      )}
+                    </td>
+
+                    <td>
+                      {r.prazo ? (
+                        <div>
+                          <div style={{ fontWeight: 600, color: 'var(--text-primary)', fontSize: '0.85rem' }}>{formatDate(new Date(r.prazo))}</div>
+                          <span style={{ fontSize: '0.72rem', color: days !== null && days <= 2 ? '#f87171' : 'var(--text-muted)' }}>
+                            {days !== null ? (days < 0 ? `Vencido` : `${days}d restantes`) : ''}
+                          </span>
+                        </div>
+                      ) : (
+                        <span style={{ color: 'var(--text-muted)', fontSize: '0.8rem' }}>Sem prazo</span>
+                      )}
+                    </td>
+
+                    <td>
+                      <div style={{ fontSize: '0.82rem', color: 'var(--text-primary)' }}>{r.responsavel || 'Não atribuído'}</div>
+                      <span style={{ fontSize: '0.72rem', padding: '1px 6px', borderRadius: 'var(--radius-sm)', background: 'rgba(255,255,255,0.06)', color: 'var(--text-muted)' }}>
+                        {r.setor || 'Geral'}
+                      </span>
+                    </td>
+
+                    <td>
+                      <span style={{ 
+                        fontSize: '0.75rem', 
+                        fontWeight: 700, 
+                        padding: '3px 8px', 
+                        borderRadius: 'var(--radius-sm)',
+                        background: r.status === 'CONCLUIDO' || r.status === 'JULGADO' ? 'rgba(34, 197, 94, 0.15)' : 'rgba(245, 158, 11, 0.15)',
+                        color: r.status === 'CONCLUIDO' || r.status === 'JULGADO' ? '#34d399' : '#fbbf24'
+                      }}>
+                        {r.status}
+                      </span>
+                    </td>
+
+                    <td>
+                      <div style={{ display: 'flex', gap: '4px' }}>
+                        {r.status !== 'CONCLUIDO' && (
+                          <button 
+                            onClick={() => updateStatus(r.id, 'CONCLUIDO')}
+                            className="btn btn-ghost btn-sm"
+                            style={{ padding: '4px 8px', color: '#34d399', fontSize: '0.75rem' }}
+                            title="Concluir"
+                          >
+                            ✓ Concluir
+                          </button>
+                        )}
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
         </div>
       )}
 
-      <style>{`
-        .bg-surface { background-color: var(--bg-surface); }
-        .bg-background { background-color: var(--bg-background); }
-        .border-border { border-color: var(--border-color); }
-        .text-muted-foreground { color: var(--text-muted); }
-        
-        .case-card {
-          background: var(--bg-elevated);
-          border: 1px solid var(--border-color);
-          border-radius: var(--radius-lg);
-          padding: 1.25rem;
-          display: flex;
-          flex-direction: column;
-          transition: all 0.2s;
-        }
-        .case-card:hover {
-          border-color: rgba(59, 130, 246, 0.5);
-          transform: translateY(-2px);
-        }
-        
-        .badge {
-          padding: 0.125rem 0.5rem;
-          border-radius: 9999px;
-          font-size: 0.75rem;
-          font-weight: 500;
-        }
-        .badge-primary { background: rgba(59, 130, 246, 0.2); color: #60a5fa; }
-        .badge-outline { border: 1px solid var(--border-color); color: var(--text-secondary); }
-        .badge-error { background: rgba(239, 68, 68, 0.2); color: #f87171; }
-        .badge-warning { background: rgba(245, 158, 11, 0.2); color: #fbbf24; }
-        .badge-success { background: rgba(16, 185, 129, 0.2); color: #34d399; }
-        .badge-neutral { background: rgba(156, 163, 175, 0.2); color: #9ca3af; }
-        
-        .btn {
-          padding: 0.5rem 1rem;
-          border-radius: var(--radius-md);
-          font-weight: 500;
-          font-size: 0.875rem;
-          transition: all 0.2s;
-          cursor: pointer;
-        }
-        .btn-primary {
-          background: #3b82f6;
-          color: white;
-          border: none;
-        }
-        .btn-primary:hover {
-          background: #2563eb;
-        }
-        
-        .input {
-          background: var(--bg-background);
-          border: 1px solid var(--border-color);
-          border-radius: var(--radius-md);
-          padding: 0.5rem 0.75rem;
-          color: var(--text-primary);
-          font-size: 0.875rem;
-        }
-        .input:focus {
-          outline: none;
-          border-color: #3b82f6;
-        }
-      `}</style>
+      {/* Modal Novo Recurso */}
+      {modalOpen && (
+        <div style={{
+          position: 'fixed',
+          inset: 0,
+          background: 'rgba(0, 0, 0, 0.8)',
+          backdropFilter: 'blur(4px)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 999,
+          padding: '20px'
+        }}>
+          <div className="card" style={{ maxWidth: '650px', width: '100%', maxHeight: '90vh', overflowY: 'auto' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <Scale size={20} style={{ color: 'var(--color-primary)' }} />
+                <h3 style={{ fontSize: '1.2rem', fontWeight: 700 }}>Nova Peça / Recurso Administrativo</h3>
+              </div>
+              <button onClick={() => setModalOpen(false)} className="btn btn-ghost btn-sm" style={{ padding: '4px' }}>
+                <X size={20} />
+              </button>
+            </div>
+
+            <form onSubmit={handleCreateRecurso} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+              <div className="form-group">
+                <label className="form-label">Licitação Vinculada *</label>
+                <select 
+                  value={newRecurso.licitacaoId} 
+                  onChange={(e) => setNewRecurso({ ...newRecurso, licitacaoId: e.target.value })}
+                  className="form-control"
+                  required
+                >
+                  <option value="">Selecione a licitação...</option>
+                  {licitacoes.map(lic => (
+                    <option key={lic.id} value={lic.id}>
+                      {lic.orgaoNome} (Edital nº {lic.numero || 'S/N'})
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px' }}>
+                <div className="form-group">
+                  <label className="form-label">Tipo de Peça *</label>
+                  <select 
+                    value={newRecurso.tipo} 
+                    onChange={(e) => setNewRecurso({ ...newRecurso, tipo: e.target.value })}
+                    className="form-control"
+                  >
+                    <option value="ESCLARECIMENTO">Pedido de Esclarecimento</option>
+                    <option value="IMPUGNACAO">Impugnação ao Edital</option>
+                    <option value="INTENCAO_RECURSAL">Intenção Recursal</option>
+                    <option value="RECURSO">Recurso Administrativo</option>
+                    <option value="CONTRARRAZOES">Contrarrazões</option>
+                    <option value="DILIGENCIA">Resposta a Diligência</option>
+                  </select>
+                </div>
+
+                <div className="form-group">
+                  <label className="form-label">Posição / Autoria</label>
+                  <select 
+                    value={newRecurso.posicao} 
+                    onChange={(e) => setNewRecurso({ ...newRecurso, posicao: e.target.value })}
+                    className="form-control"
+                  >
+                    <option value="NOSSA_EMPRESA">Nossa Empresa (Interponente)</option>
+                    <option value="ADVERSARIO">Adversário / Concorrente</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="form-group">
+                <label className="form-label">Resumo do Pleito / Controvérsia *</label>
+                <input 
+                  value={newRecurso.resumo} 
+                  onChange={(e) => setNewRecurso({ ...newRecurso, resumo: e.target.value })}
+                  className="form-control" 
+                  placeholder="Ex: Impugnação da cláusula de visita técnica obrigatória restritiva"
+                  required 
+                />
+              </div>
+
+              <div className="form-group">
+                <label className="form-label">Fundamento Técnico e Legal</label>
+                <textarea 
+                  value={newRecurso.fundamento} 
+                  onChange={(e) => setNewRecurso({ ...newRecurso, fundamento: e.target.value })}
+                  className="form-control" 
+                  rows={3}
+                  placeholder="Ex: Art. 164 da Lei 14.133/2021 e Acórdão 1443/2023-TCU Plenário..." 
+                />
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '14px' }}>
+                <div className="form-group">
+                  <label className="form-label">Prazo Fatal</label>
+                  <input 
+                    type="datetime-local" 
+                    value={newRecurso.prazo} 
+                    onChange={(e) => setNewRecurso({ ...newRecurso, prazo: e.target.value })}
+                    className="form-control" 
+                  />
+                </div>
+
+                <div className="form-group">
+                  <label className="form-label">Responsável</label>
+                  <input 
+                    value={newRecurso.responsavel} 
+                    onChange={(e) => setNewRecurso({ ...newRecurso, responsavel: e.target.value })}
+                    className="form-control" 
+                    placeholder="Ex: Dr. Carlos Mendes" 
+                  />
+                </div>
+
+                <div className="form-group">
+                  <label className="form-label">Setor Encarregado</label>
+                  <select 
+                    value={newRecurso.setor} 
+                    onChange={(e) => setNewRecurso({ ...newRecurso, setor: e.target.value })}
+                    className="form-control"
+                  >
+                    <option value="JURIDICO">Jurídico</option>
+                    <option value="TECNICO">Técnico</option>
+                    <option value="ORCAMENTO">Orçamento</option>
+                    <option value="LICITACOES">Licitações</option>
+                    <option value="DIRETORIA">Diretoria</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="form-group">
+                <label className="form-label">Próxima Ação Imediata</label>
+                <input 
+                  value={newRecurso.proximaAcao} 
+                  onChange={(e) => setNewRecurso({ ...newRecurso, proximaAcao: e.target.value })}
+                  className="form-control" 
+                  placeholder="Ex: Protocolar minuta no portal Comprasnet até as 18h" 
+                />
+              </div>
+
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '10px' }}>
+                <button type="button" onClick={() => setModalOpen(false)} className="btn btn-secondary">
+                  Cancelar
+                </button>
+                <button type="submit" disabled={saving} className="btn btn-primary">
+                  {saving ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
+                  Salvar Peça
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

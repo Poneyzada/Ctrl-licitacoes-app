@@ -4,7 +4,9 @@ import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { 
   Building2, Search, Filter, Plus, FileText, 
-  MapPin, Calendar, FileCheck, ArrowRight, Loader2
+  MapPin, Calendar, FileCheck, ArrowRight, Loader2,
+  Sparkles, CheckCircle2, XCircle, AlertCircle, Eye,
+  Layers, X
 } from 'lucide-react';
 
 export default function AcervoPage() {
@@ -12,7 +14,15 @@ export default function AcervoPage() {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [orgFilter, setOrgFilter] = useState('');
+  const [ufFilter, setUfFilter] = useState('');
   
+  // Simulador Modal State
+  const [simuladorOpen, setSimuladorOpen] = useState(false);
+  const [simLicitacoes, setSimLicitacoes] = useState<any[]>([]);
+  const [selectedLicitacao, setSelectedLicitacao] = useState('');
+  const [simResults, setSimResults] = useState<any>(null);
+  const [simLoading, setSimLoading] = useState(false);
+
   // Stats
   const [stats, setStats] = useState({
     total: 0,
@@ -23,7 +33,7 @@ export default function AcervoPage() {
 
   useEffect(() => {
     fetchAcervos();
-  }, [search, orgFilter]);
+  }, [search, orgFilter, ufFilter]);
 
   const fetchAcervos = async () => {
     setLoading(true);
@@ -31,14 +41,14 @@ export default function AcervoPage() {
       let url = '/api/acervo?';
       if (search) url += `search=${encodeURIComponent(search)}&`;
       if (orgFilter) url += `orgId=${orgFilter}&`;
+      if (ufFilter) url += `uf=${ufFilter}&`;
       
       const res = await fetch(url);
       if (res.ok) {
         const data = await res.json();
         setAcervos(data);
         
-        // Compute stats only on full load or adapt as needed
-        if (!search && !orgFilter) {
+        if (!search && !orgFilter && !ufFilter) {
           const ufcCount = data.filter((d: any) => d.organization?.name?.toLowerCase().includes('ufc')).length;
           const porticoCount = data.filter((d: any) => d.organization?.name?.toLowerCase().includes('pórtico') || d.organization?.name?.toLowerCase().includes('portico')).length;
           const areasSet = new Set(data.map((d: any) => d.areaTecnica).filter(Boolean));
@@ -58,6 +68,39 @@ export default function AcervoPage() {
     }
   };
 
+  const openSimulador = async () => {
+    setSimuladorOpen(true);
+    try {
+      const res = await fetch('/api/licitacoes');
+      if (res.ok) {
+        const data = await res.json();
+        setSimLicitacoes(data);
+      }
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  const runSimulacao = async () => {
+    if (!selectedLicitacao) return;
+    setSimLoading(true);
+    try {
+      const res = await fetch('/api/acervo/compatibilidade', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ licitacaoId: selectedLicitacao })
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setSimResults(data);
+      }
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setSimLoading(false);
+    }
+  };
+
   const parseQuantitativos = (qStr: string) => {
     if (!qStr) return [];
     try {
@@ -68,205 +111,379 @@ export default function AcervoPage() {
   };
 
   return (
-    <div className="container-fluid animate-fade-in">
-      <div className="page-header">
+    <div className="animate-fade-in" style={{ maxWidth: '1400px', margin: '0 auto' }}>
+      {/* Header */}
+      <div className="page-header" style={{ marginBottom: '24px' }}>
         <div>
-          <h1 className="page-title">Acervo Técnico</h1>
-          <p className="page-subtitle">Gestão de atestados, CATs e compatibilidade para licitações</p>
+          <h1 className="page-title" style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <FileText size={26} style={{ color: 'var(--color-primary)' }} />
+            Acervo Técnico & CATs
+          </h1>
+          <p className="page-subtitle">
+            Gestão de atestados técnicos, certidões de acervo (CREA/CAU) e simulação de compatibilidade
+          </p>
         </div>
-        <div className="flex items-center gap-3">
-          <button className="btn btn-secondary">
-            <FileCheck size={16} />
-            <span>Simulador de Compatibilidade</span>
+        <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+          <button 
+            onClick={openSimulador}
+            className="btn btn-secondary" 
+            style={{ display: 'flex', alignItems: 'center', gap: '8px' }}
+          >
+            <Sparkles size={16} style={{ color: '#a855f7' }} />
+            Simulador de Compatibilidade
           </button>
-          <Link href="/dashboard/acervo/novo" className="btn btn-primary">
-            <Plus size={16} />
-            <span>Novo Atestado</span>
+          <Link href="/dashboard/acervo/novo" className="btn btn-primary" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <Plus size={18} />
+            Novo Atestado / CAT
           </Link>
         </div>
       </div>
 
-      {/* Metrics */}
-      <div className="metrics-grid mb-6">
-        <div className="metric-card">
-          <div className="metric-header">
-            <h3 className="metric-title">Total Atestados</h3>
-            <div className="metric-icon" style={{ background: 'rgba(59, 130, 246, 0.1)', color: '#3b82f6' }}>
-              <FileText size={20} />
-            </div>
+      {/* KPI Stats */}
+      <div className="stats-grid" style={{ marginBottom: '28px' }}>
+        <div className="stat-card">
+          <div className="stat-icon" style={{ background: 'rgba(59, 130, 246, 0.12)', color: '#60a5fa' }}>
+            <FileText size={22} />
           </div>
-          <div className="metric-value">{stats.total}</div>
+          <div className="stat-value">{stats.total}</div>
+          <div className="stat-label">Total de Atestados / CATs</div>
         </div>
-        <div className="metric-card">
-          <div className="metric-header">
-            <h3 className="metric-title">UFC Engenharia</h3>
-            <div className="metric-icon" style={{ background: 'rgba(16, 185, 129, 0.1)', color: '#10b981' }}>
-              <Building2 size={20} />
-            </div>
+
+        <div className="stat-card">
+          <div className="stat-icon" style={{ background: 'rgba(34, 197, 94, 0.12)', color: '#34d399' }}>
+            <Building2 size={22} />
           </div>
-          <div className="metric-value">{stats.ufc}</div>
+          <div className="stat-value">{stats.ufc}</div>
+          <div className="stat-label">UFC Engenharia</div>
         </div>
-        <div className="metric-card">
-          <div className="metric-header">
-            <h3 className="metric-title">Pórtico Construções</h3>
-            <div className="metric-icon" style={{ background: 'rgba(245, 158, 11, 0.1)', color: '#f59e0b' }}>
-              <Building2 size={20} />
-            </div>
+
+        <div className="stat-card">
+          <div className="stat-icon" style={{ background: 'rgba(245, 158, 11, 0.12)', color: '#fbbf24' }}>
+            <Building2 size={22} />
           </div>
-          <div className="metric-value">{stats.portico}</div>
+          <div className="stat-value">{stats.portico}</div>
+          <div className="stat-label">Pórtico Construções</div>
         </div>
-        <div className="metric-card">
-          <div className="metric-header">
-            <h3 className="metric-title">Áreas Técnicas</h3>
-            <div className="metric-icon" style={{ background: 'rgba(139, 92, 246, 0.1)', color: '#8b5cf6' }}>
-              <Filter size={20} />
-            </div>
+
+        <div className="stat-card">
+          <div className="stat-icon" style={{ background: 'rgba(168, 85, 247, 0.12)', color: '#c084fc' }}>
+            <Layers size={22} />
           </div>
-          <div className="metric-value">{stats.areas}</div>
+          <div className="stat-value">{stats.areas}</div>
+          <div className="stat-label">Áreas Técnicas Distintas</div>
         </div>
       </div>
 
-      <div className="card mb-6">
-        <div className="p-4 border-b border-[var(--border-color)] flex flex-wrap gap-4 items-center justify-between">
-          <div className="flex-1 min-w-[300px] max-w-md relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted" size={18} />
+      {/* Filter / Search Bar */}
+      <div className="card" style={{ marginBottom: '28px', padding: '16px 20px', background: 'var(--bg-surface)' }}>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '12px', alignItems: 'center' }}>
+          <div style={{ position: 'relative', flex: '1 1 300px' }}>
+            <Search size={16} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
             <input 
               type="text" 
-              placeholder="Buscar por objeto, emitente ou palavras-chave..." 
-              className="input pl-10 w-full"
-              value={search}
+              value={search} 
               onChange={(e) => setSearch(e.target.value)}
+              placeholder="Buscar por objeto, órgão emitente, CAT, palavras-chave..." 
+              className="form-control"
+              style={{ paddingLeft: '38px', height: '40px', width: '100%' }}
             />
           </div>
-          <div className="flex gap-2">
-            <select 
-              className="input" 
-              value={orgFilter} 
-              onChange={(e) => setOrgFilter(e.target.value)}
-            >
-              <option value="">Todas as Empresas</option>
-              {/* Should ideally be dynamically populated from organizations */}
-              <option value="ufc">UFC Engenharia</option>
-              <option value="portico">Pórtico Construções</option>
-            </select>
-          </div>
-        </div>
 
-        <div className="p-0">
-          {loading ? (
-            <div className="p-8 flex justify-center items-center">
-              <Loader2 className="animate-spin text-muted" size={32} />
-            </div>
-          ) : acervos.length === 0 ? (
-            <div className="p-8 text-center text-muted">
-              Nenhum acervo técnico encontrado.
-            </div>
-          ) : (
-            <div className="acervo-grid p-4">
-              {acervos.map((acervo) => (
-                <div key={acervo.id} className="acervo-card">
-                  <div className="acervo-header flex justify-between items-start mb-3">
-                    <div>
-                      <span className="badge badge-primary mb-2">
-                        {acervo.organization?.name || 'Sem empresa'}
-                      </span>
-                      <h3 className="font-semibold text-[var(--text-primary)] text-sm">
-                        {acervo.numeroCat ? `CAT Nº ${acervo.numeroCat}` : `Atestado Nº ${acervo.numeroAtestado || 'S/N'}`}
-                      </h3>
-                      <p className="text-xs text-[var(--text-secondary)] mt-1">{acervo.emitente}</p>
-                    </div>
-                  </div>
-                  
-                  <p className="text-sm text-[var(--text-secondary)] mb-4 line-clamp-3">
-                    {acervo.objeto}
-                  </p>
-                  
-                  <div className="mb-4">
-                    <div className="flex flex-wrap gap-1">
-                      {parseQuantitativos(acervo.quantitativos).slice(0,3).map((q: any, i: number) => (
-                        <span key={i} className="badge badge-ghost text-[10px]">
-                          {q.quantidade} {q.unidade} - {q.descricao}
-                        </span>
-                      ))}
-                      {parseQuantitativos(acervo.quantitativos).length > 3 && (
-                        <span className="badge badge-ghost text-[10px]">+{parseQuantitativos(acervo.quantitativos).length - 3} itens</span>
-                      )}
-                    </div>
-                  </div>
-                  
-                  <div className="flex items-center gap-4 text-xs text-[var(--text-muted)] mt-auto pt-3 border-t border-[var(--border-color)]">
-                    <div className="flex items-center gap-1">
-                      <MapPin size={12} />
-                      <span>{acervo.local} {acervo.uf ? `- ${acervo.uf}` : ''}</span>
-                    </div>
-                    <div className="flex items-center gap-1">
-                      <Calendar size={12} />
-                      <span>
-                        {acervo.periodoInicio ? new Date(acervo.periodoInicio).getFullYear() : 'N/I'} 
-                        {acervo.periodoFim ? ` a ${new Date(acervo.periodoFim).getFullYear()}` : ''}
-                      </span>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
+          <select 
+            value={orgFilter} 
+            onChange={(e) => setOrgFilter(e.target.value)}
+            className="form-control" 
+            style={{ width: 'auto', height: '40px', minWidth: '180px' }}
+          >
+            <option value="">Empresa: Todas</option>
+            <option value="UFC">UFC Engenharia</option>
+            <option value="PORTICO">Pórtico Construções</option>
+          </select>
+
+          <select 
+            value={ufFilter} 
+            onChange={(e) => setUfFilter(e.target.value)}
+            className="form-control" 
+            style={{ width: 'auto', height: '40px', minWidth: '120px' }}
+          >
+            <option value="">UF: Todas</option>
+            <option value="CE">Ceará (CE)</option>
+            <option value="SP">São Paulo (SP)</option>
+            <option value="PE">Pernambuco (PE)</option>
+            <option value="RN">Rio Grande do Norte (RN)</option>
+            <option value="BA">Bahia (BA)</option>
+          </select>
+
+          {(search || orgFilter || ufFilter) && (
+            <button 
+              onClick={() => { setSearch(''); setOrgFilter(''); setUfFilter(''); }}
+              className="btn btn-ghost btn-sm" 
+              style={{ height: '40px' }}
+            >
+              Limpar Filtros
+            </button>
           )}
         </div>
       </div>
 
+      {/* Grid of Acervos */}
+      {loading ? (
+        <div style={{ textAlign: 'center', padding: '60px 0' }}>
+          <Loader2 size={36} className="animate-spin" style={{ margin: '0 auto 12px', color: 'var(--color-primary)' }} />
+          <p style={{ color: 'var(--text-secondary)' }}>Carregando acervo técnico...</p>
+        </div>
+      ) : acervos.length === 0 ? (
+        <div className="card" style={{ textAlign: 'center', padding: '60px 20px' }}>
+          <FileText size={44} style={{ margin: '0 auto 16px', opacity: 0.3, color: 'var(--text-muted)' }} />
+          <h3 style={{ fontSize: '1.15rem', marginBottom: '8px', color: 'var(--text-primary)' }}>Nenhum atestado encontrado</h3>
+          <p style={{ color: 'var(--text-secondary)', marginBottom: '24px', fontSize: '0.9rem' }}>
+            Cadastre os atestados e CATs das empresas para habilitar o simulador e compatibilidade automática.
+          </p>
+          <Link href="/dashboard/acervo/novo" className="btn btn-primary btn-sm">
+            <Plus size={16} /> Cadastrar Primeiro Atestado
+          </Link>
+        </div>
+      ) : (
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(420px, 1fr))', gap: '20px' }}>
+          {acervos.map((item) => {
+            const quants = parseQuantitativos(item.quantitativos);
+            const isUfc = item.organization?.name?.toLowerCase().includes('ufc');
+
+            return (
+              <div 
+                key={item.id}
+                className="acervo-card"
+                style={{
+                  background: 'var(--bg-surface)',
+                  border: '1px solid var(--border-color)',
+                  borderRadius: 'var(--radius-lg)',
+                  padding: '22px',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '14px',
+                  position: 'relative',
+                  transition: 'all var(--transition-base)'
+                }}
+              >
+                {/* Header */}
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '8px' }}>
+                  <div>
+                    <span 
+                      style={{ 
+                        fontSize: '0.72rem', 
+                        fontWeight: 600, 
+                        padding: '3px 8px', 
+                        borderRadius: 'var(--radius-sm)',
+                        background: isUfc ? 'rgba(34, 197, 94, 0.12)' : 'rgba(245, 158, 11, 0.12)',
+                        color: isUfc ? '#34d399' : '#fbbf24',
+                        border: `1px solid ${isUfc ? 'rgba(34, 197, 94, 0.25)' : 'rgba(245, 158, 11, 0.25)'}`,
+                        display: 'inline-block',
+                        marginBottom: '6px'
+                      }}
+                    >
+                      {item.organization?.tradeName || item.organization?.name}
+                    </span>
+                    <h3 style={{ fontSize: '1rem', fontWeight: 700, color: 'var(--text-primary)', lineHeight: 1.3 }}>
+                      {item.numeroCat ? `CAT nº ${item.numeroCat}` : (item.numeroAtestado ? `Atestado ${item.numeroAtestado}` : 'Atestado Técnico')}
+                    </h3>
+                  </div>
+
+                  {item.areaTecnica && (
+                    <span style={{ 
+                      fontSize: '0.72rem', 
+                      background: 'rgba(255,255,255,0.06)', 
+                      padding: '3px 8px', 
+                      borderRadius: 'var(--radius-sm)', 
+                      color: 'var(--text-secondary)' 
+                    }}>
+                      {item.areaTecnica}
+                    </span>
+                  )}
+                </div>
+
+                {/* Emitter */}
+                <div style={{ fontSize: '0.82rem', color: 'var(--text-muted)' }}>
+                  <span style={{ color: 'var(--text-secondary)', fontWeight: 500 }}>Emitente:</span> {item.emitente}
+                </div>
+
+                {/* Object */}
+                <p 
+                  style={{ 
+                    fontSize: '0.86rem', 
+                    color: 'var(--text-secondary)', 
+                    lineHeight: 1.5,
+                    display: '-webkit-box',
+                    WebkitLineClamp: 3,
+                    WebkitBoxOrient: 'vertical',
+                    overflow: 'hidden'
+                  }}
+                >
+                  {item.objeto}
+                </p>
+
+                {/* Quantitativos Highlights */}
+                {quants.length > 0 && (
+                  <div style={{ 
+                    background: 'var(--bg-elevated)', 
+                    padding: '12px 14px', 
+                    borderRadius: 'var(--radius-md)', 
+                    border: '1px solid var(--border-color)',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '6px'
+                  }}>
+                    <div style={{ fontSize: '0.7rem', textTransform: 'uppercase', color: 'var(--text-muted)', letterSpacing: '0.05em', fontWeight: 600 }}>
+                      Principais Quantitativos Comprovados
+                    </div>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                      {quants.slice(0, 3).map((q: any, idx: number) => (
+                        <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.8rem' }}>
+                          <span style={{ color: 'var(--text-secondary)' }}>{q.descricao}</span>
+                          <span style={{ fontWeight: 700, color: '#60a5fa' }}>
+                            {q.quantidade} {q.unidade}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Technical Responsible & Location */}
+                <div style={{ 
+                  display: 'flex', 
+                  justifyContent: 'space-between', 
+                  alignItems: 'center', 
+                  fontSize: '0.76rem', 
+                  color: 'var(--text-muted)',
+                  marginTop: 'auto',
+                  paddingTop: '10px',
+                  borderTop: '1px solid var(--border-color)'
+                }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                    <MapPin size={13} /> {item.local ? `${item.local} - ` : ''}{item.uf || 'Brasil'}
+                  </div>
+
+                  {item.responsavelTecnico && (
+                    <div style={{ maxWidth: '200px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={item.responsavelTecnico}>
+                      {item.responsavelTecnico}
+                    </div>
+                  )}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {/* Simulador Modal */}
+      {simuladorOpen && (
+        <div style={{
+          position: 'fixed',
+          inset: 0,
+          background: 'rgba(0, 0, 0, 0.8)',
+          backdropFilter: 'blur(4px)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 999,
+          padding: '20px'
+        }}>
+          <div className="card" style={{ maxWidth: '650px', width: '100%', maxHeight: '90vh', overflowY: 'auto' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <Sparkles size={20} style={{ color: '#a855f7' }} />
+                <h3 style={{ fontSize: '1.2rem', fontWeight: 700 }}>Simulador de Compatibilidade Técnica</h3>
+              </div>
+              <button onClick={() => setSimuladorOpen(false)} className="btn btn-ghost btn-sm" style={{ padding: '4px' }}>
+                <X size={20} />
+              </button>
+            </div>
+
+            <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem', marginBottom: '20px' }}>
+              Selecione uma licitação em monitoramento para cruzar os requisitos do edital com os atestados e CATs de UFC Engenharia e Pórtico Construções.
+            </p>
+
+            <div className="form-group" style={{ marginBottom: '20px' }}>
+              <label className="form-label">Selecione a Licitação</label>
+              <select 
+                value={selectedLicitacao} 
+                onChange={(e) => setSelectedLicitacao(e.target.value)}
+                className="form-control"
+                style={{ width: '100%', height: '42px' }}
+              >
+                <option value="">Selecione...</option>
+                {simLicitacoes.map(lic => (
+                  <option key={lic.id} value={lic.id}>
+                    {lic.orgaoNome} ({lic.modalidade || 'Edital'} nº {lic.numero})
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <button 
+              onClick={runSimulacao}
+              disabled={!selectedLicitacao || simLoading}
+              className="btn btn-primary"
+              style={{ width: '100%', height: '44px', marginBottom: '24px', justifyContent: 'center' }}
+            >
+              {simLoading ? (
+                <>
+                  <Loader2 size={18} className="animate-spin" />
+                  Calculando Aderência...
+                </>
+              ) : (
+                <>
+                  <Sparkles size={18} />
+                  Calcular Compatibilidade
+                </>
+              )}
+            </button>
+
+            {simResults && (
+              <div style={{ background: 'var(--bg-elevated)', padding: '18px', borderRadius: 'var(--radius-lg)', border: '1px solid var(--border-color)' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
+                  <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>Resultado do Cruzamento</span>
+                  <span style={{ 
+                    fontSize: '1.1rem', 
+                    fontWeight: 800, 
+                    color: simResults.score >= 80 ? '#34d399' : (simResults.score >= 50 ? '#fbbf24' : '#f87171') 
+                  }}>
+                    {simResults.score}% Aderência
+                  </span>
+                </div>
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                  {simResults.matches?.map((m: any, idx: number) => (
+                    <div key={idx} style={{ 
+                      padding: '10px 12px', 
+                      borderRadius: 'var(--radius-md)', 
+                      background: 'rgba(255,255,255,0.03)',
+                      border: '1px solid var(--border-color)',
+                      fontSize: '0.82rem'
+                    }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '4px' }}>
+                        {m.compatibilidade === 'ATENDE' ? (
+                          <CheckCircle2 size={15} color="#34d399" />
+                        ) : (
+                          <AlertCircle size={15} color="#fbbf24" />
+                        )}
+                        <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{m.requisito}</span>
+                      </div>
+                      <div style={{ color: 'var(--text-muted)', fontSize: '0.78rem' }}>{m.justificativa}</div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
       <style>{`
-        .metrics-grid {
-          display: grid;
-          grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-          gap: 16px;
-        }
-        .metric-card {
-          background: var(--bg-card);
-          border: 1px solid var(--border-color);
-          border-radius: var(--radius-lg);
-          padding: 20px;
-        }
-        .metric-header {
-          display: flex;
-          justify-content: space-between;
-          align-items: center;
-          margin-bottom: 12px;
-        }
-        .metric-title {
-          font-size: 0.875rem;
-          color: var(--text-muted);
-          font-weight: 500;
-        }
-        .metric-icon {
-          width: 40px;
-          height: 40px;
-          border-radius: 50%;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-        }
-        .metric-value {
-          font-size: 1.75rem;
-          font-weight: 700;
-          color: var(--text-primary);
-        }
-        .acervo-grid {
-          display: grid;
-          grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
-          gap: 16px;
-        }
-        .acervo-card {
-          background: var(--bg-elevated);
-          border: 1px solid var(--border-color);
-          border-radius: var(--radius-md);
-          padding: 16px;
-          display: flex;
-          flex-direction: column;
-          transition: all 0.2s;
-        }
         .acervo-card:hover {
-          border-color: var(--border-color-strong);
           transform: translateY(-2px);
+          border-color: rgba(232, 93, 93, 0.4) !important;
+          box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
         }
       `}</style>
     </div>

@@ -837,6 +837,70 @@ async function main() {
 
   console.log('✅ Recursos & Prazos criados')
 
+  // ─── PROFISSIONAIS & ENGENHEIROS ─────────────────────────────────
+  await prisma.professional.createMany({
+    data: [
+      {
+        orgId: ufc.id,
+        nome: 'Eng. Roberto Silva',
+        funcao: 'Engenheiro Civil Sanitarista Sênior',
+        conselho: 'CREA-CE',
+        numeroConselho: '45892-D',
+        formacao: 'Engenharia Civil e Sanitária',
+        vinculo: 'CLT',
+        ativo: true
+      },
+      {
+        orgId: portico.id,
+        nome: 'Eng. Carlos Mendes',
+        funcao: 'Engenheiro de Infraestrutura Rodoviária',
+        conselho: 'CREA-CE',
+        numeroConselho: '32110-D',
+        formacao: 'Engenharia Civil',
+        vinculo: 'SOCIO',
+        ativo: true
+      }
+    ]
+  });
+
+  console.log('✅ Profissionais e Engenheiros criados')
+
+  // ─── OPORTUNIDADES PNCP (ENTRADA AXXIA) ───────────────────────────
+  await prisma.pncpOportunidade.createMany({
+    data: [
+      {
+        numeroControle: 'PNCP-2026-009812',
+        modalidade: 'Concorrência Eletrônica',
+        orgao: 'Secretaria dos Recursos Hídricos do Estado do Ceará — SRH',
+        municipio: 'Fortaleza',
+        uf: 'CE',
+        objeto: 'Serviços técnicos especializados de supervisão, fiscalização e apoio ao gerenciamento da implantação do Ramal do Salgado.',
+        dataHoraSessao: new Date('2026-09-22T09:00:00Z'),
+        valorEstimado: 8900000.0,
+        pncpUrl: 'https://pncp.gov.br/app/editais/925142/2026/0098',
+        status: 'NOVA',
+        recomendacao: 'UFC',
+        justificativa: 'Objeto de supervisão e apoio à fiscalização técnica aderente ao acervo de consultoria da UFC Engenharia.',
+      },
+      {
+        numeroControle: 'PNCP-2026-004412',
+        modalidade: 'Concorrência Eletrônica',
+        orgao: 'Superintendência de Obras Públicas — SOP/CE',
+        municipio: 'Juazeiro do Norte',
+        uf: 'CE',
+        objeto: 'Execução de obras de duplicação, restauração e pavimentação em CBUQ do Anel Viário do Cariri.',
+        dataHoraSessao: new Date('2026-09-30T10:00:00Z'),
+        valorEstimado: 34500000.0,
+        pncpUrl: 'https://pncp.gov.br/app/editais/840120/2026/0044',
+        status: 'NOVA',
+        recomendacao: 'PORTICO',
+        justificativa: 'Execução de obras pesadas de pavimentação asfáltica aderente ao parque de máquinas e acervo da Pórtico Construções.',
+      }
+    ]
+  });
+
+  console.log('✅ Oportunidades PNCP / AXXIA criadas')
+
   // ─── ACOMPANHANDO RESULTADO / KANBAN ──────────────────────────────
   await prisma.tenderFollowup.createMany({
     data: [

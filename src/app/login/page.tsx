@@ -18,17 +18,21 @@ export default function LoginPage() {
     setError('')
 
     startTransition(async () => {
-      const result = await signIn('credentials', {
-        email,
-        password,
-        redirect: false,
-      })
+      try {
+        const result = await signIn('credentials', {
+          email: email.trim().toLowerCase(),
+          password,
+          redirect: false,
+        })
 
-      if (result?.error) {
-        setError('Email ou senha inválidos. Verifique suas credenciais.')
-      } else {
-        router.push('/dashboard')
-        router.refresh()
+        if (result?.error) {
+          setError('Email ou senha inválidos. Verifique suas credenciais.')
+        } else {
+          window.location.href = '/dashboard'
+        }
+      } catch (err: any) {
+        console.error('Login error:', err)
+        setError('Erro ao autenticar. Tente novamente.')
       }
     })
   }

@@ -1,397 +1,262 @@
-﻿'use client'
+'use client';
 
-import { useState } from 'react'
-import { useRouter } from 'next/navigation'
-import Link from 'next/link'
-import {
-  ArrowLeft,
-  Save,
-  FileText,
-  Building2,
-  Hash,
-  Calendar,
-  Link2,
-  AlignLeft,
-  Loader2,
-} from 'lucide-react'
-
-interface FormData {
-  title: string
-  number: string
-  organ: string
-  publicationDate: string
-  deadline: string
-  editalUrl: string
-  notes: string
-}
-
-interface FormErrors {
-  title?: string
-  number?: string
-  organ?: string
-  publicationDate?: string
-  editalUrl?: string
-}
+import { useState } from 'react';
+import { useRouter } from 'next/navigation';
+import { ArrowLeft, Save } from 'lucide-react';
+import Link from 'next/link';
 
 export default function NovaLicitacaoPage() {
-  const router = useRouter()
+  const router = useRouter();
+  const [loading, setLoading] = useState(false);
+  const [formData, setFormData] = useState({
+    organizationId: '',
+    orgaoNome: '',
+    orgaoUasg: '',
+    municipio: '',
+    uf: '',
+    modalidade: '',
+    numero: '',
+    numeroProcesso: '',
+    plataforma: '',
+    plataformaUrl: '',
+    objeto: '',
+    objetoResumo: '',
+    tipoServico: '',
+    dataHoraSessao: '',
+    dataImpugnacao: '',
+    dataEsclarecimento: '',
+    valorEstimado: '',
+    orcamentoSigiloso: false,
+    permiteConsorcio: false,
+    permiteSubcontrato: false,
+    exigeVisita: false,
+    exigeGarantia: false,
+    observacoes: '',
+  });
 
-  const [formData, setFormData] = useState<FormData>({
-    title: '',
-    number: '',
-    organ: '',
-    publicationDate: '',
-    deadline: '',
-    editalUrl: '',
-    notes: '',
-  })
+  const handleChange = (e: any) => {
+    const { name, value, type, checked } = e.target;
+    setFormData(prev => ({
+      ...prev,
+      [name]: type === 'checkbox' ? checked : value
+    }));
+  };
 
-  const [errors, setErrors] = useState<FormErrors>({})
-  const [isLoading, setIsLoading] = useState(false)
-  const [apiError, setApiError] = useState<string | null>(null)
-
-  function validate(): boolean {
-    const newErrors: FormErrors = {}
-
-    if (!formData.title.trim()) newErrors.title = 'Titulo e obrigatorio'
-    if (!formData.number.trim()) newErrors.number = 'Numero do edital e obrigatorio'
-    if (!formData.organ.trim()) newErrors.organ = 'Orgao e obrigatorio'
-    if (!formData.publicationDate) newErrors.publicationDate = 'Data de publicacao e obrigatoria'
-
-    if (formData.editalUrl && !formData.editalUrl.startsWith('http')) {
-      newErrors.editalUrl = 'Insira uma URL valida (deve comecar com http)'
-    }
-
-    setErrors(newErrors)
-    return Object.keys(newErrors).length === 0
-  }
-
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault()
-    if (!validate()) return
-
-    setIsLoading(true)
-    setApiError(null)
-
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
     try {
-      const response = await fetch('/api/licitacoes', {
+      const res = await fetch('/api/licitacoes', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          title: formData.title.trim(),
-          number: formData.number.trim(),
-          organ: formData.organ.trim(),
-          publicationDate: formData.publicationDate,
-          deadline: formData.deadline || undefined,
-          editalUrl: formData.editalUrl.trim() || undefined,
-          notes: formData.notes.trim() || undefined,
-        }),
-      })
-
-      if (!response.ok) {
-        const data = await response.json().catch(() => ({}))
-        throw new Error(data.error || `Erro ${response.status}`)
+        body: JSON.stringify(formData),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        router.push(`/dashboard/licitacoes/${data.id}`);
+      } else {
+        alert('Erro ao criar licitação');
       }
-
-      router.push('/dashboard/licitacoes')
-    } catch (err) {
-      setApiError(err instanceof Error ? err.message : 'Erro inesperado. Tente novamente.')
-      setIsLoading(false)
+    } catch (error) {
+      console.error(error);
+      alert('Erro ao conectar com servidor');
+    } finally {
+      setLoading(false);
     }
-  }
-
-  function handleChange(
-    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
-  ) {
-    const { name, value } = e.target
-    setFormData((prev) => ({ ...prev, [name]: value }))
-    if (errors[name as keyof FormErrors]) {
-      setErrors((prev) => ({ ...prev, [name]: undefined }))
-    }
-  }
+  };
 
   return (
-    <div className="animate-fade-in">
-      <style>{`
-        .nova-form-grid {
-          display: grid;
-          grid-template-columns: 1fr 1fr;
-          gap: 20px;
-        }
-        .nova-form-full { grid-column: 1 / -1; }
-        .field-error {
-          font-size: 0.75rem;
-          color: var(--color-danger);
-          margin-top: 4px;
-          display: flex;
-          align-items: center;
-          gap: 4px;
-        }
-        .form-input-error {
-          border-color: var(--color-danger) !important;
-          box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.1) !important;
-        }
-        .form-section-title {
-          font-size: 0.75rem;
-          font-weight: 600;
-          color: var(--text-muted);
-          text-transform: uppercase;
-          letter-spacing: 0.08em;
-          margin-bottom: 16px;
-          padding-bottom: 8px;
-          border-bottom: 1px solid var(--border-color);
-          display: flex;
-          align-items: center;
-          gap: 8px;
-        }
-        .input-wrapper {
-          position: relative;
-        }
-        .input-icon {
-          position: absolute;
-          left: 12px;
-          top: 50%;
-          transform: translateY(-50%);
-          color: var(--text-muted);
-          pointer-events: none;
-        }
-        .input-with-icon {
-          padding-left: 38px !important;
-        }
-        .textarea-icon {
-          position: absolute;
-          left: 12px;
-          top: 14px;
-          color: var(--text-muted);
-          pointer-events: none;
-        }
-        .form-hint {
-          font-size: 0.75rem;
-          color: var(--text-muted);
-          margin-top: 4px;
-        }
-        @media (max-width: 640px) {
-          .nova-form-grid { grid-template-columns: 1fr; }
-          .nova-form-full { grid-column: 1; }
-        }
-      `}</style>
-
-      <div style={{ marginBottom: 24 }}>
-        <Link href="/dashboard/licitacoes" className="btn btn-ghost btn-sm" style={{ marginBottom: 16 }}>
-          <ArrowLeft size={15} />
-          Voltar para Licitacoes
+    <div className="animate-fade-in p-6 max-w-5xl mx-auto">
+      <div className="flex items-center gap-4 mb-6">
+        <Link href="/dashboard/licitacoes" className="btn btn-ghost p-2 rounded-full hover:bg-gray-200">
+          <ArrowLeft size={20} />
         </Link>
-        <h1 className="page-title">Nova Licitacao</h1>
-        <p className="page-subtitle">
-          Preencha os dados do edital para iniciar a triagem.
-        </p>
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">Nova Licitação</h1>
+          <p className="text-sm text-gray-500">Cadastre uma nova oportunidade de negócio</p>
+        </div>
       </div>
 
-      <div style={{ maxWidth: 800 }}>
-        {apiError && (
-          <div className="alert alert-danger" style={{ marginBottom: 20 }}>
-            <span>&#9888;</span>
-            <span>{apiError}</span>
-          </div>
-        )}
-
-        <form onSubmit={handleSubmit}>
-          <div className="card" style={{ marginBottom: 20 }}>
-            <div className="form-section-title">
-              <FileText size={14} />
-              Identificacao do Edital
+      <form onSubmit={handleSubmit} className="bg-white rounded-lg shadow border border-gray-200 p-6 space-y-8">
+        
+        {/* Bloco 1: Empresa Responsável */}
+        <section>
+          <h2 className="text-lg font-semibold border-b pb-2 mb-4">Empresa Responsável</h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium mb-1">Empresa</label>
+              <select name="organizationId" value={formData.organizationId} onChange={handleChange} className="w-full border rounded-md px-3 py-2 text-sm focus:ring-blue-500" required>
+                <option value="">Selecione a empresa</option>
+                {/* Normally dynamically fetched, statically listed for prompt */}
+                <option value="UFC">UFC Engenharia</option>
+                <option value="PORTICO">Pórtico Construções</option>
+                <option value="CONSORCIO">Nova parceria (Consórcio)</option>
+              </select>
             </div>
+          </div>
+        </section>
 
-            <div className="nova-form-grid">
-              {/* Titulo */}
-              <div className="form-group nova-form-full">
-                <label className="form-label" htmlFor="title">
-                  Titulo da Licitacao <span style={{ color: 'var(--color-danger)' }}>*</span>
-                </label>
-                <div className="input-wrapper">
-                  <FileText size={15} className="input-icon" />
-                  <input
-                    id="title"
-                    name="title"
-                    type="text"
-                    className={`form-input input-with-icon${errors.title ? ' form-input-error' : ''}`}
-                    placeholder="Ex: Contratacao de servicos de pavimentacao..."
-                    value={formData.title}
-                    onChange={handleChange}
-                    disabled={isLoading}
-                  />
-                </div>
-                {errors.title && <span className="field-error">&#9888; {errors.title}</span>}
-              </div>
-
-              {/* Numero */}
-              <div className="form-group">
-                <label className="form-label" htmlFor="number">
-                  Numero do Edital <span style={{ color: 'var(--color-danger)' }}>*</span>
-                </label>
-                <div className="input-wrapper">
-                  <Hash size={15} className="input-icon" />
-                  <input
-                    id="number"
-                    name="number"
-                    type="text"
-                    className={`form-input input-with-icon${errors.number ? ' form-input-error' : ''}`}
-                    placeholder="Ex: PE-001/2026"
-                    value={formData.number}
-                    onChange={handleChange}
-                    disabled={isLoading}
-                  />
-                </div>
-                {errors.number && <span className="field-error">&#9888; {errors.number}</span>}
-              </div>
-
-              {/* Orgao */}
-              <div className="form-group">
-                <label className="form-label" htmlFor="organ">
-                  Orgao Contratante <span style={{ color: 'var(--color-danger)' }}>*</span>
-                </label>
-                <div className="input-wrapper">
-                  <Building2 size={15} className="input-icon" />
-                  <input
-                    id="organ"
-                    name="organ"
-                    type="text"
-                    className={`form-input input-with-icon${errors.organ ? ' form-input-error' : ''}`}
-                    placeholder="Ex: Prefeitura Municipal de Sao Paulo"
-                    value={formData.organ}
-                    onChange={handleChange}
-                    disabled={isLoading}
-                  />
-                </div>
-                {errors.organ && <span className="field-error">&#9888; {errors.organ}</span>}
+        {/* Bloco 2: Órgão e Localização */}
+        <section>
+          <h2 className="text-lg font-semibold border-b pb-2 mb-4">Órgão e Localização</h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className="lg:col-span-2">
+              <label className="block text-sm font-medium mb-1">Órgão Contratante</label>
+              <input type="text" name="orgaoNome" value={formData.orgaoNome} onChange={handleChange} className="w-full border rounded-md px-3 py-2 text-sm" required />
+            </div>
+            <div>
+              <label className="block text-sm font-medium mb-1">UASG</label>
+              <input type="text" name="orgaoUasg" value={formData.orgaoUasg} onChange={handleChange} className="w-full border rounded-md px-3 py-2 text-sm" />
+            </div>
+            <div>
+              <label className="block text-sm font-medium mb-1">Município/UF</label>
+              <div className="flex gap-2">
+                <input type="text" name="municipio" placeholder="Cidade" value={formData.municipio} onChange={handleChange} className="w-2/3 border rounded-md px-3 py-2 text-sm" required />
+                <input type="text" name="uf" placeholder="UF" maxLength={2} value={formData.uf} onChange={handleChange} className="w-1/3 border rounded-md px-3 py-2 text-sm" required />
               </div>
             </div>
           </div>
+        </section>
 
-          <div className="card" style={{ marginBottom: 20 }}>
-            <div className="form-section-title">
-              <Calendar size={14} />
-              Datas e Prazos
+        {/* Bloco 3: Dados do Edital */}
+        <section>
+          <h2 className="text-lg font-semibold border-b pb-2 mb-4">Dados do Edital</h2>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+            <div>
+              <label className="block text-sm font-medium mb-1">Modalidade</label>
+              <select name="modalidade" value={formData.modalidade} onChange={handleChange} className="w-full border rounded-md px-3 py-2 text-sm">
+                <option value="">Selecione...</option>
+                <option value="CONCORRENCIA_ELETRONICA">Concorrência Eletrônica</option>
+                <option value="PREGAO_ELETRONICO">Pregão Eletrônico</option>
+                <option value="RDC">RDC</option>
+                <option value="TOMADA_PRECOS">Tomada de Preços</option>
+                <option value="DISPENSA">Dispensa</option>
+                <option value="INEXIGIBILIDADE">Inexigibilidade</option>
+              </select>
             </div>
-
-            <div className="nova-form-grid">
-              {/* Data de publicacao */}
-              <div className="form-group">
-                <label className="form-label" htmlFor="publicationDate">
-                  Data de Publicacao <span style={{ color: 'var(--color-danger)' }}>*</span>
-                </label>
-                <div className="input-wrapper">
-                  <Calendar size={15} className="input-icon" />
-                  <input
-                    id="publicationDate"
-                    name="publicationDate"
-                    type="date"
-                    className={`form-input input-with-icon${errors.publicationDate ? ' form-input-error' : ''}`}
-                    value={formData.publicationDate}
-                    onChange={handleChange}
-                    disabled={isLoading}
-                  />
-                </div>
-                {errors.publicationDate && (
-                  <span className="field-error">&#9888; {errors.publicationDate}</span>
-                )}
-              </div>
-
-              {/* Prazo */}
-              <div className="form-group">
-                <label className="form-label" htmlFor="deadline">Prazo de Entrega da Proposta</label>
-                <div className="input-wrapper">
-                  <Calendar size={15} className="input-icon" />
-                  <input
-                    id="deadline"
-                    name="deadline"
-                    type="date"
-                    className="form-input input-with-icon"
-                    value={formData.deadline}
-                    onChange={handleChange}
-                    disabled={isLoading}
-                  />
-                </div>
-                <p className="form-hint">Opcional</p>
-              </div>
+            <div>
+              <label className="block text-sm font-medium mb-1">Número do Edital</label>
+              <input type="text" name="numero" value={formData.numero} onChange={handleChange} className="w-full border rounded-md px-3 py-2 text-sm" />
+            </div>
+            <div>
+              <label className="block text-sm font-medium mb-1">Processo Adm.</label>
+              <input type="text" name="numeroProcesso" value={formData.numeroProcesso} onChange={handleChange} className="w-full border rounded-md px-3 py-2 text-sm" />
             </div>
           </div>
-
-          <div className="card" style={{ marginBottom: 20 }}>
-            <div className="form-section-title">
-              <Link2 size={14} />
-              Documentacao e Observacoes
+          
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium mb-1">Plataforma</label>
+              <select name="plataforma" value={formData.plataforma} onChange={handleChange} className="w-full border rounded-md px-3 py-2 text-sm">
+                <option value="">Selecione...</option>
+                <option value="COMPRAS_GOV">Compras.gov.br</option>
+                <option value="PORTAL_COMPRAS_PUBLICAS">Portal de Compras Públicas</option>
+                <option value="LICITACOES_E">Licitações-e (BB)</option>
+                <option value="BLL">BLL Compras</option>
+                <option value="OUTRO">Outro</option>
+              </select>
             </div>
-
-            <div className="nova-form-grid">
-              {/* URL Edital */}
-              <div className="form-group nova-form-full">
-                <label className="form-label" htmlFor="editalUrl">Link do Edital (URL)</label>
-                <div className="input-wrapper">
-                  <Link2 size={15} className="input-icon" />
-                  <input
-                    id="editalUrl"
-                    name="editalUrl"
-                    type="url"
-                    className={`form-input input-with-icon${errors.editalUrl ? ' form-input-error' : ''}`}
-                    placeholder="https://comprasnet.gov.br/..."
-                    value={formData.editalUrl}
-                    onChange={handleChange}
-                    disabled={isLoading}
-                  />
-                </div>
-                {errors.editalUrl
-                  ? <span className="field-error">&#9888; {errors.editalUrl}</span>
-                  : <p className="form-hint">Opcional — link para o edital no portal de transparencia</p>
-                }
-              </div>
-
-              {/* Observacoes */}
-              <div className="form-group nova-form-full">
-                <label className="form-label" htmlFor="notes">Observacoes</label>
-                <div className="input-wrapper" style={{ position: 'relative' }}>
-                  <AlignLeft size={15} className="textarea-icon" />
-                  <textarea
-                    id="notes"
-                    name="notes"
-                    className="form-textarea"
-                    style={{ paddingLeft: 38, minHeight: 120 }}
-                    placeholder="Anotacoes sobre a licitacao, pontos de atencao, contexto..."
-                    value={formData.notes}
-                    onChange={handleChange}
-                    disabled={isLoading}
-                  />
-                </div>
-                <p className="form-hint">Opcional — sera salvo como descricao interna</p>
-              </div>
+            <div>
+              <label className="block text-sm font-medium mb-1">URL do Edital</label>
+              <input type="url" name="plataformaUrl" value={formData.plataformaUrl} onChange={handleChange} className="w-full border rounded-md px-3 py-2 text-sm" placeholder="https://" />
             </div>
           </div>
+        </section>
 
-          {/* Actions */}
-          <div className="flex items-center justify-between">
-            <Link href="/dashboard/licitacoes" className="btn btn-secondary" style={{ pointerEvents: isLoading ? 'none' : 'auto' }}>
-              Cancelar
-            </Link>
-            <button
-              type="submit"
-              className="btn btn-primary"
-              disabled={isLoading}
-            >
-              {isLoading ? (
-                <>
-                  <Loader2 size={16} style={{ animation: 'spin 0.7s linear infinite' }} />
-                  Salvando...
-                </>
-              ) : (
-                <>
-                  <Save size={16} />
-                  Cadastrar Licitacao
-                </>
-              )}
-            </button>
+        {/* Bloco 4: Objeto e Escopo */}
+        <section>
+          <h2 className="text-lg font-semibold border-b pb-2 mb-4">Objeto e Escopo</h2>
+          <div className="grid grid-cols-1 gap-4 mb-4">
+            <div>
+              <label className="block text-sm font-medium mb-1">Objeto Completo</label>
+              <textarea name="objeto" rows={3} value={formData.objeto} onChange={handleChange} className="w-full border rounded-md px-3 py-2 text-sm" required />
+            </div>
+            <div>
+              <label className="block text-sm font-medium mb-1">Resumo Executivo</label>
+              <input type="text" name="objetoResumo" value={formData.objetoResumo} onChange={handleChange} className="w-full border rounded-md px-3 py-2 text-sm" placeholder="Breve descrição em 1 linha" />
+            </div>
           </div>
-        </form>
-      </div>
+          <div className="w-full md:w-1/3">
+            <label className="block text-sm font-medium mb-1">Tipo de Serviço</label>
+            <select name="tipoServico" value={formData.tipoServico} onChange={handleChange} className="w-full border rounded-md px-3 py-2 text-sm">
+              <option value="">Selecione...</option>
+              <option value="OBRA">Execução de Obras</option>
+              <option value="PROJETO">Elaboração de Projetos</option>
+              <option value="SUPERVISAO">Supervisão/Gerenciamento</option>
+              <option value="MANUTENCAO">Manutenção Predial</option>
+              <option value="TECNOLOGIA">Tecnologia da Informação</option>
+              <option value="OUTROS">Outros</option>
+            </select>
+          </div>
+        </section>
+
+        {/* Bloco 5: Prazos e Valores */}
+        <section>
+          <h2 className="text-lg font-semibold border-b pb-2 mb-4">Prazos e Valores</h2>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+            <div>
+              <label className="block text-sm font-medium mb-1">Data/Hora Sessão</label>
+              <input type="datetime-local" name="dataHoraSessao" value={formData.dataHoraSessao} onChange={handleChange} className="w-full border rounded-md px-3 py-2 text-sm" required />
+            </div>
+            <div>
+              <label className="block text-sm font-medium mb-1">Limite Esclarecimentos</label>
+              <input type="date" name="dataEsclarecimento" value={formData.dataEsclarecimento} onChange={handleChange} className="w-full border rounded-md px-3 py-2 text-sm" />
+            </div>
+            <div>
+              <label className="block text-sm font-medium mb-1">Limite Impugnação</label>
+              <input type="date" name="dataImpugnacao" value={formData.dataImpugnacao} onChange={handleChange} className="w-full border rounded-md px-3 py-2 text-sm" />
+            </div>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium mb-1">Valor Estimado (R$)</label>
+              <input type="number" step="0.01" name="valorEstimado" value={formData.valorEstimado} onChange={handleChange} className="w-full border rounded-md px-3 py-2 text-sm" placeholder="Ex: 150000.00" />
+            </div>
+            <div className="flex items-end mb-2">
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input type="checkbox" name="orcamentoSigiloso" checked={formData.orcamentoSigiloso} onChange={handleChange} className="rounded text-blue-600 focus:ring-blue-500" />
+                <span className="text-sm font-medium">Orçamento Sigiloso</span>
+              </label>
+            </div>
+          </div>
+        </section>
+
+        {/* Bloco 6: Condicionantes */}
+        <section>
+          <h2 className="text-lg font-semibold border-b pb-2 mb-4">Condicionantes e Exigências</h2>
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input type="checkbox" name="permiteConsorcio" checked={formData.permiteConsorcio} onChange={handleChange} className="rounded text-blue-600" />
+              <span className="text-sm">Permite Consórcio</span>
+            </label>
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input type="checkbox" name="permiteSubcontrato" checked={formData.permiteSubcontrato} onChange={handleChange} className="rounded text-blue-600" />
+              <span className="text-sm">Permite Subcontratação</span>
+            </label>
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input type="checkbox" name="exigeVisita" checked={formData.exigeVisita} onChange={handleChange} className="rounded text-blue-600" />
+              <span className="text-sm">Exige Visita Técnica</span>
+            </label>
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input type="checkbox" name="exigeGarantia" checked={formData.exigeGarantia} onChange={handleChange} className="rounded text-blue-600" />
+              <span className="text-sm">Garantia de Proposta</span>
+            </label>
+          </div>
+        </section>
+
+        {/* Bloco 7: Observações */}
+        <section>
+          <h2 className="text-lg font-semibold border-b pb-2 mb-4">Observações Internas</h2>
+          <textarea name="observacoes" rows={3} value={formData.observacoes} onChange={handleChange} className="w-full border rounded-md px-3 py-2 text-sm" placeholder="Anotações para a equipe..." />
+        </section>
+
+        <div className="flex justify-end gap-3 pt-4 border-t">
+          <Link href="/dashboard/licitacoes" className="px-5 py-2 border rounded-md text-gray-700 font-medium hover:bg-gray-50">Cancelar</Link>
+          <button type="submit" disabled={loading} className="px-5 py-2 bg-blue-600 text-white rounded-md font-medium hover:bg-blue-700 flex items-center gap-2 disabled:opacity-50">
+            <Save size={18} /> {loading ? 'Salvando...' : 'Salvar Licitação'}
+          </button>
+        </div>
+      </form>
     </div>
-  )
+  );
 }

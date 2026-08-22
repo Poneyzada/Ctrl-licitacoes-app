@@ -497,50 +497,372 @@ async function main() {
 
   console.log('✅ Tarefas criadas')
 
-  await prisma.auditLog.createMany({
+  // ─── LICITAÇÕES (MÓDULO 1) ───────────────────────────────────────
+  const lic1 = await prisma.licitacao.create({
+    data: {
+      orgaoNome: 'Secretaria de Infraestrutura do Estado do Ceará — SEINFRA',
+      orgaoUasg: '925142',
+      municipio: 'Fortaleza',
+      uf: 'CE',
+      modalidade: 'CONCORRENCIA_ELETRONICA',
+      numero: '042/2026',
+      numeroProcesso: '2026/00142-CE',
+      objeto: 'Contratação de empresa de engenharia para implantação do Sistema Adutor e Estação de Tratamento de Água no Vale do Jaguaribe.',
+      objetoResumo: 'Implantação de adutora de 85km em PEAD DE 400mm e ETA compacta de 150 L/s.',
+      tipoServico: 'SERVICOS_HIDRICOS',
+      fase: 'HABILITACAO',
+      status: 'EM_ANALISE',
+      risco: 'MEDIO',
+      plataforma: 'Compras.gov.br',
+      plataformaUrl: 'https://comprasnet.gov.br',
+      dataHoraSessao: new Date('2026-09-15T09:00:00Z'),
+      dataEsclarecimento: new Date('2026-09-08T18:00:00Z'),
+      dataImpugnacao: new Date('2026-09-10T18:00:00Z'),
+      valorEstimado: 24500000.0,
+      permiteConsorcio: true,
+      permiteSubcontrato: false,
+      exigeVisita: true,
+      exigeGarantia: true,
+      organizationId: ufc.id,
+      responsavelId: coordenador.id,
+      createdBy: diretoria.id,
+      observacoes: 'Licitação prioritária do Q3. Ótima aderência ao acervo hídrico da UFC Engenharia.',
+    }
+  });
+
+  const lic2 = await prisma.licitacao.create({
+    data: {
+      orgaoNome: 'Prefeitura Municipal de Sobral — SEINFRA',
+      orgaoUasg: '840120',
+      municipio: 'Sobral',
+      uf: 'CE',
+      modalidade: 'CONCORRENCIA_ELETRONICA',
+      numero: '018/2026',
+      numeroProcesso: '2026/SOBRAL-88',
+      objeto: 'Execução de obras de pavimentação em Concreto Betuminoso Usinado a Quente (CBUQ), drenagem pluvial e sinalização viária em vias urbanas.',
+      objetoResumo: 'Pavimentação asfáltica CBUQ (120.000 m²) e drenagem (14 km).',
+      tipoServico: 'EXECUCAO_INFRAESTRUTURA',
+      fase: 'DISPUTA',
+      status: 'APROVADA',
+      risco: 'BAIXO',
+      plataforma: 'Portal de Compras Públicas',
+      plataformaUrl: 'https://portaldecompraspublicas.com.br',
+      dataHoraSessao: new Date('2026-08-28T10:00:00Z'),
+      valorEstimado: 18200000.0,
+      permiteConsorcio: false,
+      exigeVisita: false,
+      exigeGarantia: true,
+      organizationId: portico.id,
+      responsavelId: coordenador.id,
+      createdBy: diretoria.id,
+    }
+  });
+
+  // Requisitos e Análise de IA para Licitação 1
+  await prisma.analiseEdital.create({
+    data: {
+      licitacaoId: lic1.id,
+      status: 'CONFIRMADO',
+      resumoExecutivo: 'Edital com excelente aderência técnica para UFC Engenharia. Requer atenção especial à visita técnica obrigatória e ao quantitativo de assentamento de tubulação PEAD.',
+      riscos: JSON.stringify([
+        { tipo: 'OPERACIONAL', descricao: 'Visita técnica in loco com atestado assinado até 3 dias úteis antes da sessão', gravidade: 'ALTO', recomendacao: 'Agendar visita com equipe de campo imediatamente' },
+        { tipo: 'FINANCEIRO', descricao: 'Garantia de proposta de 1% (R$ 245.000) com validade de 90 dias', gravidade: 'MEDIO', recomendacao: 'Emitir Seguro Garantia junto à seguradora' }
+      ]),
+      lacunas: JSON.stringify(['Planilha orçamentária do item 4.2 sem especificação do fabricante da bomba submersível']),
+      conflitos: JSON.stringify([]),
+      proximosPassos: JSON.stringify(['Protocolar pedido de esclarecimento sobre curva da bomba', 'Agendar vistoria técnica']),
+      modelVersion: 'claude-3-5-sonnet',
+      createdBy: diretoria.id,
+    }
+  });
+
+  await prisma.requisito.createMany({
     data: [
       {
-        userId: diretoria.id,
-        action: 'LOGIN',
-        entity: 'User',
-        entityId: diretoria.id,
-        metadata: JSON.stringify({ ip: '192.168.1.1' }),
+        licitacaoId: lic1.id,
+        tipo: 'TECNICA_OPERACIONAL',
+        descricao: 'Atestado de capacidade técnico-operacional comprovando execução de no mínimo 40km de adutora em diâmetro igual ou superior a 300mm.',
+        obrigatorio: true,
+        status: 'ATENDE',
+        providencia: 'UFC possui CAT nº 1420/2023 com 65km em PEAD 400mm.',
       },
       {
-        userId: diretoria.id,
-        action: 'APPROVE',
-        entity: 'Tender',
-        entityId: contrato1.id,
-        contractId: contrato1.id,
-        metadata: JSON.stringify({ decision: 'APROVADO', note: 'Aderência 94%' }),
+        licitacaoId: lic1.id,
+        tipo: 'TECNICA_PROFISSIONAL',
+        descricao: 'Engenheiro Civil ou Sanitarista com CAT de responsabilidade técnica por implantação de ETA de pelo menos 100 L/s.',
+        obrigatorio: true,
+        status: 'ATENDE',
+        providencia: 'Eng. Roberto Silva possui ART no acervo.',
       },
       {
-        userId: coordenador.id,
-        action: 'APPROVE',
-        entity: 'Measurement',
-        entityId: med1.id,
-        contractId: contrato1.id,
-        metadata: JSON.stringify({ amount: 320000, period: '2024-07' }),
+        licitacaoId: lic1.id,
+        tipo: 'JURIDICO',
+        descricao: 'Comprovação de regularidade fiscal e trabalhista plena (CND Federal, FGTS, CNDT).',
+        obrigatorio: true,
+        status: 'ATENDE',
       },
       {
-        userId: campo.id,
-        action: 'CREATE',
-        entity: 'DailyLog',
-        contractId: contrato1.id,
-        metadata: JSON.stringify({ date: new Date().toISOString(), weather: 'ENSOLARADO' }),
+        licitacaoId: lic1.id,
+        tipo: 'ECONOMICO',
+        descricao: 'Índices de Liquidez Geral (LG) e Corrente (LC) >= 1.0 e Patrimônio Líquido mínimo de R$ 2.450.000.',
+        obrigatorio: true,
+        status: 'ATENDE',
       },
-      {
-        userId: adm.id,
-        action: 'CREATE',
-        entity: 'Invoice',
-        entityId: med3.id,
-        contractId: contrato1.id,
-        metadata: JSON.stringify({ nfNumber: 'NF-003041', amount: 390000 }),
-      },
-    ],
-  })
+    ]
+  });
 
-  console.log('✅ Logs de auditoria criados')
+  // ─── ACERVO TÉCNICO (MÓDULO 2) ────────────────────────────────────
+  await prisma.acervoTecnico.createMany({
+    data: [
+      {
+        orgId: ufc.id,
+        numeroAtestado: 'AT-2023/089',
+        numeroCat: 'CAT-CE-2023-01420',
+        numeroContrato: 'CT-440/2021',
+        emitente: 'Companhia de Água e Esgoto do Ceará — CAGECE',
+        objeto: 'Execução de obras de implantação da Adutora de Integração Hídrica do Médio Curu, incluindo estação elevatória e reservatório apoiado.',
+        tipoServico: 'SERVICOS_HIDRICOS',
+        areaTecnica: 'Saneamento / Recursos Hídricos',
+        local: 'Pentecoste',
+        uf: 'CE',
+        periodoInicio: new Date('2021-04-10'),
+        periodoFim: new Date('2023-08-30'),
+        responsavelTecnico: 'Eng. Roberto Silva — CREA-CE 45892-D',
+        palavrasChave: 'adutora, pead, estacao elevatoria, cagece, saneamento, agua, tubulacao',
+        quantitativos: JSON.stringify([
+          { descricao: 'Assentamento de tubulação PEAD DE 400mm', quantidade: '65.400', unidade: 'm' },
+          { descricao: 'Estação Elevatória de Água Bruta com 3 bombas de 150cv', quantidade: '1', unidade: 'un' },
+          { descricao: 'Reservatório em concreto armado 2.000 m³', quantidade: '2', unidade: 'un' },
+        ]),
+        observacoes: 'Atestado emitido com louvor pela fiscalização da CAGECE.',
+        ativo: true,
+      },
+      {
+        orgId: ufc.id,
+        numeroAtestado: 'AT-2024/012',
+        numeroCat: 'CAT-CE-2024-00551',
+        numeroContrato: 'CT-012/2022',
+        emitente: 'Secretaria de Recursos Hídricos — SRH/CE',
+        objeto: 'Implantação de Estação de Tratamento de Água (ETA) Modular de 200 L/s e captação flutuante.',
+        tipoServico: 'SERVICOS_HIDRICOS',
+        areaTecnica: 'Tratamento de Água / Saneamento',
+        local: 'Iguatu',
+        uf: 'CE',
+        periodoInicio: new Date('2022-02-15'),
+        periodoFim: new Date('2024-01-20'),
+        responsavelTecnico: 'Eng. Roberto Silva — CREA-CE 45892-D',
+        palavrasChave: 'eta, tratamento de agua, filtros, floculador, decantador, srh',
+        quantitativos: JSON.stringify([
+          { descricao: 'Estação de Tratamento de Água em Aço Inox / PRFV', quantidade: '200', unidade: 'L/s' },
+          { descricao: 'Captação Flutuante com bombas anfíbias', quantidade: '2', unidade: 'cj' },
+        ]),
+        ativo: true,
+      },
+      {
+        orgId: portico.id,
+        numeroAtestado: 'AT-2023/115',
+        numeroCat: 'CAT-CE-2023-09822',
+        numeroContrato: 'CT-098/2021',
+        emitente: 'Superintendência de Obras Públicas — SOP/CE',
+        objeto: 'Execução de obras de pavimentação asfáltica em CBUQ, drenagem superficial e profunda e sinalização horizontal/vertical na Rodovia CE-187.',
+        tipoServico: 'EXECUCAO_INFRAESTRUTURA',
+        areaTecnica: 'Pavimentação / Infraestrutura Rodoviária',
+        local: 'Sobral / Crateús',
+        uf: 'CE',
+        periodoInicio: new Date('2021-08-01'),
+        periodoFim: new Date('2023-11-30'),
+        responsavelTecnico: 'Eng. Carlos Mendes — CREA-CE 32110-D',
+        palavrasChave: 'pavimentacao, cbuq, asfalto, drenagem, terraplanagem, sop, rodovia',
+        quantitativos: JSON.stringify([
+          { descricao: 'Pavimentação em Concreto Betuminoso Usinado a Quente (CBUQ)', quantidade: '185.000', unidade: 'm²' },
+          { descricao: 'Sub-base e base em brita graduada tratada com cimento (BGTC)', quantidade: '24.000', unidade: 'm³' },
+          { descricao: 'Drenagem superficial (meio-fio, sarjeta e descidas d’água)', quantidade: '38.000', unidade: 'm' },
+        ]),
+        ativo: true,
+      },
+      {
+        orgId: portico.id,
+        numeroAtestado: 'AT-2024/045',
+        numeroCat: 'CAT-CE-2024-03112',
+        numeroContrato: 'CT-055/2023',
+        emitente: 'Prefeitura Municipal de Caucaia — SEINFRA',
+        objeto: 'Construção de Complexo Escolar de 12 Salas de Aula e Ginásio Poliesportivo Coberto Padrão FNDE.',
+        tipoServico: 'EXECUCAO',
+        areaTecnica: 'Edificações / Construção Civil',
+        local: 'Caucaia',
+        uf: 'CE',
+        periodoInicio: new Date('2023-03-01'),
+        periodoFim: new Date('2024-05-15'),
+        responsavelTecnico: 'Eng. Carlos Mendes — CREA-CE 32110-D',
+        palavrasChave: 'escola, fnde, ginasio, estrutura metalica, concreto armado, edificacao',
+        quantitativos: JSON.stringify([
+          { descricao: 'Área construída total', quantidade: '4.250', unidade: 'm²' },
+          { descricao: 'Estrutura em concreto armado e cobertura metálica', quantidade: '1.800', unidade: 'm²' },
+        ]),
+        ativo: true,
+      }
+    ]
+  });
+
+  console.log('✅ Acervo Técnico criado (UFC + Pórtico)')
+
+  // ─── DOCUMENTOS DE HABILITAÇÃO / COMPLIANCE (MÓDULO 3) ───────────
+  const vencHoje = new Date();
+  const venc7d = new Date(); venc7d.setDate(vencHoje.getDate() + 5);
+  const venc20d = new Date(); venc20d.setDate(vencHoje.getDate() + 18);
+  const venc60d = new Date(); venc60d.setDate(vencHoje.getDate() + 65);
+  const vencPassado = new Date(); vencPassado.setDate(vencHoje.getDate() - 10);
+
+  await prisma.complianceDocument.createMany({
+    data: [
+      {
+        orgId: ufc.id,
+        nome: 'Certidão Negativa de Débitos Federais e Previdenciários (PGFN)',
+        tipo: 'CND_FEDERAL',
+        emissor: 'Receita Federal do Brasil / PGFN',
+        numero: 'PGFN-2026-994812',
+        emissao: new Date('2026-03-01'),
+        vencimento: venc60d,
+        status: 'VIGENTE',
+        uploadedBy: adm.id,
+      },
+      {
+        orgId: ufc.id,
+        nome: 'Certificado de Regularidade do FGTS (CRF)',
+        tipo: 'FGTS',
+        emissor: 'Caixa Econômica Federal',
+        numero: 'CRF-2026-08149',
+        emissao: new Date('2026-08-01'),
+        vencimento: venc20d,
+        status: 'VIGENTE',
+        uploadedBy: adm.id,
+      },
+      {
+        orgId: ufc.id,
+        nome: 'Certidão Negativa de Débitos Trabalhistas (CNDT)',
+        tipo: 'TRABALHISTA',
+        emissor: 'Tribunal Superior do Trabalho — TST',
+        numero: 'CNDT-114890/2026',
+        emissao: new Date('2026-03-10'),
+        vencimento: venc7d,
+        status: 'RENOVAR',
+        observacoes: 'Vencendo em breve. Solicitar renovação automática no site do TST.',
+        uploadedBy: adm.id,
+      },
+      {
+        orgId: portico.id,
+        nome: 'Certidão Negativa de Débitos Estaduais (SEFAZ/CE)',
+        tipo: 'CERTIDAO_ESTADUAL',
+        emissor: 'Secretaria da Fazenda do Estado do Ceará',
+        numero: 'SEFAZ-CE-88412-2026',
+        emissao: new Date('2026-04-15'),
+        vencimento: venc60d,
+        status: 'VIGENTE',
+        uploadedBy: adm.id,
+      },
+      {
+        orgId: portico.id,
+        nome: 'Certidão Negativa de Débitos Municipais (ISS/IPTU)',
+        tipo: 'CERTIDAO_MUNICIPAL',
+        emissor: 'Secretaria Municipal de Finanças — SEFIN Fortaleza',
+        numero: 'SEFIN-FTZ-009124',
+        emissao: new Date('2026-02-01'),
+        vencimento: vencPassado,
+        status: 'VENCIDO',
+        observacoes: 'Certidão vencida. Renovar imediatamente para não travar habilitação.',
+        uploadedBy: adm.id,
+      },
+      {
+        orgId: portico.id,
+        nome: 'Balanço Patrimonial Registrado na Junta Comercial (JUCEC)',
+        tipo: 'BALANCO_PATRIMONIAL',
+        emissor: 'JUCEC — Exercício 2025',
+        numero: 'REG-JUCEC-2026-114',
+        emissao: new Date('2026-04-30'),
+        semVencimento: true,
+        status: 'VIGENTE',
+        uploadedBy: adm.id,
+      }
+    ]
+  });
+
+  console.log('✅ Documentos de Compliance criados')
+
+  // ─── RECURSOS & PRAZOS (MÓDULO 4) ─────────────────────────────────
+  const prazoUrgente = new Date(); prazoUrgente.setDate(prazoUrgente.getDate() + 2);
+  const prazoSemana = new Date(); prazoSemana.setDate(prazoSemana.getDate() + 6);
+
+  await prisma.recursoCaso.createMany({
+    data: [
+      {
+        licitacaoId: lic1.id,
+        tipo: 'ESCLARECIMENTO',
+        posicao: 'NOSSA_EMPRESA',
+        prazo: prazoUrgente,
+        responsavel: 'Ana Paula Souza',
+        status: 'EM_ANDAMENTO',
+        resumo: 'Pedido de esclarecimento referente à especificação técnica da motobomba submersível e diâmetro de recalque no item 4.2.',
+        fundamento: 'Art. 164 da Lei nº 14.133/2021 — Direito de petição para esclarecimento de dúvidas editalícias.',
+        proximaAcao: 'Protocolar via comprasnet até as 18h do dia de vencimento.',
+        setor: 'TECNICO',
+      },
+      {
+        licitacaoId: lic1.id,
+        tipo: 'IMPUGNACAO',
+        posicao: 'ADVERSARIO',
+        prazo: prazoSemana,
+        responsavel: 'Carlos Mendes',
+        concorrente: 'Engenharia Delta Ltda',
+        status: 'ABERTO',
+        resumo: 'Concorrente impugnou exigência de visita técnica obrigatória alegando restrição à competitividade.',
+        fundamento: 'Acórdão 1443/2023-TCU Plenário — Visita técnica só pode ser obrigatória em casos de alta complexidade comprovada.',
+        proximaAcao: 'Acompanhar decisão do pregoeiro para ver se haverá suspensão da sessão.',
+        setor: 'JURIDICO',
+      },
+      {
+        licitacaoId: lic2.id,
+        tipo: 'INTENCAO_RECURSAL',
+        posicao: 'NOSSA_EMPRESA',
+        prazo: prazoSemana,
+        responsavel: 'Carlos Mendes',
+        concorrente: 'Construtora Vale Verde',
+        status: 'ABERTO',
+        resumo: 'Interposição de recurso contra aceitação da proposta da 1ª colocada com indício de inexequibilidade de preços no item CBUQ.',
+        fundamento: 'Art. 59, III da Lei 14.133/2021 — Proposta com valor manifestamente inexequível com BDI zero.',
+        proximaAcao: 'Montar memorial de cálculo comprovando inviabilidade orçamentária do concorrente.',
+        setor: 'ORCAMENTO',
+      }
+    ]
+  });
+
+  console.log('✅ Recursos & Prazos criados')
+
+  // ─── ACOMPANHANDO RESULTADO / KANBAN ──────────────────────────────
+  await prisma.tenderFollowup.createMany({
+    data: [
+      {
+        licitacaoId: lic2.id,
+        fase: 'EM_ELABORACAO',
+        tipo: 'PROPOSTA_AJUSTADA',
+        proximaAcao: 'Adequar planilha orçamentária ao lance vencedor de R$ 17.850.000',
+        prazo: prazoUrgente,
+        responsavel: 'Fernanda Lima',
+        status: 'ATIVO',
+        observacoes: 'Pregoeiro abriu prazo de 2h úteis após a sessão para envio da proposta readequada.',
+      },
+      {
+        licitacaoId: lic1.id,
+        fase: 'PENDENTE',
+        tipo: 'HABILITACAO_DOCUMENTAL',
+        proximaAcao: 'Separar documentos de habilitação e atestados autenticados em PDF',
+        prazo: prazoSemana,
+        responsavel: 'Ana Paula Souza',
+        status: 'ATIVO',
+      }
+    ]
+  });
+
+  console.log('✅ Acompanhamento de Resultado (Kanban) criado')
 
   console.log(`
 ╔════════════════════════════════════════════════╗

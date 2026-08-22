@@ -4,6 +4,7 @@ import { prisma } from '@/lib/prisma'
 import bcrypt from 'bcryptjs'
 
 export const { handlers, signIn, signOut, auth } = NextAuth({
+  trustHost: true,
   providers: [
     Credentials({
       name: 'credentials',
@@ -14,24 +15,29 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
       async authorize(credentials) {
         if (!credentials?.email || !credentials?.password) return null
 
-        const user = await prisma.user.findUnique({
-          where: { email: credentials.email as string },
-        })
+        try {
+          const user = await prisma.user.findUnique({
+            where: { email: (credentials.email as string).toLowerCase().trim() },
+          })
 
-        if (!user || !user.active) return null
+          if (!user || !user.active) return null
 
-        const isValid = await bcrypt.compare(
-          credentials.password as string,
-          user.passwordHash
-        )
+          const isValid = await bcrypt.compare(
+            credentials.password as string,
+            user.passwordHash
+          )
 
-        if (!isValid) return null
+          if (!isValid) return null
 
-        return {
-          id: user.id,
-          email: user.email,
-          name: user.name,
-          role: user.role,
+          return {
+            id: user.id,
+            email: user.email,
+            name: user.name,
+            role: user.role,
+          }
+        } catch (err) {
+          console.error('Error during authorization:', err)
+          return null
         }
       },
     }),
@@ -56,5 +62,6 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
   pages: {
     signIn: '/login',
   },
-  secret: process.env.NEXTAUTH_SECRET || 'ctrl-licitacao-secret-dev',
+  secret: process.env.AUTH_SECRET || process.env.NEXTAUTH_SECRET || 'ctrl-licitacao-secret-prod-2026',
 })
+

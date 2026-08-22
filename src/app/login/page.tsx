@@ -1,38 +1,35 @@
 'use client'
 
 import { useState, useTransition } from 'react'
-import { signIn } from 'next-auth/react'
-import { useRouter } from 'next/navigation'
 import { Eye, EyeOff, Lock, Mail, FileText, AlertCircle } from 'lucide-react'
+import { loginAction } from './actions'
 
 export default function LoginPage() {
-  const router = useRouter()
   const [isPending, startTransition] = useTransition()
   const [showPassword, setShowPassword] = useState(false)
   const [error, setError] = useState('')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
     setError('')
 
+    const formData = new FormData(e.currentTarget)
+    formData.set('email', email)
+    formData.set('password', password)
+
     startTransition(async () => {
       try {
-        const result = await signIn('credentials', {
-          email: email.trim().toLowerCase(),
-          password,
-          redirect: false,
-        })
-
-        if (result?.error) {
-          setError('Email ou senha inválidos. Verifique suas credenciais.')
-        } else {
-          window.location.href = '/dashboard'
+        const res = await loginAction(null, formData)
+        if (res?.error) {
+          setError(res.error)
         }
       } catch (err: any) {
-        console.error('Login error:', err)
-        setError('Erro ao autenticar. Tente novamente.')
+        if (!err?.message?.includes('NEXT_REDIRECT') && !err?.digest?.includes('NEXT_REDIRECT')) {
+          console.error('Login error:', err)
+          setError('Email ou senha inválidos. Verifique suas credenciais.')
+        }
       }
     })
   }

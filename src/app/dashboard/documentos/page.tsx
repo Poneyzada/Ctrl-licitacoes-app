@@ -4,7 +4,8 @@ import React, { useState, useEffect } from 'react';
 import { 
   ShieldCheck, Search, Filter, Plus, AlertCircle, 
   CheckCircle2, Clock, FileText, Building2, Calendar, 
-  AlertTriangle, XCircle, ArrowUpRight, Loader2, X, Save
+  AlertTriangle, XCircle, ArrowUpRight, Loader2, X, Save,
+  Trash2, RefreshCw, Eye, Download, FileUp
 } from 'lucide-react';
 import { formatDate } from '@/lib/utils';
 
@@ -16,7 +17,7 @@ export default function DocumentosPage() {
   const [filterStatus, setFilterStatus] = useState('ALL');
   const [search, setSearch] = useState('');
 
-  // Modal State
+  // Modal Novo Documento State
   const [modalOpen, setModalOpen] = useState(false);
   const [saving, setSaving] = useState(false);
   const [newDoc, setNewDoc] = useState({
@@ -30,6 +31,19 @@ export default function DocumentosPage() {
     semVencimento: false,
     observacoes: ''
   });
+
+  // Modal Ver / Renovar State
+  const [renovarModalOpen, setRenovarModalOpen] = useState(false);
+  const [selectedDoc, setSelectedDoc] = useState<any>(null);
+  const [renovarData, setRenovarData] = useState({
+    numero: '',
+    emissao: '',
+    vencimento: '',
+    semVencimento: false,
+    observacoes: '',
+    status: 'VIGENTE'
+  });
+  const [updating, setUpdating] = useState(false);
 
   const [stats, setStats] = useState({
     validos: 0,
@@ -59,65 +73,46 @@ export default function DocumentosPage() {
     try {
       let url = '/api/documentos?';
       if (filterEmpresa) url += `orgId=${filterEmpresa}&`;
+      if (filterStatus !== 'ALL') url += `status=${filterStatus}&`;
+      if (search) url += `search=${encodeURIComponent(search)}&`;
 
       const res = await fetch(url);
       if (res.ok) {
         const data = await res.json();
-        const now = new Date();
-        let v = 0, a = 0, c = 0, x = 0;
         
+        // Calculate status dynamically
+        const now = new Date();
         const processed = data.map((doc: any) => {
           if (doc.semVencimento) {
-            v++;
-            return { ...doc, uiStatus: 'VIGENTE', daysLeft: 999 };
+            return { ...doc, daysLeft: 999, uiStatus: 'VIGENTE' };
           }
-          
           if (!doc.vencimento) {
-            v++;
-            return { ...doc, uiStatus: 'VIGENTE', daysLeft: 999 };
+            return { ...doc, daysLeft: 0, uiStatus: 'SEM_DATA' };
           }
-          
           const venc = new Date(doc.vencimento);
           const diffTime = venc.getTime() - now.getTime();
           const daysLeft = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
           
           let uiStatus = 'VIGENTE';
-          if (daysLeft < 0) {
-            uiStatus = 'VENCIDO';
-            x++;
-          } else if (daysLeft <= 15) {
-            uiStatus = 'CRITICO';
-            c++;
-          } else if (daysLeft <= 30) {
-            uiStatus = 'ATENCAO';
-            a++;
-          } else {
-            v++;
-          }
-          
-          return { ...doc, uiStatus, daysLeft };
+          if (daysLeft < 0) uiStatus = 'VENCIDO';
+          else if (daysLeft <= 15) uiStatus = 'CRITICO';
+          else if (daysLeft <= 30) uiStatus = 'ATENCAO';
+
+          return { ...doc, daysLeft, uiStatus };
         });
 
-        let filtered = processed;
-        if (filterStatus !== 'ALL') {
-          filtered = filtered.filter((d: any) => d.uiStatus === filterStatus);
-        }
-        if (search) {
-          const s = search.toLowerCase();
-          filtered = filtered.filter((d: any) => 
-            d.nome?.toLowerCase().includes(s) ||
-            d.emissor?.toLowerCase().includes(s) ||
-            d.numero?.toLowerCase().includes(s)
-          );
-        }
+        setDocuments(processed);
 
-        setDocuments(filtered);
-        if (!filterEmpresa && filterStatus === 'ALL' && !search) {
-          setStats({ validos: v, atencao: a, critico: c, vencidos: x });
-        }
+        // Update Stats
+        const validos = processed.filter((d: any) => d.uiStatus === 'VIGENTE').length;
+        const atencao = processed.filter((d: any) => d.uiStatus === 'ATENCAO').length;
+        const critico = processed.filter((d: any) => d.uiStatus === 'CRITICO').length;
+        const vencidos = processed.filter((d: any) => d.uiStatus === 'VENCIDO').length;
+
+        setStats({ validos, atencao, critico, vencidos });
       }
-    } catch (err) {
-      console.error(err);
+    } catch (e) {
+      console.error(e);
     } finally {
       setLoading(false);
     }
@@ -126,7 +121,7 @@ export default function DocumentosPage() {
   const handleCreateDoc = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newDoc.nome || !newDoc.orgId) {
-      alert('Preencha os campos obrigatórios.');
+      alert('Preencha os campos obrigatórios');
       return;
     }
 
@@ -137,6 +132,7 @@ export default function DocumentosPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(newDoc)
       });
+
       if (res.ok) {
         setModalOpen(false);
         setNewDoc({
@@ -152,47 +148,109 @@ export default function DocumentosPage() {
         });
         fetchDocuments();
       } else {
-        alert('Erro ao salvar certidão.');
+        alert('Erro ao cadastrar documento');
       }
     } catch (e) {
       console.error(e);
+      alert('Erro de conexão');
     } finally {
       setSaving(false);
     }
   };
 
-  const getStatusBadge = (uiStatus: string, daysLeft: number, semVencimento: boolean) => {
+  const handleOpenRenovar = (doc: any) => {
+    setSelectedDoc(doc);
+    setRenovarData({
+      numero: doc.numero || '',
+      emissao: doc.emissao ? doc.emissao.split('T')[0] : '',
+      vencimento: doc.vencimento ? doc.vencimento.split('T')[0] : '',
+      semVencimento: doc.semVencimento || false,
+      observacoes: doc.observacoes || '',
+      status: doc.status || 'VIGENTE'
+    });
+    setRenovarModalOpen(true);
+  };
+
+  const handleSaveRenovar = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedDoc) return;
+
+    setUpdating(true);
+    try {
+      const res = await fetch(`/api/documentos/${selectedDoc.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(renovarData)
+      });
+
+      if (res.ok) {
+        setRenovarModalOpen(false);
+        fetchDocuments();
+      } else {
+        alert('Erro ao atualizar documento');
+      }
+    } catch (e) {
+      console.error(e);
+      alert('Erro ao conectar com servidor');
+    } finally {
+      setUpdating(false);
+    }
+  };
+
+  const handleDeleteDoc = async (id: string) => {
+    if (!confirm('Deseja realmente remover este documento do radar?')) return;
+
+    try {
+      const res = await fetch(`/api/documentos/${id}`, { method: 'DELETE' });
+      if (res.ok) {
+        setRenovarModalOpen(false);
+        fetchDocuments();
+      } else {
+        alert('Erro ao excluir documento');
+      }
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  const getStatusBadge = (status: string, daysLeft: number, semVencimento: boolean) => {
     if (semVencimento) {
       return (
-        <span style={{ fontSize: '0.75rem', fontWeight: 600, padding: '3px 8px', borderRadius: 'var(--radius-sm)', background: 'rgba(34, 197, 94, 0.15)', color: '#34d399' }}>
-          Sem Vencimento
+        <span className="badge badge-aprovado">
+          ✓ Sem Vencimento
         </span>
       );
     }
 
-    switch (uiStatus) {
+    switch (status) {
       case 'VENCIDO':
         return (
-          <span style={{ fontSize: '0.75rem', fontWeight: 700, padding: '3px 8px', borderRadius: 'var(--radius-sm)', background: 'rgba(239, 68, 68, 0.18)', color: '#f87171', border: '1px solid rgba(239, 68, 68, 0.3)' }}>
-            ✕ Vencido ({Math.abs(daysLeft)}d atrás)
+          <span className="badge badge-atrasado">
+            ✕ Vencida ({Math.abs(daysLeft)}d atrás)
           </span>
         );
       case 'CRITICO':
         return (
-          <span style={{ fontSize: '0.75rem', fontWeight: 700, padding: '3px 8px', borderRadius: 'var(--radius-sm)', background: 'rgba(249, 115, 22, 0.18)', color: '#fb923c', border: '1px solid rgba(249, 115, 22, 0.3)' }}>
+          <span className="badge badge-atrasado">
             ⚠ Crítico ({daysLeft}d restantes)
           </span>
         );
       case 'ATENCAO':
         return (
-          <span style={{ fontSize: '0.75rem', fontWeight: 700, padding: '3px 8px', borderRadius: 'var(--radius-sm)', background: 'rgba(245, 158, 11, 0.18)', color: '#fbbf24', border: '1px solid rgba(245, 158, 11, 0.3)' }}>
-            ⚡ Atenção ({daysLeft}d)
+          <span className="badge badge-em_analise">
+            ⏰ Atenção ({daysLeft}d restantes)
+          </span>
+        );
+      case 'VIGENTE':
+        return (
+          <span className="badge badge-pago">
+            ✓ Vigente ({daysLeft}d restantes)
           </span>
         );
       default:
         return (
-          <span style={{ fontSize: '0.75rem', fontWeight: 600, padding: '3px 8px', borderRadius: 'var(--radius-sm)', background: 'rgba(34, 197, 94, 0.15)', color: '#34d399' }}>
-            ✓ Vigente ({daysLeft === 999 ? 'Ativo' : `${daysLeft}d`})
+          <span className="badge badge-neutral-dark">
+            Não informado
           </span>
         );
     }
@@ -203,25 +261,25 @@ export default function DocumentosPage() {
       {/* Header */}
       <div className="page-header" style={{ marginBottom: '24px' }}>
         <div>
-          <h1 className="page-title" style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-            <ShieldCheck size={26} style={{ color: 'var(--color-primary)' }} />
-            Central de Documentos & Radar de Vencimentos
-          </h1>
+          <h1 className="page-title">Radar de Documentos & Compliance</h1>
           <p className="page-subtitle">
-            Monitoramento de CNDs, regularidade fiscal, balanços e certidões para habilitação imediata
+            Monitoramento de CNDs, certidões fiscais, balanços e habilitação jurídica
           </p>
         </div>
-        <button 
-          onClick={() => setModalOpen(true)}
-          className="btn btn-primary" 
-          style={{ display: 'flex', alignItems: 'center', gap: '8px' }}
-        >
-          <Plus size={18} />
-          Nova Certidão / Documento
-        </button>
+
+        <div style={{ display: 'flex', gap: '12px' }}>
+          <button 
+            onClick={() => setModalOpen(true)} 
+            className="btn btn-primary" 
+            style={{ display: 'flex', alignItems: 'center', gap: '8px' }}
+          >
+            <Plus size={18} />
+            Nova Certidão / Documento
+          </button>
+        </div>
       </div>
 
-      {/* Radar de Vencimentos - Stats Grid */}
+      {/* KPI Cards — Radar de Vencimentos */}
       <div className="stats-grid" style={{ marginBottom: '28px' }}>
         <div className="stat-card">
           <div className="stat-icon" style={{ background: 'rgba(34, 197, 94, 0.12)', color: '#34d399' }}>
@@ -353,14 +411,7 @@ export default function DocumentosPage() {
                     </td>
 
                     <td>
-                      <span style={{ 
-                        fontSize: '0.72rem', 
-                        fontWeight: 600, 
-                        padding: '2px 7px', 
-                        borderRadius: 'var(--radius-sm)',
-                        background: isUfc ? 'rgba(34, 197, 94, 0.12)' : 'rgba(245, 158, 11, 0.12)',
-                        color: isUfc ? '#34d399' : '#fbbf24',
-                      }}>
+                      <span className={isUfc ? 'tag-company-ufc' : 'tag-company-portico'}>
                         {doc.organization?.tradeName || doc.organization?.name || 'N/A'}
                       </span>
                     </td>
@@ -382,7 +433,12 @@ export default function DocumentosPage() {
                     </td>
 
                     <td>
-                      <button className="btn btn-secondary btn-sm" style={{ padding: '4px 10px', fontSize: '0.75rem' }}>
+                      <button 
+                        onClick={() => handleOpenRenovar(doc)}
+                        className="btn btn-secondary btn-sm" 
+                        style={{ padding: '5px 12px', fontSize: '0.78rem', display: 'flex', alignItems: 'center', gap: '5px' }}
+                      >
+                        <RefreshCw size={13} style={{ color: 'var(--color-primary)' }} />
                         Ver / Renovar
                       </button>
                     </td>
@@ -394,20 +450,171 @@ export default function DocumentosPage() {
         </div>
       )}
 
+      {/* Modal Ver & Renovar Documento */}
+      {renovarModalOpen && selectedDoc && (
+        <div style={{
+          position: 'fixed',
+          inset: 0,
+          background: 'rgba(0, 0, 0, 0.85)',
+          backdropFilter: 'blur(6px)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 9999,
+          padding: '20px'
+        }}
+        onClick={() => setRenovarModalOpen(false)}
+        >
+          <div 
+            className="card" 
+            style={{ 
+              maxWidth: '620px', 
+              width: '100%', 
+              maxHeight: '90vh', 
+              overflowY: 'auto',
+              background: 'var(--bg-surface)',
+              border: '1px solid var(--border-color-strong)',
+              borderRadius: 'var(--radius-xl)',
+              padding: '26px'
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Header */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <div style={{ width: '38px', height: '38px', borderRadius: 'var(--radius-md)', background: 'var(--gradient-primary)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff' }}>
+                  <RefreshCw size={18} />
+                </div>
+                <div>
+                  <h3 style={{ fontSize: '1.2rem', fontWeight: 700 }}>Visualizar & Renovar Certidão</h3>
+                  <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>Atualizar vigência no radar de compliance</p>
+                </div>
+              </div>
+              <button onClick={() => setRenovarModalOpen(false)} className="btn btn-ghost btn-sm" style={{ padding: '6px' }}>
+                <X size={20} />
+              </button>
+            </div>
+
+            {/* Document Info Banner */}
+            <div style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-md)', padding: '14px 16px', marginBottom: '20px' }}>
+              <div style={{ fontSize: '0.95rem', fontWeight: 700, color: 'var(--text-primary)' }}>{selectedDoc.nome}</div>
+              <div style={{ fontSize: '0.82rem', color: 'var(--text-muted)', marginTop: '3px' }}>
+                Empresa: <strong style={{ color: 'var(--text-secondary)' }}>{selectedDoc.organization?.tradeName || selectedDoc.organization?.name}</strong> • Órgão: <strong style={{ color: 'var(--text-secondary)' }}>{selectedDoc.emissor || 'Órgão Competente'}</strong>
+              </div>
+            </div>
+
+            {/* Renewal Form */}
+            <form onSubmit={handleSaveRenovar} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+              <div className="form-group">
+                <label className="form-label">Nº do Documento / Código de Autenticidade</label>
+                <input 
+                  value={renovarData.numero} 
+                  onChange={(e) => setRenovarData({ ...renovarData, numero: e.target.value })}
+                  className="form-control"
+                  placeholder="Ex: PGFN-2026-991" 
+                />
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px' }}>
+                <div className="form-group">
+                  <label className="form-label">Nova Data de Emissão</label>
+                  <input 
+                    type="date" 
+                    value={renovarData.emissao} 
+                    onChange={(e) => setRenovarData({ ...renovarData, emissao: e.target.value })}
+                    className="form-control" 
+                  />
+                </div>
+
+                <div className="form-group">
+                  <label className="form-label">Nova Data de Vencimento *</label>
+                  <input 
+                    type="date" 
+                    value={renovarData.vencimento} 
+                    onChange={(e) => setRenovarData({ ...renovarData, vencimento: e.target.value })}
+                    disabled={renovarData.semVencimento}
+                    className="form-control" 
+                    required={!renovarData.semVencimento}
+                  />
+                </div>
+              </div>
+
+              <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '0.85rem', color: 'var(--text-primary)' }}>
+                <input 
+                  type="checkbox" 
+                  checked={renovarData.semVencimento} 
+                  onChange={(e) => setRenovarData({ ...renovarData, semVencimento: e.target.checked })}
+                  style={{ width: '16px', height: '16px' }}
+                />
+                Certidão sem prazo de validade (indeterminado)
+              </label>
+
+              <div className="form-group">
+                <label className="form-label">Observações / Chave de Validação</label>
+                <textarea 
+                  value={renovarData.observacoes} 
+                  onChange={(e) => setRenovarData({ ...renovarData, observacoes: e.target.value })}
+                  className="form-control"
+                  rows={2}
+                  placeholder="Anotações internas sobre a renovação..." 
+                />
+              </div>
+
+              {/* Action Buttons */}
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '14px', paddingTop: '16px', borderTop: '1px solid var(--border-color)' }}>
+                <button 
+                  type="button" 
+                  onClick={() => handleDeleteDoc(selectedDoc.id)} 
+                  className="btn btn-ghost btn-sm"
+                  style={{ color: '#f87171', display: 'flex', alignItems: 'center', gap: '6px' }}
+                >
+                  <Trash2 size={15} /> Excluir Certidão
+                </button>
+
+                <div style={{ display: 'flex', gap: '10px' }}>
+                  <button type="button" onClick={() => setRenovarModalOpen(false)} className="btn btn-secondary">
+                    Cancelar
+                  </button>
+                  <button type="submit" disabled={updating} className="btn btn-primary" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    {updating ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
+                    Salvar Renovação
+                  </button>
+                </div>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
       {/* Modal Novo Documento */}
       {modalOpen && (
         <div style={{
           position: 'fixed',
           inset: 0,
-          background: 'rgba(0, 0, 0, 0.8)',
-          backdropFilter: 'blur(4px)',
+          background: 'rgba(0, 0, 0, 0.85)',
+          backdropFilter: 'blur(6px)',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          zIndex: 999,
+          zIndex: 9999,
           padding: '20px'
-        }}>
-          <div className="card" style={{ maxWidth: '600px', width: '100%', maxHeight: '90vh', overflowY: 'auto' }}>
+        }}
+        onClick={() => setModalOpen(false)}
+        >
+          <div 
+            className="card" 
+            style={{ 
+              maxWidth: '600px', 
+              width: '100%', 
+              maxHeight: '90vh', 
+              overflowY: 'auto',
+              background: 'var(--bg-surface)',
+              border: '1px solid var(--border-color-strong)',
+              borderRadius: 'var(--radius-xl)',
+              padding: '26px'
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                 <ShieldCheck size={20} style={{ color: 'var(--color-primary)' }} />

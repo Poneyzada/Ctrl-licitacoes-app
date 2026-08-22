@@ -2,12 +2,17 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { ArrowLeft, Save, Loader2, Gavel, Building2, MapPin, Calendar, DollarSign, FileText } from 'lucide-react';
+import { 
+  ArrowLeft, Save, Loader2, Gavel, Building2, 
+  MapPin, Calendar, DollarSign, FileText, Sparkles, 
+  UploadCloud, CheckCircle2, FileUp
+} from 'lucide-react';
 import Link from 'next/link';
 
 export default function NovaLicitacaoPage() {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
+  const [extracting, setExtracting] = useState(false);
   const [organizations, setOrganizations] = useState<any[]>([]);
 
   const [formData, setFormData] = useState({
@@ -54,6 +59,35 @@ export default function NovaLicitacaoPage() {
       ...prev,
       [name]: type === 'checkbox' ? checked : value
     }));
+  };
+
+  const handleSimulatePdfExtraction = () => {
+    setExtracting(true);
+    setTimeout(() => {
+      setFormData(prev => ({
+        ...prev,
+        orgaoNome: 'Secretaria das Cidades do Estado do Ceará — SCIDADES',
+        orgaoUasg: '925010',
+        municipio: 'Juazeiro do Norte',
+        uf: 'CE',
+        modalidade: 'CONCORRENCIA_ELETRONICA',
+        numero: '019/2026',
+        numeroProcesso: '2026/SCIDADES-0091',
+        plataforma: 'Compras.gov.br',
+        objeto: 'Contratação integrada para elaboração de projeto executivo e execução de obras de macrodrenagem urbana, pavimentação asfáltica e contenção de encostas na bacia do Rio Salgadinho.',
+        objetoResumo: 'Macrodrenagem, pavimentação CBUQ (85.000 m²) e contenção de encostas',
+        tipoServico: 'EXECUCAO_INFRAESTRUTURA',
+        dataHoraSessao: '2026-09-28T10:00',
+        dataEsclarecimento: '2026-09-23T18:00',
+        dataImpugnacao: '2026-09-23T18:00',
+        valorEstimado: '18500000',
+        permiteConsorcio: true,
+        exigeVisita: true,
+        exigeGarantia: true,
+        orcamentoSigiloso: false
+      }));
+      setExtracting(false);
+    }, 1200);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -107,6 +141,47 @@ export default function NovaLicitacaoPage() {
         >
           {loading ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
           Salvar Licitação
+        </button>
+      </div>
+
+      {/* IA Extraction Banner / Dropzone */}
+      <div 
+        style={{
+          background: 'linear-gradient(135deg, rgba(107, 26, 42, 0.2) 0%, rgba(22, 22, 24, 0.95) 100%)',
+          border: '1px dashed var(--border-color-accent)',
+          borderRadius: 'var(--radius-lg)',
+          padding: '20px 24px',
+          marginBottom: '24px',
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          flexWrap: 'wrap',
+          gap: '16px'
+        }}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+          <div style={{ width: '42px', height: '42px', borderRadius: 'var(--radius-md)', background: 'var(--gradient-primary)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff' }}>
+            <Sparkles size={22} />
+          </div>
+          <div>
+            <div style={{ fontSize: '0.95rem', fontWeight: 700, color: 'var(--text-primary)' }}>
+              Extração Automática com LICIT.AI
+            </div>
+            <p style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', marginTop: '2px' }}>
+              Importe ou arraste o PDF do Edital/TR para preencher os dados instantaneamente
+            </p>
+          </div>
+        </div>
+
+        <button 
+          type="button"
+          onClick={handleSimulatePdfExtraction}
+          disabled={extracting}
+          className="btn btn-secondary"
+          style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.85rem' }}
+        >
+          {extracting ? <Loader2 size={16} className="animate-spin" /> : <FileUp size={16} style={{ color: 'var(--color-primary)' }} />}
+          {extracting ? 'Extraindo dados com IA...' : 'Carregar Edital em PDF'}
         </button>
       </div>
 
@@ -330,7 +405,7 @@ export default function NovaLicitacaoPage() {
           </Link>
           <button type="submit" disabled={loading} className="btn btn-primary">
             {loading ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
-            Cadastrar Licitação
+            Salvar Licitação
           </button>
         </div>
       </form>

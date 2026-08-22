@@ -6,12 +6,18 @@ import {
   Bot, FileText, Users, Scale, LayoutDashboard, Clock, 
   AlertTriangle, CheckCircle2, XCircle, HelpCircle, FileX, 
   Sparkles, Loader2, Calendar, ShieldAlert, ArrowUpRight, 
-  MapPin, Building2, Check, RefreshCw
+  MapPin, Building2, Check, RefreshCw, Printer, Copy,
+  Calculator, Download, X, FileCheck
 } from 'lucide-react';
 import { formatCurrency, formatDate } from '@/lib/utils';
+import { CalculadoraBdiModal } from '@/components/licitacoes/CalculadoraBdiModal';
 
 export default function LicitacaoTabs({ licitacao, initialTab }: { licitacao: any, initialTab: string }) {
   const [activeTab, setActiveTab] = useState(initialTab);
+  const [calcBdiOpen, setCalcBdiOpen] = useState(false);
+  const [minutaOpen, setMinutaOpen] = useState(false);
+  const [minutaTipo, setMinutaTipo] = useState<'IMPUGNACAO' | 'ESCLARECIMENTO'>('IMPUGNACAO');
+  const [copied, setCopied] = useState(false);
   const router = useRouter();
 
   const handleTabChange = (tab: string) => {
@@ -27,8 +33,118 @@ export default function LicitacaoTabs({ licitacao, initialTab }: { licitacao: an
     { id: 'equipe', label: 'Equipe Técnica', icon: Users },
   ];
 
+  const handlePrintReport = () => {
+    window.print();
+  };
+
+  const isUfc = licitacao.organization?.name?.toLowerCase().includes('ufc');
+  const empresaRoteada = isUfc ? 'UFC Engenharia Ltda' : 'Pórtico Construções Ltda';
+
+  const gerarMinutaTexto = () => {
+    const dataAtual = new Date().toLocaleDateString('pt-BR');
+    if (minutaTipo === 'IMPUGNACAO') {
+      return `ILUSTRÍSSIMO(A) SENHOR(A) PREGOEIRO(A) / AGENTE DE CONTRATAÇÃO
+ÓRGÃO: ${licitacao.orgaoNome}
+EDITAL DE LICITAÇÃO Nº ${licitacao.numero || 'S/N'} — PROCESSO ADMINISTRATIVO Nº ${licitacao.numeroProcesso || 'S/N'}
+OBJETO: ${licitacao.objeto}
+
+${empresaRoteada.toUpperCase()}, pessoa jurídica de direito privado, inscrita no CNPJ sob o nº ${licitacao.organization?.cnpj || '00.000.000/0001-00'}, com sede em ${licitacao.organization?.city || 'Fortaleza'}/${licitacao.organization?.state || 'CE'}, vem, tempestivamente, com fulcro no Art. 164 da Lei Federal nº 14.133/2021, interpor a presente:
+
+IMPUGNAÇÃO AO EDITAL
+
+1. DA TEMPESTIVIDADE
+A presente peça é protocolada dentro do prazo legal de 3 (três) dias úteis que antecedem a abertura da sessão pública, restando plenamente tempestiva.
+
+2. DOS FATOS E DO DIREITO
+Verifica-se na minuta editalícia exigência que restringe o caráter competitivo do certame, violando frontalmente os princípios da razoabilidade, competitividade e proporcionalidade preconizados no Art. 5º da Nova Lei de Licitações.
+${licitacao.exigeVisita ? 'A cláusula que exige visita técnica obrigatória presencial em data restrita impede a ampla participação de licitantes capacitados, em desconformidade com a jurisprudência dominante do TCU (Acórdão 1443/2023-Plenário).' : 'As parcelas de qualificação técnica requerem adequação proporcional às características do objeto licitado.'}
+
+3. DOS PEDIDOS
+Ante o exposto, requer-se:
+a) O recebimento e regular processamento da presente impugnação;
+b) A retificação do Edital nos termos requeridos, com a republicação do prazo legal para formulação das propostas.
+
+Nestes termos,
+Pede Deferimento.
+
+${licitacao.organization?.city || 'Fortaleza'}/${licitacao.organization?.state || 'CE'}, ${dataAtual}.
+
+______________________________________________
+${empresaRoteada}
+Responsável Técnico / Jurídico`;
+    } else {
+      return `AO(À) SENHOR(A) PREGOEIRO(A) / COMISSÃO DE CONTRATAÇÃO
+ÓRGÃO: ${licitacao.orgaoNome}
+EDITAL Nº ${licitacao.numero || 'S/N'}
+
+PEDIDO DE ESCLARECIMENTO
+
+A empresa ${empresaRoteada}, participante do certame em epígrafe, vem solicitar esclarecimento quanto aos seguintes pontos do Termo de Referência / Edital:
+
+1. DÚVIDA SUSCITADA:
+Solicita-se confirmação se para o atendimento da qualificação técnico-operacional será admitido o somatório de atestados de capacidade técnica emitidos por pessoas jurídicas de direito público ou privado.
+
+2. FUNDAMENTAÇÃO:
+Art. 67 da Lei nº 14.133/2021 e jurisprudência consolidada do Tribunal de Contas da União.
+
+${licitacao.organization?.city || 'Fortaleza'}/${licitacao.organization?.state || 'CE'}, ${dataAtual}.
+
+${empresaRoteada}`;
+    }
+  };
+
+  const handleCopyMinuta = () => {
+    navigator.clipboard.writeText(gerarMinutaTexto());
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2500);
+  };
+
   return (
     <div>
+      {/* Action Toolbar Header */}
+      <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', marginBottom: '16px', flexWrap: 'wrap' }} className="no-print">
+        <button 
+          onClick={() => setCalcBdiOpen(true)}
+          className="btn btn-secondary btn-sm"
+          style={{ display: 'flex', alignItems: 'center', gap: '6px' }}
+        >
+          <Calculator size={15} style={{ color: '#a855f7' }} />
+          Calculadora BDI / Inexequibilidade
+        </button>
+
+        <button 
+          onClick={() => setMinutaOpen(true)}
+          className="btn btn-secondary btn-sm"
+          style={{ display: 'flex', alignItems: 'center', gap: '6px' }}
+        >
+          <Scale size={15} style={{ color: '#fbbf24' }} />
+          Gerar Minuta (Impugnação / Esclarecimento)
+        </button>
+
+        <button 
+          onClick={handlePrintReport}
+          className="btn btn-primary btn-sm"
+          style={{ display: 'flex', alignItems: 'center', gap: '6px' }}
+        >
+          <Printer size={15} />
+          Exportar Relatório PDF (LICIT.AI)
+        </button>
+      </div>
+
+      {/* Printable Official Header (Shown only during print) */}
+      <div className="print-only" style={{ display: 'none', marginBottom: '24px', borderBottom: '2px solid #000', paddingBottom: '16px' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <div>
+            <h1 style={{ fontSize: '1.4rem', fontWeight: 800, color: '#000' }}>{empresaRoteada}</h1>
+            <p style={{ fontSize: '0.85rem', color: '#444' }}>Relatório Executivo de Análise Editalícia — LICIT.AI</p>
+          </div>
+          <div style={{ textAlign: 'right', fontSize: '0.8rem', color: '#666' }}>
+            <div>Data: {new Date().toLocaleDateString('pt-BR')}</div>
+            <div>Edital: {licitacao.modalidade} nº {licitacao.numero || 'S/N'}</div>
+          </div>
+        </div>
+      </div>
+
       {/* Navigation Tab Bar */}
       <div style={{ 
         borderBottom: '1px solid var(--border-color)', 
@@ -36,7 +152,7 @@ export default function LicitacaoTabs({ licitacao, initialTab }: { licitacao: an
         display: 'flex', 
         gap: '4px',
         overflowX: 'auto'
-      }}>
+      }} className="no-print">
         {tabs.map((tab) => {
           const Icon = tab.icon;
           const isActive = activeTab === tab.id;
@@ -75,6 +191,134 @@ export default function LicitacaoTabs({ licitacao, initialTab }: { licitacao: an
         {activeTab === 'recursos' && <TabRecursos licitacao={licitacao} />}
         {activeTab === 'equipe' && <TabEquipe licitacao={licitacao} />}
       </div>
+
+      {/* Calculadora BDI Modal */}
+      {calcBdiOpen && (
+        <CalculadoraBdiModal 
+          valorEstimadoEdital={licitacao.valorEstimado || 0}
+          onClose={() => setCalcBdiOpen(false)}
+        />
+      )}
+
+      {/* Modal Gerador de Minutas */}
+      {minutaOpen && (
+        <div 
+          style={{
+            position: 'fixed',
+            inset: 0,
+            background: 'rgba(0, 0, 0, 0.85)',
+            backdropFilter: 'blur(6px)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 9999,
+            padding: '20px'
+          }}
+          onClick={() => setMinutaOpen(false)}
+        >
+          <div 
+            className="card"
+            style={{
+              maxWidth: '800px',
+              width: '100%',
+              maxHeight: '90vh',
+              overflowY: 'auto',
+              padding: '28px',
+              background: 'var(--bg-surface)',
+              border: '1px solid var(--border-color-strong)',
+              borderRadius: 'var(--radius-xl)'
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <div style={{ width: '38px', height: '38px', borderRadius: 'var(--radius-md)', background: 'var(--gradient-primary)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff' }}>
+                  <Scale size={20} />
+                </div>
+                <div>
+                  <h3 style={{ fontSize: '1.25rem', fontWeight: 700 }}>Gerador de Peças Jurídicas (Lei 14.133/2021)</h3>
+                  <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>Minuta formal pré-configurada para protocolo oficial</p>
+                </div>
+              </div>
+              <button onClick={() => setMinutaOpen(false)} className="btn btn-ghost btn-sm" style={{ padding: '6px' }}>
+                <X size={20} />
+              </button>
+            </div>
+
+            {/* Toggle Tipo */}
+            <div style={{ display: 'flex', gap: '8px', marginBottom: '16px' }}>
+              <button 
+                onClick={() => setMinutaTipo('IMPUGNACAO')}
+                className={`btn btn-sm ${minutaTipo === 'IMPUGNACAO' ? 'btn-primary' : 'btn-secondary'}`}
+              >
+                Impugnação ao Edital (Art. 164)
+              </button>
+              <button 
+                onClick={() => setMinutaTipo('ESCLARECIMENTO')}
+                className={`btn btn-sm ${minutaTipo === 'ESCLARECIMENTO' ? 'btn-primary' : 'btn-secondary'}`}
+              >
+                Pedido de Esclarecimento
+              </button>
+            </div>
+
+            {/* Minuta Preview Box */}
+            <div style={{
+              background: '#0d0d0f',
+              border: '1px solid var(--border-color)',
+              borderRadius: 'var(--radius-md)',
+              padding: '18px 20px',
+              fontFamily: 'var(--font-mono)',
+              fontSize: '0.82rem',
+              color: '#f0f0f2',
+              lineHeight: 1.6,
+              whiteSpace: 'pre-wrap',
+              maxHeight: '400px',
+              overflowY: 'auto',
+              marginBottom: '20px'
+            }}>
+              {gerarMinutaTexto()}
+            </div>
+
+            {/* Action Footer */}
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px' }}>
+              <button onClick={() => setMinutaOpen(false)} className="btn btn-secondary">
+                Fechar
+              </button>
+              <button onClick={handleCopyMinuta} className="btn btn-primary" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                {copied ? <Check size={16} /> : <Copy size={16} />}
+                {copied ? 'Minuta Copiada!' : 'Copiar Texto da Minuta'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Print Stylesheet */}
+      <style>{`
+        @media print {
+          .no-print, .sidebar, .mobile-nav {
+            display: none !important;
+          }
+          .print-only {
+            display: block !important;
+          }
+          .main-content {
+            margin-left: 0 !important;
+            width: 100% !important;
+            padding: 0 !important;
+          }
+          body, .app-layout {
+            background: #ffffff !important;
+            color: #000000 !important;
+          }
+          .card {
+            background: #ffffff !important;
+            border: 1px solid #ddd !important;
+            color: #000000 !important;
+            box-shadow: none !important;
+          }
+        }
+      `}</style>
     </div>
   );
 }
@@ -216,7 +460,6 @@ function TabAnaliseIA({ licitacao }: { licitacao: any }) {
   };
 
   const riscos = parseJson(analiseData?.riscos);
-  const proximosPassos = parseJson(analiseData?.proximosPassos);
   const timelineVoo = parseJson(analiseData?.timelineVoo);
 
   const isUfc = licitacao.organization?.name?.toLowerCase().includes('ufc');
@@ -225,7 +468,7 @@ function TabAnaliseIA({ licitacao }: { licitacao: any }) {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
       {/* Top Action Bar */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }} className="no-print">
         <div>
           <h2 style={{ fontSize: '1.25rem', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '8px' }}>
             <Sparkles size={22} style={{ color: '#a855f7' }} />
@@ -297,7 +540,7 @@ function TabAnaliseIA({ licitacao }: { licitacao: any }) {
 
       {/* Decision Card & Executive Summary */}
       {analiseData && (
-        <div style={{ display: 'grid', gridTemplateColumns: '320px 1fr', gap: '20px' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '20px' }}>
           {/* Decision Box */}
           <div className="card" style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', textAlign: 'center', padding: '28px 20px', gap: '10px' }}>
             <div style={{ fontSize: '0.75rem', textTransform: 'uppercase', color: 'var(--text-muted)', letterSpacing: '0.08em', fontWeight: 700 }}>
@@ -440,7 +683,7 @@ function TabAnaliseIA({ licitacao }: { licitacao: any }) {
                   <th>Descrição do Requisito</th>
                   <th>Fonte / Item</th>
                   <th>Status de Atendimento</th>
-                  <th>Ações Rápidas</th>
+                  <th className="no-print">Ações Rápidas</th>
                 </tr>
               </thead>
               <tbody>
@@ -469,7 +712,7 @@ function TabAnaliseIA({ licitacao }: { licitacao: any }) {
                         {req.status || 'NAO_ANALISADO'}
                       </span>
                     </td>
-                    <td>
+                    <td className="no-print">
                       <div style={{ display: 'flex', gap: '4px' }}>
                         <button 
                           onClick={() => updateRequisitoStatus(req.id, 'ATENDE')}

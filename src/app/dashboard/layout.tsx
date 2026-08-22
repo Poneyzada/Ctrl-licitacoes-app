@@ -1,6 +1,7 @@
 import { auth } from '@/lib/auth'
 import { redirect } from 'next/navigation'
 import { Sidebar } from '@/components/layout/Sidebar'
+import { GlobalSearchModal } from '@/components/layout/GlobalSearchModal'
 import { Metadata } from 'next'
 
 export const metadata: Metadata = {
@@ -20,6 +21,7 @@ export default async function DashboardLayout({
 
   return (
     <div className="app-layout">
+      <GlobalSearchModal />
       <Sidebar user={session.user} notificationCount={0} />
       <div className="main-content dashboard-layout">
         <div className="page-wrapper">

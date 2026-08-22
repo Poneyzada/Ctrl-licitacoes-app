@@ -7,7 +7,7 @@ import {
   LayoutDashboard, Inbox, FileSearch, Scale, TrendingUp, CheckCircle2,
   CalendarClock, MonitorCheck, FolderOpen, Archive, Building2, BarChart3,
   Users, ShieldCheck, LogOut, Bell, ChevronRight, Menu, X,
-  Plus, FileText, Gavel
+  Plus, FileText, Gavel, Search
 } from 'lucide-react';
 import { useState } from 'react';
 
@@ -78,6 +78,51 @@ export function Sidebar({ user = { name: 'Usuário', role: 'OPERADOR' }, notific
             <span className="sidebar-brand-name">LicitaControl</span>
             <span className="sidebar-brand-sub">Central de Licitações</span>
           </div>
+        </div>
+
+        {/* Quick Search Button */}
+        <div style={{ padding: '10px 12px 4px' }}>
+          <button 
+            onClick={() => {
+              window.dispatchEvent(new KeyboardEvent('keydown', { key: 'k', ctrlKey: true }));
+            }}
+            style={{
+              width: '100%',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              padding: '8px 12px',
+              borderRadius: 'var(--radius-md)',
+              background: 'rgba(255, 255, 255, 0.04)',
+              border: '1px solid var(--sidebar-border)',
+              color: 'var(--sidebar-text)',
+              fontSize: '0.8rem',
+              cursor: 'pointer',
+              transition: 'all var(--transition-fast)'
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.background = 'rgba(232, 93, 93, 0.1)';
+              e.currentTarget.style.color = 'var(--text-primary)';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.background = 'rgba(255, 255, 255, 0.04)';
+              e.currentTarget.style.color = 'var(--sidebar-text)';
+            }}
+          >
+            <span style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <Search size={14} style={{ color: 'var(--color-primary)' }} />
+              Buscar no portal...
+            </span>
+            <kbd style={{ 
+              fontSize: '0.65rem', 
+              background: 'rgba(255, 255, 255, 0.08)', 
+              padding: '2px 5px', 
+              borderRadius: '4px', 
+              color: 'var(--text-muted)' 
+            }}>
+              Ctrl+K
+            </kbd>
+          </button>
         </div>
 
         {/* Navigation */}

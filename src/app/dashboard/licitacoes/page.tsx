@@ -280,15 +280,12 @@ export default async function LicitacoesPage({ searchParams }: { searchParams: P
                   <h3 style={{ fontSize: '1.05rem', fontWeight: 700, color: 'var(--text-primary)', lineHeight: 1.35, marginBottom: '4px' }}>
                     {lic.orgaoNome}
                   </h3>
-                  <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
-                    <span>{lic.modalidade || 'Edital'} nº {lic.numero || 'S/N'}</span>
+                  <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap', marginTop: '6px' }}>
+                    <span style={{ color: 'var(--text-secondary)', fontWeight: 500 }}>{lic.modalidade || 'Edital'} nº {lic.numero || 'S/N'}</span>
                     {lic.uf && (
-                      <>
-                        <span>•</span>
-                        <span style={{ display: 'flex', alignItems: 'center', gap: '2px' }}>
-                          <MapPin size={12} /> {lic.municipio ? `${lic.municipio} - ` : ''}{lic.uf}
-                        </span>
-                      </>
+                      <span className="tag-location">
+                        <MapPin size={12} /> {lic.municipio ? `${lic.municipio} - ` : ''}{lic.uf}
+                      </span>
                     )}
                   </div>
                 </div>

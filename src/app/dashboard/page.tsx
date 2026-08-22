@@ -360,20 +360,28 @@ export default async function DashboardPage() {
                 <h3 className="card-title">🛡️ Garantias a Vencer</h3>
               </div>
               <div className="flex flex-col gap-2">
-                {data.expiringGuarantees.map((g) => (
-                  <div key={g.id} className="guarantee-item">
-                    <div className="flex items-start justify-between gap-2">
-                      <div className="min-w-0">
-                        <div className="text-sm font-medium text-primary truncate">{g.type}</div>
-                        <div className="text-xs text-muted truncate">{g.contract.title}</div>
+                {data.expiringGuarantees.map((g) => {
+                  const isExpired = g.daysLeft < 0;
+                  const isCritical = g.daysLeft >= 0 && g.daysLeft <= 15;
+                  const isWarning = g.daysLeft > 15 && g.daysLeft <= 30;
+
+                  return (
+                    <div key={g.id} className="guarantee-item">
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="min-w-0">
+                          <div className="text-sm font-semibold text-primary truncate">{g.type}</div>
+                          <div className="text-xs text-muted truncate">{g.contract.title}</div>
+                        </div>
+                        <span className={`badge shrink-0 ${isExpired ? 'badge-atrasado' : isCritical ? 'badge-atrasado' : isWarning ? 'badge-em_analise' : 'badge-pago'}`}>
+                          {isExpired ? `✕ ${g.daysLeft}d (Vencida)` : isCritical ? `⚠ ${g.daysLeft}d restantes` : `✓ ${g.daysLeft}d`}
+                        </span>
                       </div>
-                      <span className={`badge shrink-0 ${g.daysLeft <= 15 ? 'badge-atrasado' : 'badge-warning-dark'}`}>
-                        {g.daysLeft}d
-                      </span>
+                      <div className="text-xs text-muted mt-1" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <span>Venceu / Vence: <strong style={{ color: isExpired ? '#f87171' : 'var(--text-secondary)' }}>{formatDate(g.expiryDate)}</strong></span>
+                      </div>
                     </div>
-                    <div className="text-xs text-muted mt-1">Vence: {formatDate(g.expiryDate)}</div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             </div>
           )}

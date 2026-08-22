@@ -353,20 +353,20 @@ export default function AcervoPage() {
                   display: 'flex', 
                   justifyContent: 'space-between', 
                   alignItems: 'center', 
-                  fontSize: '0.76rem', 
-                  color: 'var(--text-muted)',
+                  flexWrap: 'wrap',
+                  gap: '8px',
                   marginTop: 'auto',
-                  paddingTop: '10px',
+                  paddingTop: '12px',
                   borderTop: '1px solid var(--border-color)'
                 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                    <MapPin size={13} /> {item.local ? `${item.local} - ` : ''}{item.uf || 'Brasil'}
-                  </div>
+                  <span className="tag-location">
+                    <MapPin size={13} /> {item.local ? `${item.local} - ` : ''}{item.uf || 'CE'}
+                  </span>
 
                   {item.responsavelTecnico && (
-                    <div style={{ maxWidth: '200px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={item.responsavelTecnico}>
-                      {item.responsavelTecnico}
-                    </div>
+                    <span className="tag-engineer" title={item.responsavelTecnico}>
+                      👤 {item.responsavelTecnico}
+                    </span>
                   )}
                 </div>
               </div>

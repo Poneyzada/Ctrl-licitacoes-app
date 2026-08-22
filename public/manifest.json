@@ -1,0 +1,61 @@
+{
+  "name": "LicitaControl - Central de Licitações",
+  "short_name": "LicitaControl",
+  "description": "Plataforma Inteligente de Licitações e Engenharia — UFC & Pórtico",
+  "start_url": "/dashboard",
+  "display": "standalone",
+  "background_color": "#0d0d0f",
+  "theme_color": "#1a0a0f",
+  "orientation": "any",
+  "scope": "/",
+  "icons": [
+    {
+      "src": "/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icon-192-maskable.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
+    {
+      "src": "/icon-512-maskable.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ],
+  "categories": ["business", "productivity", "utilities"],
+  "shortcuts": [
+    {
+      "name": "Licitações",
+      "short_name": "Licitações",
+      "description": "Ver certames e editais",
+      "url": "/dashboard/licitacoes",
+      "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "Acervo Técnico",
+      "short_name": "Acervo",
+      "description": "Consultar CATs e Atestados",
+      "url": "/dashboard/acervo",
+      "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "Radar de Documentos",
+      "short_name": "Documentos",
+      "description": "Validade de CNDs e Certidões",
+      "url": "/dashboard/documentos",
+      "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }]
+    }
+  ]
+}

@@ -4,15 +4,20 @@ import React, { useState, useEffect } from 'react';
 import { 
   Users, UserPlus, Shield, Mail, Phone, 
   Building2, Award, FileCheck, CheckCircle2, Plus,
-  Download, Edit3, Trash2, X, Save, Loader2, Layers, ExternalLink, Check
+  Download, Edit3, Trash2, X, Save, Loader2, Layers, ExternalLink, Check,
+  KeyRound, ShieldCheck, UserCheck, Lock, RefreshCw, Filter, Search
 } from 'lucide-react';
 
 export default function EquipePage() {
+  const [activeTab, setActiveTab] = useState<'profissionais' | 'usuarios'>('profissionais');
   const [professionals, setProfessionals] = useState<any[]>([]);
+  const [systemUsers, setSystemUsers] = useState<any[]>([]);
   const [organizations, setOrganizations] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [filterOrg, setFilterOrg] = useState('ALL');
+  const [searchQuery, setSearchQuery] = useState('');
 
-  // Modal Novo Profissional
+  // Modal Novo Profissional / Engenheiro
   const [modalProfOpen, setModalProfOpen] = useState(false);
   const [savingProf, setSavingProf] = useState(false);
   const [newProf, setNewProf] = useState({
@@ -77,6 +82,28 @@ export default function EquipePage() {
   });
   const [savingEditCat, setSavingEditCat] = useState(false);
 
+  // Modal Novo Usuário de Acesso ao Sistema
+  const [modalUserOpen, setModalUserOpen] = useState(false);
+  const [savingUser, setSavingUser] = useState(false);
+  const [newUser, setNewUser] = useState({
+    name: '',
+    email: '',
+    password: '',
+    role: 'OPERADOR'
+  });
+
+  // Modal Editar Usuário de Acesso ao Sistema
+  const [editUserModalOpen, setEditUserModalOpen] = useState(false);
+  const [editingUser, setEditingUser] = useState<any>(null);
+  const [editUserData, setEditUserData] = useState({
+    name: '',
+    email: '',
+    password: '',
+    role: 'OPERADOR',
+    active: true
+  });
+  const [savingEditUser, setSavingEditUser] = useState(false);
+
   useEffect(() => {
     loadData();
   }, []);
@@ -84,9 +111,10 @@ export default function EquipePage() {
   const loadData = async () => {
     setLoading(true);
     try {
-      const [resProf, resOrgs] = await Promise.all([
+      const [resProf, resOrgs, resUsers] = await Promise.all([
         fetch('/api/profissionais'),
-        fetch('/api/empresas')
+        fetch('/api/empresas'),
+        fetch('/api/usuarios')
       ]);
 
       if (resProf.ok) {
@@ -100,6 +128,10 @@ export default function EquipePage() {
           setNewProf(prev => ({ ...prev, orgId: dataOrgs[0].id }));
         }
       }
+      if (resUsers.ok) {
+        const dataUsers = await resUsers.json();
+        setSystemUsers(dataUsers);
+      }
     } catch (e) {
       console.error(e);
     } finally {
@@ -107,6 +139,7 @@ export default function EquipePage() {
     }
   };
 
+  // --- Funções de Profissionais ---
   const handleCreateProf = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newProf.nome || !newProf.orgId) {
@@ -281,7 +314,6 @@ export default function EquipePage() {
       if (res.ok) {
         setEditCatModalOpen(false);
         loadData();
-        // Atualizar lista modal aberta se houver
         if (selectedProf) {
           const updatedProfRes = await fetch(`/api/profissionais/${selectedProf.id}`);
           if (updatedProfRes.ok) {
@@ -300,189 +332,475 @@ export default function EquipePage() {
     }
   };
 
-  const openAcervoModal = (prof: any) => {
-    setSelectedProf(prof);
-    setAcervoModalOpen(true);
+  // --- Funções de Usuários do Sistema ---
+  const handleCreateUser = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newUser.name || !newUser.email || !newUser.password) {
+      alert('Preencha todos os campos obrigatórios.');
+      return;
+    }
+
+    setSavingUser(true);
+    try {
+      const res = await fetch('/api/usuarios', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(newUser)
+      });
+
+      if (res.ok) {
+        setModalUserOpen(false);
+        setNewUser({
+          name: '',
+          email: '',
+          password: '',
+          role: 'OPERADOR'
+        });
+        loadData();
+      } else {
+        const err = await res.json();
+        alert(`Erro: ${err.error || 'Falha ao criar usuário'}`);
+      }
+    } catch (e) {
+      console.error(e);
+      alert('Erro ao criar usuário');
+    } finally {
+      setSavingUser(false);
+    }
   };
 
-  const openAddCatModal = (prof: any) => {
-    setSelectedProf(prof);
-    setAddCatModalOpen(true);
+  const openEditUserModal = (u: any) => {
+    setEditingUser(u);
+    setEditUserData({
+      name: u.name || '',
+      email: u.email?.replace('@ctrl.com', '') || '',
+      password: '',
+      role: u.role || 'OPERADOR',
+      active: u.active !== false
+    });
+    setEditUserModalOpen(true);
+  };
+
+  const handleSaveEditUser = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingUser) return;
+
+    setSavingEditUser(true);
+    try {
+      const res = await fetch(`/api/usuarios/${editingUser.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(editUserData)
+      });
+
+      if (res.ok) {
+        setEditUserModalOpen(false);
+        loadData();
+      } else {
+        const err = await res.json();
+        alert(`Erro: ${err.error || 'Falha ao atualizar'}`);
+      }
+    } catch (e) {
+      console.error(e);
+      alert('Erro ao salvar usuário');
+    } finally {
+      setSavingEditUser(false);
+    }
+  };
+
+  const handleDeleteUser = async (id: string) => {
+    if (!confirm('Deseja realmente desativar este acesso ao sistema?')) return;
+
+    try {
+      const res = await fetch(`/api/usuarios/${id}`, { method: 'DELETE' });
+      if (res.ok) {
+        setEditUserModalOpen(false);
+        loadData();
+      } else {
+        const err = await res.json();
+        alert(`Erro: ${err.error || 'Não foi possível desativar'}`);
+      }
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  const filteredProfessionals = professionals.filter(p => {
+    const matchesOrg = filterOrg === 'ALL' || p.orgId === filterOrg;
+    const matchesSearch = !searchQuery || 
+      p.nome?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      p.numeroConselho?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      p.funcao?.toLowerCase().includes(searchQuery.toLowerCase());
+    return matchesOrg && matchesSearch;
+  });
+
+  const getRoleBadgeStyle = (role: string) => {
+    switch (role) {
+      case 'DIRETOR':
+      case 'DIRETORIA':
+        return { bg: 'rgba(232, 93, 93, 0.15)', color: 'var(--color-primary)', border: 'rgba(232, 93, 93, 0.3)', label: 'DIRETOR' };
+      case 'COORDENADOR':
+        return { bg: 'rgba(168, 85, 247, 0.15)', color: '#c084fc', border: 'rgba(168, 85, 247, 0.3)', label: 'COORDENADOR' };
+      case 'MANUTENCAO_MASTER':
+        return { bg: 'rgba(34, 197, 94, 0.15)', color: '#34d399', border: 'rgba(34, 197, 94, 0.3)', label: 'MASTER' };
+      default:
+        return { bg: 'rgba(59, 130, 246, 0.15)', color: '#60a5fa', border: 'rgba(59, 130, 246, 0.3)', label: 'OPERADOR' };
+    }
   };
 
   return (
     <div className="animate-fade-in">
       {/* Header */}
-      <div className="page-header" style={{ marginBottom: '24px' }}>
+      <div className="page-header" style={{ marginBottom: '20px' }}>
         <div>
           <h1 className="page-title" style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
             <Users size={26} style={{ color: 'var(--color-primary)' }} />
-            Equipe Técnica, Profissionais & Acervos
+            Equipe Técnica, Parceiros & Acessos ao Sistema
           </h1>
           <p className="page-subtitle">
-            Gestão do quadro técnico de engenheiros habilitados (CREA/CAU), seus dados, vínculos e atestados/CATs
+            Gestão do quadro técnico de engenheiros (CREA/CAU), acervos, certidões e perfis de acesso ao portal
           </p>
         </div>
 
         <div style={{ display: 'flex', gap: '12px' }}>
-          <button 
-            onClick={() => setModalProfOpen(true)} 
-            className="btn btn-primary"
-            style={{ display: 'flex', alignItems: 'center', gap: '8px' }}
-          >
-            <UserPlus size={18} />
-            Novo Profissional / Engenheiro
-          </button>
+          {activeTab === 'profissionais' ? (
+            <button 
+              onClick={() => setModalProfOpen(true)} 
+              className="btn btn-primary"
+              style={{ display: 'flex', alignItems: 'center', gap: '8px' }}
+            >
+              <UserPlus size={18} />
+              Novo Profissional / Engenheiro
+            </button>
+          ) : (
+            <button 
+              onClick={() => setModalUserOpen(true)} 
+              className="btn btn-primary"
+              style={{ display: 'flex', alignItems: 'center', gap: '8px' }}
+            >
+              <KeyRound size={18} />
+              Criar Novo Usuário de Acesso
+            </button>
+          )}
         </div>
       </div>
 
-      {/* KPI Cards */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '16px', marginBottom: '28px' }}>
-        <div className="card" style={{ padding: '18px 20px', background: 'var(--bg-surface)' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>Profissionais Cadastrados</span>
-            <Award size={18} style={{ color: '#60a5fa' }} />
-          </div>
-          <div style={{ fontSize: '1.8rem', fontWeight: 800, marginTop: '8px', color: 'var(--text-primary)' }}>
-            {professionals.length}
-          </div>
-          <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Engenheiros e RTs habilitados</span>
-        </div>
+      {/* Tabs Navigation */}
+      <div style={{ display: 'flex', gap: '10px', marginBottom: '24px', borderBottom: '1px solid var(--border-color)', paddingBottom: '12px' }}>
+        <button
+          onClick={() => setActiveTab('profissionais')}
+          className={`btn ${activeTab === 'profissionais' ? 'btn-primary' : 'btn-secondary'}`}
+          style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 18px', fontSize: '0.9rem' }}
+        >
+          <Award size={18} />
+          Engenheiros & Equipe Parceira ({professionals.length})
+        </button>
 
-        <div className="card" style={{ padding: '18px 20px', background: 'var(--bg-surface)' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>CATs / Atestados Vinculados aos Engenheiros</span>
-            <Layers size={18} style={{ color: '#34d399' }} />
-          </div>
-          <div style={{ fontSize: '1.8rem', fontWeight: 800, marginTop: '8px', color: '#34d399' }}>
-            {professionals.reduce((acc, p) => acc + (p.acervos?.length || 0), 0)}
-          </div>
-          <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Comprovação técnico-profissional</span>
-        </div>
-
-        <div className="card" style={{ padding: '18px 20px', background: 'var(--bg-surface)' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>Empresas e Consórcios</span>
-            <Building2 size={18} style={{ color: '#f59e0b' }} />
-          </div>
-          <div style={{ fontSize: '1.8rem', fontWeight: 800, marginTop: '8px', color: 'var(--text-primary)' }}>
-            {organizations.length}
-          </div>
-          <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>UFC Engenharia e Pórtico Construções</span>
-        </div>
+        <button
+          onClick={() => setActiveTab('usuarios')}
+          className={`btn ${activeTab === 'usuarios' ? 'btn-primary' : 'btn-secondary'}`}
+          style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 18px', fontSize: '0.9rem' }}
+        >
+          <KeyRound size={18} />
+          Perfis de Acesso & Usuários do Sistema ({systemUsers.length})
+        </button>
       </div>
 
-      {/* Grid de Profissionais */}
-      <div style={{ marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-        <FileCheck size={18} style={{ color: '#34d399' }} />
-        <h2 style={{ fontSize: '1.1rem', fontWeight: 700, color: 'var(--text-primary)' }}>
-          Quadro Técnico de Engenheiros & Acervos Individuais
-        </h2>
-      </div>
-
-      {loading ? (
-        <div style={{ textAlign: 'center', padding: '60px 0' }}>
-          <Loader2 size={36} className="animate-spin" style={{ margin: '0 auto 12px', color: 'var(--color-primary)' }} />
-          <p style={{ color: 'var(--text-secondary)' }}>Carregando equipe técnica e acervos...</p>
-        </div>
-      ) : professionals.length === 0 ? (
-        <div className="card" style={{ textAlign: 'center', padding: '50px 20px', marginBottom: '32px' }}>
-          <Users size={40} style={{ margin: '0 auto 14px', opacity: 0.3, color: 'var(--text-muted)' }} />
-          <p style={{ color: 'var(--text-secondary)', marginBottom: '16px' }}>Nenhum profissional cadastrado ainda.</p>
-          <button onClick={() => setModalProfOpen(true)} className="btn btn-primary btn-sm">
-            <UserPlus size={16} /> Cadastrar Engenheiro
-          </button>
-        </div>
-      ) : (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(360px, 1fr))', gap: '20px', marginBottom: '36px' }}>
-          {professionals.map((prof) => {
-            const isUfc = prof.organization?.name?.toLowerCase().includes('ufc');
-            const totalCats = prof.acervos?.length || 0;
-
-            return (
-              <div key={prof.id} className="card" style={{ display: 'flex', flexDirection: 'column', gap: '14px', background: 'var(--bg-surface)' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                  <div>
-                    <span className={isUfc ? 'tag-company-ufc' : 'tag-company-portico'} style={{ marginBottom: '6px' }}>
-                      {prof.organization?.tradeName || prof.organization?.name}
-                    </span>
-                    <h3 style={{ fontSize: '1.1rem', fontWeight: 700, color: 'var(--text-primary)' }}>
-                      {prof.nome}
-                    </h3>
-                    <div style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', marginTop: '2px' }}>
-                      {prof.funcao} • {prof.vinculo}
-                    </div>
-                  </div>
-
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                    <span style={{ 
-                      fontSize: '0.72rem', 
-                      padding: '2px 8px', 
-                      borderRadius: 'var(--radius-sm)',
-                      background: 'rgba(52, 211, 153, 0.15)',
-                      color: '#34d399',
-                      border: '1px solid rgba(52, 211, 153, 0.3)',
-                      fontWeight: 700
-                    }}>
-                      {prof.situacaoConselho || 'ATIVO'}
-                    </span>
-                    <button 
-                      onClick={() => openEditProfModal(prof)}
-                      className="btn btn-ghost btn-sm"
-                      style={{ padding: '4px 6px', color: 'var(--text-muted)' }}
-                      title="Editar dados do engenheiro"
-                    >
-                      <Edit3 size={14} />
-                    </button>
-                  </div>
-                </div>
-
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-                  <span className="tag-engineer">
-                    {prof.conselho} nº {prof.numeroConselho || 'S/N'}
-                  </span>
-                  {prof.formacao && (
-                    <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
-                      Graduação: {prof.formacao}
-                    </span>
-                  )}
-                </div>
-
-                {/* Acervo Mini Box */}
-                <div style={{ background: 'var(--bg-elevated)', padding: '12px 14px', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <div>
-                    <div style={{ fontSize: '0.7rem', textTransform: 'uppercase', color: 'var(--text-muted)', fontWeight: 600 }}>
-                      Acervo do Profissional
-                    </div>
-                    <div style={{ fontSize: '0.9rem', fontWeight: 700, color: '#60a5fa' }}>
-                      {totalCats} {totalCats === 1 ? 'Atestado / CAT' : 'Atestados / CATs'}
-                    </div>
-                  </div>
-
-                  <div style={{ display: 'flex', gap: '6px' }}>
-                    <button 
-                      onClick={() => openAcervoModal(prof)}
-                      className="btn btn-secondary btn-sm"
-                      style={{ fontSize: '0.75rem', padding: '5px 10px' }}
-                    >
-                      Ver / Baixar
-                    </button>
-                    <button 
-                      onClick={() => openAddCatModal(prof)}
-                      className="btn btn-primary btn-sm"
-                      style={{ fontSize: '0.75rem', padding: '5px 8px' }}
-                      title="Vincular novo atestado a este profissional"
-                    >
-                      <Plus size={14} /> CAT
-                    </button>
-                  </div>
-                </div>
+      {/* ─────────────────────────────────────────────────────────── */}
+      {/* ABA 1: ENGENHEIROS & EQUIPE PARCEIRA                       */}
+      {/* ─────────────────────────────────────────────────────────── */}
+      {activeTab === 'profissionais' && (
+        <div>
+          {/* KPI Cards */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '16px', marginBottom: '24px' }}>
+            <div className="card" style={{ padding: '18px 20px', background: 'var(--bg-surface)' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>Profissionais Cadastrados</span>
+                <Award size={18} style={{ color: '#60a5fa' }} />
               </div>
-            );
-          })}
+              <div style={{ fontSize: '1.8rem', fontWeight: 800, marginTop: '8px', color: 'var(--text-primary)' }}>
+                {professionals.length}
+              </div>
+              <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Engenheiros e RTs habilitados</span>
+            </div>
+
+            <div className="card" style={{ padding: '18px 20px', background: 'var(--bg-surface)' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>CATs / Atestados Vinculados</span>
+                <Layers size={18} style={{ color: '#34d399' }} />
+              </div>
+              <div style={{ fontSize: '1.8rem', fontWeight: 800, marginTop: '8px', color: '#34d399' }}>
+                {professionals.reduce((acc, p) => acc + (p.acervos?.length || 0), 0)}
+              </div>
+              <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Comprovação técnico-profissional</span>
+            </div>
+
+            <div className="card" style={{ padding: '18px 20px', background: 'var(--bg-surface)' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>Empresas & Parceiros</span>
+                <Building2 size={18} style={{ color: '#f59e0b' }} />
+              </div>
+              <div style={{ fontSize: '1.8rem', fontWeight: 800, marginTop: '8px', color: 'var(--text-primary)' }}>
+                {organizations.length}
+              </div>
+              <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>UFC Engenharia, Pórtico e Parceiras</span>
+            </div>
+          </div>
+
+          {/* Filtros e Busca */}
+          <div className="card" style={{ padding: '14px 18px', marginBottom: '20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flex: '1 1 280px' }}>
+              <Search size={16} style={{ color: 'var(--text-muted)' }} />
+              <input 
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Buscar por nome, CREA ou especialidade..."
+                className="form-control"
+                style={{ height: '38px', width: '100%' }}
+              />
+            </div>
+
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+              <span style={{ fontSize: '0.82rem', color: 'var(--text-secondary)' }}>Filtrar Empresa:</span>
+              <select 
+                value={filterOrg} 
+                onChange={(e) => setFilterOrg(e.target.value)}
+                className="form-control"
+                style={{ height: '38px', width: 'auto' }}
+              >
+                <option value="ALL">Todas as Empresas</option>
+                {organizations.map(org => (
+                  <option key={org.id} value={org.id}>{org.tradeName || org.name}</option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          {/* Grid de Profissionais */}
+          {loading ? (
+            <div style={{ textAlign: 'center', padding: '60px 0' }}>
+              <Loader2 size={36} className="animate-spin" style={{ margin: '0 auto 12px', color: 'var(--color-primary)' }} />
+              <p style={{ color: 'var(--text-secondary)' }}>Carregando profissionais e acervos...</p>
+            </div>
+          ) : filteredProfessionals.length === 0 ? (
+            <div className="card" style={{ textAlign: 'center', padding: '50px 20px', marginBottom: '32px' }}>
+              <Users size={40} style={{ margin: '0 auto 14px', opacity: 0.3, color: 'var(--text-muted)' }} />
+              <p style={{ color: 'var(--text-secondary)', marginBottom: '16px' }}>Nenhum profissional encontrado com este filtro.</p>
+              <button onClick={() => setModalProfOpen(true)} className="btn btn-primary btn-sm">
+                <UserPlus size={16} /> Cadastrar Engenheiro
+              </button>
+            </div>
+          ) : (
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(360px, 1fr))', gap: '20px', marginBottom: '36px' }}>
+              {filteredProfessionals.map((prof) => {
+                const isUfc = prof.organization?.name?.toLowerCase().includes('ufc');
+                const totalCats = prof.acervos?.length || 0;
+
+                return (
+                  <div key={prof.id} className="card" style={{ display: 'flex', flexDirection: 'column', gap: '14px', background: 'var(--bg-surface)' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                      <div>
+                        <span className={isUfc ? 'tag-company-ufc' : 'tag-company-portico'} style={{ marginBottom: '6px' }}>
+                          {prof.organization?.tradeName || prof.organization?.name}
+                        </span>
+                        <h3 style={{ fontSize: '1.1rem', fontWeight: 700, color: 'var(--text-primary)' }}>
+                          {prof.nome}
+                        </h3>
+                        <div style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', marginTop: '2px' }}>
+                          {prof.funcao} • {prof.vinculo}
+                        </div>
+                      </div>
+
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                        <span style={{ 
+                          fontSize: '0.72rem', 
+                          padding: '2px 8px', 
+                          borderRadius: 'var(--radius-sm)',
+                          background: 'rgba(52, 211, 153, 0.15)',
+                          color: '#34d399',
+                          border: '1px solid rgba(52, 211, 153, 0.3)',
+                          fontWeight: 700
+                        }}>
+                          {prof.situacaoConselho || 'ATIVO'}
+                        </span>
+                        <button 
+                          onClick={() => openEditProfModal(prof)}
+                          className="btn btn-ghost btn-sm"
+                          style={{ padding: '4px 6px', color: 'var(--text-muted)' }}
+                          title="Editar dados do engenheiro"
+                        >
+                          <Edit3 size={14} />
+                        </button>
+                      </div>
+                    </div>
+
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                      <span className="tag-engineer">
+                        {prof.conselho} nº {prof.numeroConselho || 'S/N'}
+                      </span>
+                      {prof.formacao && (
+                        <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                          Graduação: {prof.formacao}
+                        </span>
+                      )}
+                    </div>
+
+                    {/* Acervo Mini Box */}
+                    <div style={{ background: 'var(--bg-elevated)', padding: '12px 14px', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <div>
+                        <div style={{ fontSize: '0.7rem', textTransform: 'uppercase', color: 'var(--text-muted)', fontWeight: 600 }}>
+                          Acervo do Profissional
+                        </div>
+                        <div style={{ fontSize: '0.9rem', fontWeight: 700, color: '#60a5fa' }}>
+                          {totalCats} {totalCats === 1 ? 'Atestado / CAT' : 'Atestados / CATs'}
+                        </div>
+                      </div>
+
+                      <div style={{ display: 'flex', gap: '6px' }}>
+                        <button 
+                          onClick={() => { setSelectedProf(prof); setAcervoModalOpen(true); }}
+                          className="btn btn-secondary btn-sm"
+                          style={{ fontSize: '0.75rem', padding: '5px 10px' }}
+                        >
+                          Ver / Baixar
+                        </button>
+                        <button 
+                          onClick={() => { setSelectedProf(prof); setAddCatModalOpen(true); }}
+                          className="btn btn-primary btn-sm"
+                          style={{ fontSize: '0.75rem', padding: '5px 8px' }}
+                          title="Vincular novo atestado a este profissional"
+                        >
+                          <Plus size={14} /> CAT
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
         </div>
       )}
 
+      {/* ─────────────────────────────────────────────────────────── */}
+      {/* ABA 2: PERFIS DE ACESSO & USUÁRIOS DO SISTEMA              */}
+      {/* ─────────────────────────────────────────────────────────── */}
+      {activeTab === 'usuarios' && (
+        <div>
+          {/* KPI Cards Usuários */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '16px', marginBottom: '24px' }}>
+            <div className="card" style={{ padding: '18px 20px', background: 'var(--bg-surface)' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>Total de Usuários</span>
+                <UserCheck size={18} style={{ color: '#34d399' }} />
+              </div>
+              <div style={{ fontSize: '1.8rem', fontWeight: 800, marginTop: '8px', color: 'var(--text-primary)' }}>
+                {systemUsers.length}
+              </div>
+              <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Contas ativas no portal</span>
+            </div>
+
+            <div className="card" style={{ padding: '18px 20px', background: 'var(--bg-surface)' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>Diretoria & Sócios</span>
+                <ShieldCheck size={18} style={{ color: 'var(--color-primary)' }} />
+              </div>
+              <div style={{ fontSize: '1.8rem', fontWeight: 800, marginTop: '8px', color: 'var(--color-primary)' }}>
+                {systemUsers.filter(u => u.role === 'DIRETOR' || u.role === 'DIRETORIA').length}
+              </div>
+              <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Acesso integral e governança</span>
+            </div>
+
+            <div className="card" style={{ padding: '18px 20px', background: 'var(--bg-surface)' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>Coordenação & Operação</span>
+                <Users size={18} style={{ color: '#60a5fa' }} />
+              </div>
+              <div style={{ fontSize: '1.8rem', fontWeight: 800, marginTop: '8px', color: '#60a5fa' }}>
+                {systemUsers.filter(u => u.role === 'COORDENADOR' || u.role === 'OPERADOR').length}
+              </div>
+              <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Operação diária e triagem</span>
+            </div>
+          </div>
+
+          {/* Tabela de Usuários */}
+          <div className="table-wrapper card" style={{ padding: '0', overflow: 'hidden' }}>
+            <table className="table">
+              <thead>
+                <tr>
+                  <th>Nome do Usuário</th>
+                  <th>Login / Email</th>
+                  <th>Perfil de Acesso</th>
+                  <th>Status</th>
+                  <th>Criado Em</th>
+                  <th style={{ textAlign: 'right' }}>Ações</th>
+                </tr>
+              </thead>
+              <tbody>
+                {systemUsers.map((u) => {
+                  const badge = getRoleBadgeStyle(u.role);
+                  return (
+                    <tr key={u.id}>
+                      <td>
+                        <div style={{ fontWeight: 700, color: 'var(--text-primary)', fontSize: '0.9rem' }}>
+                          {u.name}
+                        </div>
+                      </td>
+                      <td>
+                        <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.82rem', color: '#60a5fa' }}>
+                          {u.email}
+                        </span>
+                      </td>
+                      <td>
+                        <span style={{ 
+                          fontSize: '0.75rem', 
+                          fontWeight: 800, 
+                          padding: '3px 9px', 
+                          borderRadius: 'var(--radius-sm)',
+                          background: badge.bg,
+                          color: badge.color,
+                          border: `1px solid ${badge.border}`
+                        }}>
+                          {badge.label}
+                        </span>
+                      </td>
+                      <td>
+                        <span style={{ 
+                          fontSize: '0.72rem', 
+                          fontWeight: 700, 
+                          color: u.active ? '#34d399' : '#f87171' 
+                        }}>
+                          {u.active ? '● Ativo' : '● Inativo'}
+                        </span>
+                      </td>
+                      <td style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
+                        {new Date(u.createdAt).toLocaleDateString('pt-BR')}
+                      </td>
+                      <td style={{ textAlign: 'right' }}>
+                        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '6px' }}>
+                          <button 
+                            onClick={() => openEditUserModal(u)}
+                            className="btn btn-secondary btn-sm"
+                            style={{ padding: '4px 8px', fontSize: '0.75rem', display: 'flex', alignItems: 'center', gap: '4px' }}
+                            title="Editar Perfil ou Resetar Senha"
+                          >
+                            <Edit3 size={13} /> Editar / Senha
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      {/* ─────────────────────────────────────────────────────────── */}
+      {/* MODAIS: PROFISSIONAIS                                      */}
+      {/* ─────────────────────────────────────────────────────────── */}
       {/* Modal Editar Profissional */}
       {editProfModalOpen && editingProf && (
         <div style={{
@@ -702,7 +1020,7 @@ export default function EquipePage() {
                 <Layers size={36} style={{ margin: '0 auto 10px', opacity: 0.3 }} />
                 <p style={{ color: 'var(--text-secondary)' }}>Nenhum atestado vinculado diretamente a este profissional.</p>
                 <button 
-                  onClick={() => { setAcervoModalOpen(false); openAddCatModal(selectedProf); }} 
+                  onClick={() => { setAcervoModalOpen(false); setAddCatModalOpen(true); }} 
                   className="btn btn-primary btn-sm"
                   style={{ marginTop: '12px' }}
                 >
@@ -1172,6 +1490,236 @@ export default function EquipePage() {
                   {savingCat ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
                   Salvar Atestado
                 </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ─────────────────────────────────────────────────────────── */}
+      {/* MODAIS: USUÁRIOS DO SISTEMA                                 */}
+      {/* ─────────────────────────────────────────────────────────── */}
+      {/* Modal Novo Usuário */}
+      {modalUserOpen && (
+        <div style={{
+          position: 'fixed',
+          inset: 0,
+          background: 'rgba(0, 0, 0, 0.85)',
+          backdropFilter: 'blur(6px)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 9999,
+          padding: '20px'
+        }}
+        onClick={() => setModalUserOpen(false)}
+        >
+          <div 
+            className="card" 
+            style={{ 
+              maxWidth: '550px', 
+              width: '100%', 
+              maxHeight: '90vh', 
+              overflowY: 'auto',
+              background: 'var(--bg-surface)',
+              border: '1px solid var(--border-color-strong)',
+              borderRadius: 'var(--radius-xl)',
+              padding: '26px'
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <div style={{ width: '38px', height: '38px', borderRadius: 'var(--radius-md)', background: 'var(--gradient-primary)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff' }}>
+                  <KeyRound size={18} />
+                </div>
+                <div>
+                  <h3 style={{ fontSize: '1.2rem', fontWeight: 700 }}>Criar Novo Usuário de Acesso</h3>
+                  <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>Cadastrar login e senha de acesso ao portal</p>
+                </div>
+              </div>
+              <button onClick={() => setModalUserOpen(false)} className="btn btn-ghost btn-sm">
+                <X size={20} />
+              </button>
+            </div>
+
+            <form onSubmit={handleCreateUser} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+              <div className="form-group">
+                <label className="form-label">Nome Completo *</label>
+                <input 
+                  value={newUser.name} 
+                  onChange={(e) => setNewUser({ ...newUser, name: e.target.value })}
+                  className="form-control" 
+                  placeholder="Ex: Mariana Costa / Dr. Hugo"
+                  required
+                />
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px' }}>
+                <div className="form-group">
+                  <label className="form-label">Login ou Email *</label>
+                  <input 
+                    value={newUser.email} 
+                    onChange={(e) => setNewUser({ ...newUser, email: e.target.value })}
+                    className="form-control" 
+                    placeholder="Ex: mariana ou mariana@ctrl.com"
+                    required
+                  />
+                </div>
+
+                <div className="form-group">
+                  <label className="form-label">Perfil de Acesso *</label>
+                  <select 
+                    value={newUser.role} 
+                    onChange={(e) => setNewUser({ ...newUser, role: e.target.value })}
+                    className="form-control"
+                    required
+                  >
+                    <option value="OPERADOR">Operador (Execução)</option>
+                    <option value="COORDENADOR">Coordenador (Gestão/Aprovação)</option>
+                    <option value="DIRETOR">Diretor (Governança Total)</option>
+                    <option value="MANUTENCAO_MASTER">Manutenção Master</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="form-group">
+                <label className="form-label">Senha Inicial *</label>
+                <input 
+                  type="password"
+                  value={newUser.password} 
+                  onChange={(e) => setNewUser({ ...newUser, password: e.target.value })}
+                  className="form-control" 
+                  placeholder="Digite a senha inicial..."
+                  required
+                />
+              </div>
+
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '10px' }}>
+                <button type="button" onClick={() => setModalUserOpen(false)} className="btn btn-secondary">
+                  Cancelar
+                </button>
+                <button type="submit" disabled={savingUser} className="btn btn-primary" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  {savingUser ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
+                  Criar Conta de Acesso
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Modal Editar Usuário / Resetar Senha */}
+      {editUserModalOpen && editingUser && (
+        <div style={{
+          position: 'fixed',
+          inset: 0,
+          background: 'rgba(0, 0, 0, 0.85)',
+          backdropFilter: 'blur(6px)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 9999,
+          padding: '20px'
+        }}
+        onClick={() => setEditUserModalOpen(false)}
+        >
+          <div 
+            className="card" 
+            style={{ 
+              maxWidth: '550px', 
+              width: '100%', 
+              maxHeight: '90vh', 
+              overflowY: 'auto',
+              background: 'var(--bg-surface)',
+              border: '1px solid var(--border-color-strong)',
+              borderRadius: 'var(--radius-xl)',
+              padding: '26px'
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <div style={{ width: '38px', height: '38px', borderRadius: 'var(--radius-md)', background: 'var(--gradient-primary)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff' }}>
+                  <Edit3 size={18} />
+                </div>
+                <div>
+                  <h3 style={{ fontSize: '1.2rem', fontWeight: 700 }}>Editar Usuário & Acesso</h3>
+                  <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>{editingUser.name}</p>
+                </div>
+              </div>
+              <button onClick={() => setEditUserModalOpen(false)} className="btn btn-ghost btn-sm">
+                <X size={20} />
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveEditUser} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+              <div className="form-group">
+                <label className="form-label">Nome Completo *</label>
+                <input 
+                  value={editUserData.name} 
+                  onChange={(e) => setEditUserData({ ...editUserData, name: e.target.value })}
+                  className="form-control" 
+                  required
+                />
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px' }}>
+                <div className="form-group">
+                  <label className="form-label">Login ou Email *</label>
+                  <input 
+                    value={editUserData.email} 
+                    onChange={(e) => setEditUserData({ ...editUserData, email: e.target.value })}
+                    className="form-control" 
+                    required
+                  />
+                </div>
+
+                <div className="form-group">
+                  <label className="form-label">Perfil de Acesso</label>
+                  <select 
+                    value={editUserData.role} 
+                    onChange={(e) => setEditUserData({ ...editUserData, role: e.target.value })}
+                    className="form-control"
+                  >
+                    <option value="OPERADOR">Operador</option>
+                    <option value="COORDENADOR">Coordenador</option>
+                    <option value="DIRETOR">Diretor</option>
+                    <option value="MANUTENCAO_MASTER">Manutenção Master</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="form-group">
+                <label className="form-label">Redefinir Senha (deixe em branco para manter a atual)</label>
+                <input 
+                  type="password"
+                  value={editUserData.password} 
+                  onChange={(e) => setEditUserData({ ...editUserData, password: e.target.value })}
+                  className="form-control" 
+                  placeholder="Digite nova senha apenas se desejar alterar..."
+                />
+              </div>
+
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '12px', paddingTop: '16px', borderTop: '1px solid var(--border-color)' }}>
+                <button 
+                  type="button" 
+                  onClick={() => handleDeleteUser(editingUser.id)}
+                  className="btn btn-ghost btn-sm"
+                  style={{ color: '#f87171', display: 'flex', alignItems: 'center', gap: '6px' }}
+                >
+                  <Trash2 size={15} /> Desativar Acesso
+                </button>
+
+                <div style={{ display: 'flex', gap: '10px' }}>
+                  <button type="button" onClick={() => setEditUserModalOpen(false)} className="btn btn-secondary">
+                    Cancelar
+                  </button>
+                  <button type="submit" disabled={savingEditUser} className="btn btn-primary" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    {savingEditUser ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
+                    Salvar Usuário
+                  </button>
+                </div>
               </div>
             </form>
           </div>

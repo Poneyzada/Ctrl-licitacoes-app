@@ -7,7 +7,7 @@ import {
   LayoutDashboard, Inbox, FileSearch, Scale, TrendingUp, CheckCircle2,
   CalendarClock, MonitorCheck, FolderOpen, Archive, Building2, BarChart3,
   Users, ShieldCheck, LogOut, Bell, ChevronRight, Menu, X,
-  Plus, FileText, Gavel, Search
+  Plus, FileText, Gavel, Search, Sparkles
 } from 'lucide-react';
 import { useState } from 'react';
 
@@ -23,6 +23,8 @@ interface SidebarProps {
 
 const menuItems = [
   { href: '/dashboard', label: 'Visão Geral', icon: LayoutDashboard, roles: ['OPERADOR','COORDENADOR','DIRETOR','MANUTENCAO_MASTER','DIRETORIA','OPERADOR_CAMPO','OPERADOR_ADM'] },
+  { href: '/dashboard/portal', label: 'Painel Central Completo', icon: Sparkles, roles: ['OPERADOR','COORDENADOR','DIRETOR','MANUTENCAO_MASTER','DIRETORIA','OPERADOR_CAMPO','OPERADOR_ADM'] },
+  { href: '/dashboard/axxia', label: 'Entrada AXXIA', icon: Inbox, roles: ['COORDENADOR','DIRETOR','MANUTENCAO_MASTER','DIRETORIA'] },
   { href: '/dashboard/licitacoes', label: 'Licitações', icon: FileSearch, roles: ['OPERADOR','COORDENADOR','DIRETOR','MANUTENCAO_MASTER','DIRETORIA','OPERADOR_CAMPO','OPERADOR_ADM'] },
   { href: '/dashboard/recursos', label: 'Recursos & Prazos', icon: Scale, roles: ['COORDENADOR','DIRETOR','MANUTENCAO_MASTER','DIRETORIA'] },
   { href: '/dashboard/resultado', label: 'Acompanhando Resultado', icon: TrendingUp, roles: ['OPERADOR','COORDENADOR','DIRETOR','MANUTENCAO_MASTER','DIRETORIA','OPERADOR_CAMPO','OPERADOR_ADM'] },

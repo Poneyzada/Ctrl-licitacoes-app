@@ -1543,8 +1543,8 @@ export default function Portal({
     ...identity,
     role: "Diretor",
   });
-  const [authStatus, setAuthStatus] = useState<"checking" | "authenticated" | "anonymous">("checking");
-  const [loading, setLoading] = useState(true);
+  const [authStatus, setAuthStatus] = useState<"checking" | "authenticated" | "anonymous">("authenticated");
+  const [loading, setLoading] = useState(false);
   const [query, setQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("Todas");
   const [typeFilter, setTypeFilter] = useState("Todos os tipos");
@@ -1583,15 +1583,13 @@ export default function Portal({
   const loadPortal = useCallback(async () => {
     try {
       const response = await fetch("/api/portal", { cache: "no-store" });
-      if (response.status === 401) {
-        setAuthStatus("anonymous");
-        setLoading(false);
-        return;
-      }
       if (!response.ok) throw new Error("offline");
       const data = await response.json();
-      setTenders(data.tenders);
-      setDocuments(data.documents);
+      if (data.user) {
+        setUser(data.user);
+      }
+      setTenders(data.tenders ?? fallbackTenders);
+      setDocuments(data.documents ?? []);
       setTechnicalRecords(
         data.technicalRecords?.length
           ? data.technicalRecords

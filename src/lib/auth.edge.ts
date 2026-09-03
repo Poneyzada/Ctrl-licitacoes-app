@@ -30,5 +30,5 @@ export const { auth } = NextAuth({
     },
   },
   pages: { signIn: '/login' },
-  secret: process.env.NEXTAUTH_SECRET || 'ctrl-licitacao-secret-dev',
+  secret: process.env.AUTH_SECRET || process.env.NEXTAUTH_SECRET || 'ctrl-licitacao-secret-prod-2026',
 })

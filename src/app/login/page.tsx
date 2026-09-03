@@ -64,12 +64,12 @@ export default function LoginPage() {
       <div className="login-container">
         {/* Logo e título */}
         <div className="login-brand">
-          <div className="login-logo">
+          <div className="login-logo" style={{ background: 'var(--gradient-primary)' }}>
             <FileText size={28} color="#fff" />
           </div>
           <div>
-            <h1 className="login-title">Ctrl-Licitação</h1>
-            <p className="login-subtitle">Gestão de Contratos Públicos</p>
+            <h1 className="login-title">LicitaControl</h1>
+            <p className="login-subtitle">Central de Licitações & Gestão de Contratos</p>
           </div>
         </div>
 
@@ -89,31 +89,40 @@ export default function LoginPage() {
 
           <form onSubmit={handleSubmit} className="login-form">
             <div className="form-group">
-              <label className="form-label" htmlFor="email">Email</label>
+              <label htmlFor="email" className="form-label">
+                Login ou Email
+              </label>
               <div className="input-icon-wrapper">
-                <Mail size={16} className="input-icon" />
+                <Mail size={18} className="input-icon" />
                 <input
                   id="email"
-                  type="email"
-                  className="form-input with-icon"
-                  placeholder="seu@email.com"
+                  name="email"
+                  type="text"
+                  className="form-control input-with-icon"
+                  placeholder="Seu login (ex: luciano, elaine, operador)"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   required
-                  autoComplete="email"
+                  autoComplete="username"
+                  autoFocus
                 />
               </div>
             </div>
 
             <div className="form-group">
-              <label className="form-label" htmlFor="password">Senha</label>
+              <div className="form-label-row">
+                <label htmlFor="password" className="form-label">
+                  Senha
+                </label>
+              </div>
               <div className="input-icon-wrapper">
-                <Lock size={16} className="input-icon" />
+                <Lock size={18} className="input-icon" />
                 <input
                   id="password"
+                  name="password"
                   type={showPassword ? 'text' : 'password'}
-                  className="form-input with-icon with-icon-right"
-                  placeholder="••••••••"
+                  className="form-control input-with-icon input-with-icon-right"
+                  placeholder="Sua senha de acesso"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   required
@@ -149,24 +158,24 @@ export default function LoginPage() {
           {/* Acesso rápido de demonstração */}
           <div className="login-demo">
             <div className="login-demo-label">
-              <span>Acesso rápido (demonstração)</span>
+              <span>Acesso rápido (perfis oficiais)</span>
             </div>
             <div className="login-demo-grid">
-              <button className="demo-btn demo-diretoria" onClick={() => fillDemo('diretoria')}>
+              <button className="demo-btn demo-diretoria" onClick={() => fillDemo('diretor')}>
                 <span className="demo-dot" />
-                Diretoria
+                Diretor
               </button>
               <button className="demo-btn demo-coordenador" onClick={() => fillDemo('coordenador')}>
                 <span className="demo-dot" />
                 Coordenador
               </button>
-              <button className="demo-btn demo-campo" onClick={() => fillDemo('campo')}>
+              <button className="demo-btn demo-campo" onClick={() => fillDemo('operador')}>
                 <span className="demo-dot" />
-                Op. Campo
+                Operador
               </button>
-              <button className="demo-btn demo-adm" onClick={() => fillDemo('adm')}>
+              <button className="demo-btn demo-adm" onClick={() => fillDemo('manutencao')}>
                 <span className="demo-dot" />
-                Op. Adm
+                Master
               </button>
             </div>
           </div>

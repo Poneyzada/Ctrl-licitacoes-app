@@ -26,6 +26,10 @@ export async function GET(
             consorcio: true
           }
         },
+        profissionais: {
+          where: { deletedAt: null },
+          include: { acervos: { where: { deletedAt: null } } }
+        },
         complianceDocs: {
           where: { deletedAt: null },
           orderBy: { vencimento: 'asc' }

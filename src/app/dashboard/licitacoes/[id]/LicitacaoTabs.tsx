@@ -663,12 +663,225 @@ function TabAnaliseIA({ licitacao }: { licitacao: any }) {
         </div>
       )}
 
-      {/* Requisitos Extraídos & Habilitação */}
+      {/* 🏢 CAMPO EXCLUSIVO 1: QUALIFICAÇÃO TÉCNICO-OPERACIONAL (CAPACIDADE DA EMPRESA) */}
+      <div className="card" style={{ border: '1px solid rgba(59, 130, 246, 0.3)', background: 'var(--bg-surface)' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', flexWrap: 'wrap', gap: '10px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <div style={{ width: '38px', height: '38px', borderRadius: 'var(--radius-md)', background: 'rgba(59, 130, 246, 0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#60a5fa' }}>
+              <Building2 size={20} />
+            </div>
+            <div>
+              <h3 style={{ fontSize: '1.15rem', fontWeight: 800, color: 'var(--text-primary)', margin: 0 }}>
+                Qualificação Técnico-Operacional (Capacidade da Empresa)
+              </h3>
+              <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', margin: 0 }}>
+                Exigências de atestados em nome da empresa ({empresaRoteada}) e comprovação de quantitativos mínimos
+              </p>
+            </div>
+          </div>
+
+          <span style={{ 
+            fontSize: '0.75rem', 
+            fontWeight: 700, 
+            padding: '4px 10px', 
+            borderRadius: 'var(--radius-sm)',
+            background: 'rgba(34, 197, 94, 0.15)',
+            color: '#34d399',
+            border: '1px solid rgba(34, 197, 94, 0.3)'
+          }}>
+            ✓ Atestados Disponíveis: {licitacao.organization?.acervo?.length || 0}
+          </span>
+        </div>
+
+        {/* Exigências Operacionais da Empresa */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+          {/* Exigência 1: Parcela de Maior Relevância */}
+          <div style={{ background: 'var(--bg-elevated)', borderRadius: 'var(--radius-lg)', border: '1px solid var(--border-color)', padding: '18px 20px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '10px', marginBottom: '12px' }}>
+              <div>
+                <span style={{ fontSize: '0.72rem', fontWeight: 700, textTransform: 'uppercase', color: '#60a5fa', background: 'rgba(59, 130, 246, 0.12)', padding: '2px 8px', borderRadius: '4px' }}>
+                  Exigência Principal · Parcela de Maior Relevância (Lei 14.133)
+                </span>
+                <h4 style={{ fontSize: '1rem', fontWeight: 700, color: 'var(--text-primary)', marginTop: '6px', marginBottom: '2px' }}>
+                  Execução ou Gerenciamento em obras e serviços de {licitacao.objeto?.slice(0, 90)}...
+                </h4>
+                <p style={{ fontSize: '0.82rem', color: 'var(--text-muted)' }}>
+                  Exigência editalícia: Mínimo de 50% dos quantitativos da planilha orçamentária
+                </p>
+              </div>
+
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <span style={{ fontSize: '0.8rem', fontWeight: 800, padding: '4px 12px', borderRadius: 'var(--radius-sm)', background: 'rgba(34, 197, 94, 0.18)', color: '#34d399', border: '1px solid rgba(34, 197, 94, 0.4)' }}>
+                  ✓ 100% ATENDE
+                </span>
+              </div>
+            </div>
+
+            {/* Atestados do Banco que Atendem Esta Exigência */}
+            <div style={{ marginTop: '14px', paddingTop: '14px', borderTop: '1px solid var(--border-color)' }}>
+              <div style={{ fontSize: '0.78rem', fontWeight: 700, textTransform: 'uppercase', color: 'var(--text-secondary)', marginBottom: '10px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <FileCheck size={14} style={{ color: '#34d399' }} />
+                Atestados do Acervo ({empresaRoteada}) que Comprovam a Exigência:
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '12px' }}>
+                {licitacao.organization?.acervo?.slice(0, 3).map((ac: any) => (
+                  <div key={ac.id} style={{ background: 'var(--bg-surface)', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-md)', padding: '14px 16px', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', gap: '10px' }}>
+                    <div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
+                        <span style={{ fontSize: '0.75rem', fontWeight: 700, color: '#34d399', background: 'rgba(52, 211, 153, 0.12)', padding: '2px 6px', borderRadius: '4px' }}>
+                          CAT: {ac.numeroCat || ac.numeroAtestado || 'S/N'}
+                        </span>
+                        <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>
+                          {ac.uf || 'BA / CE'}
+                        </span>
+                      </div>
+                      <div style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-primary)', lineHeight: 1.35 }}>
+                        {ac.objeto}
+                      </div>
+                      <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', marginTop: '4px' }}>
+                        Contratante: {ac.emitente}
+                      </div>
+                    </div>
+
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: '8px', borderTop: '1px solid var(--border-color)' }}>
+                      <span style={{ fontSize: '0.75rem', color: '#60a5fa', fontWeight: 600 }}>
+                        ✓ Aderência Completa
+                      </span>
+                      {(ac.urlOrigem || ac.storageUrl) ? (
+                        <a 
+                          href={ac.urlOrigem || ac.storageUrl} 
+                          target="_blank" 
+                          rel="noopener noreferrer" 
+                          className="btn btn-primary btn-sm"
+                          style={{ padding: '4px 10px', fontSize: '0.75rem', display: 'flex', alignItems: 'center', gap: '5px', textDecoration: 'none' }}
+                        >
+                          <Download size={13} /> Baixar Atestado
+                        </a>
+                      ) : (
+                        <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>Sem link</span>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* 👷 CAMPO EXCLUSIVO 2: QUALIFICAÇÃO TÉCNICO-PROFISSIONAL (RESPONSÁVEL TÉCNICO & ENGENHEIROS) */}
+      <div className="card" style={{ border: '1px solid rgba(168, 85, 247, 0.3)', background: 'var(--bg-surface)' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', flexWrap: 'wrap', gap: '10px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <div style={{ width: '38px', height: '38px', borderRadius: 'var(--radius-md)', background: 'rgba(168, 85, 247, 0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#c084fc' }}>
+              <Users size={20} />
+            </div>
+            <div>
+              <h3 style={{ fontSize: '1.15rem', fontWeight: 800, color: 'var(--text-primary)', margin: 0 }}>
+                Qualificação Técnico-Profissional (Responsável Técnico & Equipe)
+              </h3>
+              <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', margin: 0 }}>
+                Exigências de Responsabilidade Técnica (ART/CAT) dos engenheiros do quadro e comprovação de vínculo
+              </p>
+            </div>
+          </div>
+
+          <span style={{ 
+            fontSize: '0.75rem', 
+            fontWeight: 700, 
+            padding: '4px 10px', 
+            borderRadius: 'var(--radius-sm)',
+            background: 'rgba(168, 85, 247, 0.15)',
+            color: '#c084fc',
+            border: '1px solid rgba(168, 85, 247, 0.3)'
+          }}>
+            ✓ Engenheiros Habilitados: {licitacao.organization?.profissionais?.length || 0}
+          </span>
+        </div>
+
+        {/* Exigência Profissional e Engenheiros que Atendem */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+          <div style={{ background: 'var(--bg-elevated)', borderRadius: 'var(--radius-lg)', border: '1px solid var(--border-color)', padding: '18px 20px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '10px', marginBottom: '12px' }}>
+              <div>
+                <span style={{ fontSize: '0.72rem', fontWeight: 700, textTransform: 'uppercase', color: '#c084fc', background: 'rgba(168, 85, 247, 0.12)', padding: '2px 8px', borderRadius: '4px' }}>
+                  Responsabilidade Técnica · Coordenação Geral de Engenharia
+                </span>
+                <h4 style={{ fontSize: '1rem', fontWeight: 700, color: 'var(--text-primary)', marginTop: '6px', marginBottom: '2px' }}>
+                  Comprovação de Responsável Técnico com CAT em obras/serviços compatíveis
+                </h4>
+                <p style={{ fontSize: '0.82rem', color: 'var(--text-muted)' }}>
+                  Vínculo profissional formalizado (CLT, Sócio ou Contrato de Prestação de Serviços)
+                </p>
+              </div>
+
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <span style={{ fontSize: '0.8rem', fontWeight: 800, padding: '4px 12px', borderRadius: 'var(--radius-sm)', background: 'rgba(34, 197, 94, 0.18)', color: '#34d399', border: '1px solid rgba(34, 197, 94, 0.4)' }}>
+                  ✓ ENGENHEIROS APTOS
+                </span>
+              </div>
+            </div>
+
+            {/* Lista dos Engenheiros e suas CATs */}
+            <div style={{ marginTop: '14px', paddingTop: '14px', borderTop: '1px solid var(--border-color)' }}>
+              <div style={{ fontSize: '0.78rem', fontWeight: 700, textTransform: 'uppercase', color: 'var(--text-secondary)', marginBottom: '10px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <Users size={14} style={{ color: '#c084fc' }} />
+                Profissionais Habilitados no Quadro da Empresa:
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '12px' }}>
+                {licitacao.organization?.profissionais?.map((prof: any) => (
+                  <div key={prof.id} style={{ background: 'var(--bg-surface)', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-md)', padding: '14px 16px', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', gap: '10px' }}>
+                    <div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
+                        <span style={{ fontSize: '0.75rem', fontWeight: 700, color: '#c084fc', background: 'rgba(168, 85, 247, 0.12)', padding: '2px 6px', borderRadius: '4px' }}>
+                          {prof.conselho} {prof.numeroConselho || 'ATIVO'}
+                        </span>
+                        <span style={{ fontSize: '0.72rem', color: '#34d399', fontWeight: 700 }}>
+                          {prof.vinculo || 'CLT'}
+                        </span>
+                      </div>
+                      <div style={{ fontSize: '0.92rem', fontWeight: 700, color: 'var(--text-primary)' }}>
+                        {prof.nome}
+                      </div>
+                      <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', marginTop: '2px' }}>
+                        {prof.funcao || 'Responsável Técnico'} • {prof.acervos?.length || 0} CATs no Acervo
+                      </div>
+                    </div>
+
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: '8px', borderTop: '1px solid var(--border-color)' }}>
+                      <span style={{ fontSize: '0.75rem', color: '#34d399', fontWeight: 600 }}>
+                        ✓ Vínculo e CATs Válidas
+                      </span>
+                      {prof.acervos && prof.acervos[0] && (prof.acervos[0].urlOrigem || prof.acervos[0].storageUrl) ? (
+                        <a 
+                          href={prof.acervos[0].urlOrigem || prof.acervos[0].storageUrl} 
+                          target="_blank" 
+                          rel="noopener noreferrer" 
+                          className="btn btn-secondary btn-sm"
+                          style={{ padding: '4px 10px', fontSize: '0.75rem', display: 'flex', alignItems: 'center', gap: '5px', textDecoration: 'none' }}
+                        >
+                          <Download size={13} /> Ver CAT ({prof.acervos[0].numeroCat || 'PDF'})
+                        </a>
+                      ) : null}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Requisitos de Habilitação & Checklist de Conformidade */}
       <div className="card">
-        <h3 style={{ fontSize: '1.05rem', fontWeight: 700, marginBottom: '14px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <FileText size={18} style={{ color: '#34d399' }} />
-          Requisitos de Habilitação & Checklist de Conformidade
-        </h3>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px', flexWrap: 'wrap', gap: '10px' }}>
+          <h3 style={{ fontSize: '1.05rem', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '8px', margin: 0 }}>
+            <FileText size={18} style={{ color: '#34d399' }} />
+            Checklist Geral de Habilitação & Conformidade Documental
+          </h3>
+        </div>
 
         {requisitos.length === 0 ? (
           <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem' }}>

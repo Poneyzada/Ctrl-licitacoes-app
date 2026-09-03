@@ -21,15 +21,24 @@ export default async function LicitacaoDetailsPage({
   const licitacao = await prisma.licitacao.findUnique({
     where: { id },
     include: {
-      organization: true,
+      organization: {
+        include: {
+          acervo: { where: { deletedAt: null } },
+          profissionais: { 
+            where: { deletedAt: null },
+            include: { acervos: { where: { deletedAt: null } } } 
+          }
+        }
+      },
       consorcio: true,
       requisitos: { orderBy: { createdAt: 'asc' } },
-      equipe: { include: { professional: true } },
+      equipe: { include: { professional: { include: { acervos: { where: { deletedAt: null } } } } } },
       documentos: true,
       editalVersions: true,
       analises: { orderBy: { createdAt: 'desc' } },
       recursosCasos: { orderBy: { prazo: 'asc' } },
       followups: true,
+      acervoMatches: { include: { acervo: true } }
     }
   });
 

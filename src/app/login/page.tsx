@@ -36,14 +36,17 @@ export default function LoginPage() {
 
   const fillDemo = (role: string) => {
     const demos: Record<string, { email: string; password: string }> = {
-      diretoria: { email: 'diretoria@ctrl.com', password: '123456' },
-      coordenador: { email: 'coordenador@ctrl.com', password: '123456' },
-      campo: { email: 'campo@ctrl.com', password: '123456' },
-      adm: { email: 'adm@ctrl.com', password: '123456' },
+      diretor: { email: 'diretor', password: 'Diretor@2026' },
+      coordenador: { email: 'coordenador', password: 'Coordenador@2026' },
+      operador: { email: 'operador', password: 'Operador@2026' },
+      manutencao: { email: 'manutencao', password: 'Master@2026' },
+      luciano: { email: 'luciano', password: 'l.ferraz' },
     }
-    setEmail(demos[role].email)
-    setPassword(demos[role].password)
-    setError('')
+    if (demos[role]) {
+      setEmail(demos[role].email)
+      setPassword(demos[role].password)
+      setError('')
+    }
   }
 
   return (

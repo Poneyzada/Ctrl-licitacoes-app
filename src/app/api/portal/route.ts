@@ -1279,11 +1279,6 @@ async function syncPncp(user: PortalUser) {
 
 async function seedTenders(user: PortalUser) {
   const db = getD1();
-  const count = await db
-    .prepare("SELECT COUNT(*) AS total FROM tenders")
-    .first<{ total: number }>();
-  if (Number(count?.total ?? 0) > 0) return;
-
   const rows = [
     [
       "demo-001",
@@ -1370,13 +1365,47 @@ async function seedTenders(user: PortalUser) {
       "gerenciamento,contratos",
       "Aguardando esclarecimentos do órgão e confirmação da equipe mínima.",
     ],
+    [
+      "demo-006",
+      "042/2026",
+      "Concorrência Eletrônica",
+      "Contratação de empresa de engenharia para implantação do Sistema Adutor e Estação de Tratamento de Água no Vale do Jaguaribe",
+      "Secretaria de Infraestrutura do Estado do Ceará — SEINFRA",
+      "Compras.gov.br",
+      "R$ 24,5 mi",
+      "Em análise",
+      "Habilitação",
+      "2026-09-15T09:00:00-03:00",
+      "Médio",
+      50,
+      "Ana Paula Souza",
+      "adutora,saneamento,recursos hídricos",
+      "Licitação prioritária do Q3. Ótima aderência ao acervo hídrico da UFC Engenharia.",
+    ],
+    [
+      "demo-007",
+      "018/2026",
+      "Concorrência Eletrônica",
+      "Execução de obras de pavimentação em Concreto Betuminoso Usinado a Quente (CBUQ), drenagem pluvial e sinalização viária em vias urbanas",
+      "Prefeitura Municipal de Sobral — SEINFRA",
+      "Portal de Compras Públicas",
+      "R$ 18,2 mi",
+      "Aprovada",
+      "Disputa",
+      "2026-08-28T10:00:00-03:00",
+      "Baixo",
+      75,
+      "Carlos Mendes",
+      "pavimentação,cbuq,drenagem,asfalto",
+      "Pavimentação asfáltica CBUQ (120.000 m²) e drenagem (14 km). Excelente aderência para Pórtico Construções.",
+    ],
   ];
 
   await db.batch(
     rows.map((row) =>
       db
         .prepare(
-          `INSERT INTO tenders
+          `INSERT OR IGNORE INTO tenders
           (id, number, modality, title, organ, platform, estimated_value, status,
            phase, opening_at, risk, progress, owner, tags, summary, created_by)
           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,

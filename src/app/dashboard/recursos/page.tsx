@@ -4,7 +4,8 @@ import React, { useState, useEffect } from 'react';
 import { 
   Scale, Clock, Filter, Plus, Search, 
   FileText, CheckCircle2, AlertTriangle, 
-  ChevronRight, Calendar, ArrowRight, Loader2, X, Save, Gavel
+  ChevronRight, Calendar, ArrowRight, Loader2, X, Save, Gavel,
+  Edit3, Trash2, Check, RefreshCw
 } from 'lucide-react';
 import { formatDate } from '@/lib/utils';
 
@@ -16,7 +17,7 @@ export default function RecursosPage() {
   const [filterSetor, setFilterSetor] = useState('');
   const [search, setSearch] = useState('');
   
-  // Modal State
+  // Modal Novo Recurso State
   const [modalOpen, setModalOpen] = useState(false);
   const [saving, setSaving] = useState(false);
   const [newRecurso, setNewRecurso] = useState({
@@ -31,6 +32,21 @@ export default function RecursosPage() {
     fundamento: '',
     proximaAcao: ''
   });
+
+  // Modal Editar Recurso State
+  const [editModalOpen, setEditModalOpen] = useState(false);
+  const [editingRecurso, setEditingRecurso] = useState<any>(null);
+  const [editData, setEditData] = useState({
+    prazo: '',
+    proximaAcao: '',
+    status: 'ABERTO',
+    responsavel: '',
+    setor: 'JURIDICO',
+    resumo: '',
+    fundamento: '',
+    concorrente: ''
+  });
+  const [savingEdit, setSavingEdit] = useState(false);
 
   useEffect(() => {
     fetch('/api/licitacoes')
@@ -103,12 +119,69 @@ export default function RecursosPage() {
         });
         fetchRecursos();
       } else {
-        alert('Erro ao salvar recurso');
+        alert('Erro ao criar recurso.');
+      }
+    } catch (err) {
+      console.error(err);
+      alert('Erro de conexão ao criar recurso.');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleOpenEdit = (r: any) => {
+    setEditingRecurso(r);
+    setEditData({
+      prazo: r.prazo ? r.prazo.split('T')[0] : '',
+      proximaAcao: r.proximaAcao || '',
+      status: r.status || 'ABERTO',
+      responsavel: r.responsavel || '',
+      setor: r.setor || 'JURIDICO',
+      resumo: r.resumo || '',
+      fundamento: r.fundamento || '',
+      concorrente: r.concorrente || ''
+    });
+    setEditModalOpen(true);
+  };
+
+  const handleSaveEdit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingRecurso) return;
+
+    setSavingEdit(true);
+    try {
+      const res = await fetch(`/api/recursos/${editingRecurso.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(editData)
+      });
+      if (res.ok) {
+        setEditModalOpen(false);
+        fetchRecursos();
+      } else {
+        alert('Erro ao atualizar recurso.');
+      }
+    } catch (err) {
+      console.error(err);
+      alert('Erro ao salvar alterações.');
+    } finally {
+      setSavingEdit(false);
+    }
+  };
+
+  const handleDeleteRecurso = async (id: string) => {
+    if (!confirm('Deseja realmente excluir este caso de recurso?')) return;
+
+    try {
+      const res = await fetch(`/api/recursos/${id}`, { method: 'DELETE' });
+      if (res.ok) {
+        setEditModalOpen(false);
+        fetchRecursos();
+      } else {
+        alert('Erro ao excluir recurso.');
       }
     } catch (e) {
       console.error(e);
-    } finally {
-      setSaving(false);
     }
   };
 
@@ -122,27 +195,28 @@ export default function RecursosPage() {
       if (res.ok) {
         fetchRecursos();
       }
-    } catch (e) {
-      console.error(e);
+    } catch (err) {
+      console.error(err);
     }
   };
 
   const filteredRecursos = recursos.filter(r => {
     if (!search) return true;
-    const termo = search.toLowerCase();
+    const q = search.toLowerCase();
     return (
-      r.licitacao?.orgaoNome?.toLowerCase().includes(termo) ||
-      r.licitacao?.numero?.toLowerCase().includes(termo) ||
-      r.resumo?.toLowerCase().includes(termo) ||
-      r.responsavel?.toLowerCase().includes(termo)
+      r.resumo?.toLowerCase().includes(q) ||
+      r.proximaAcao?.toLowerCase().includes(q) ||
+      r.responsavel?.toLowerCase().includes(q) ||
+      r.licitacao?.orgaoNome?.toLowerCase().includes(q) ||
+      r.licitacao?.numero?.toLowerCase().includes(q)
     );
   });
 
-  const prazosCriticos = recursos
-    .filter(r => r.prazo && ['ABERTO', 'EM_ANDAMENTO'].includes(r.status))
-    .map(r => ({ ...r, daysLeft: calculateDaysLeft(r.prazo) }))
-    .sort((a, b) => (a.daysLeft || 999) - (b.daysLeft || 999))
-    .slice(0, 3);
+  const criticalPrazos = recursos.filter(r => {
+    if (r.status === 'CONCLUIDO') return false;
+    const days = calculateDaysLeft(r.prazo);
+    return days !== null && days <= 5;
+  });
 
   return (
     <div className="animate-fade-in">
@@ -154,46 +228,50 @@ export default function RecursosPage() {
             Recursos & Prazos Administrativos
           </h1>
           <p className="page-subtitle">
-            Gestão estratégica de impugnações, pedidos de esclarecimento, recursos e contrarrazões
+            Gestão estratégica de impugnações, pedidos de esclarecimento, recursos, contrarrazões e ações
           </p>
         </div>
-        <button 
-          onClick={() => setModalOpen(true)}
-          className="btn btn-primary" 
-          style={{ display: 'flex', alignItems: 'center', gap: '8px' }}
-        >
-          <Plus size={18} />
-          Novo Recurso / Peça
-        </button>
+
+        <div style={{ display: 'flex', gap: '12px' }}>
+          <button 
+            onClick={() => setModalOpen(true)} 
+            className="btn btn-primary"
+            style={{ display: 'flex', alignItems: 'center', gap: '8px' }}
+          >
+            <Plus size={18} />
+            Novo Recurso / Peça
+          </button>
+        </div>
       </div>
 
-      {/* Radar de Prazos Críticos */}
-      {prazosCriticos.length > 0 && (
+      {/* Radar de Prazos Iminentes */}
+      {criticalPrazos.length > 0 && (
         <div style={{ marginBottom: '28px' }}>
-          <div style={{ fontSize: '0.85rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--color-primary)', marginBottom: '12px', display: 'flex', alignItems: 'center', gap: '6px' }}>
-            <Clock size={16} /> Radar de Prazos Iminentes (Contagem Regressiva)
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px', color: '#f87171', fontWeight: 700, fontSize: '0.9rem' }}>
+            <Clock size={16} />
+            RADAR DE PRAZOS IMINENTES (CONTAGEM REGRESSIVA)
           </div>
-
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '16px' }}>
-            {prazosCriticos.map((p) => {
-              const isOverdue = p.daysLeft !== null && p.daysLeft < 0;
-              const isUrgent = p.daysLeft !== null && p.daysLeft <= 2;
+          
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '14px' }}>
+            {criticalPrazos.map(r => {
+              const days = calculateDaysLeft(r.prazo);
+              const isUrgent = days !== null && days <= 1;
 
               return (
                 <div 
-                  key={p.id}
-                  style={{
-                    background: 'linear-gradient(135deg, rgba(22,22,24,0.95) 0%, rgba(26,10,15,0.7) 100%)',
-                    border: `1px solid ${isOverdue ? '#ef4444' : (isUrgent ? '#f59e0b' : 'var(--border-color)')}`,
-                    borderRadius: 'var(--radius-lg)',
-                    padding: '18px 20px',
+                  key={r.id} 
+                  className="card" 
+                  style={{ 
+                    border: `1px solid ${isUrgent ? '#ef4444' : '#f59e0b'}`, 
+                    background: 'var(--bg-surface)',
                     display: 'flex',
                     flexDirection: 'column',
                     gap: '10px',
-                    boxShadow: isUrgent ? '0 0 20px rgba(245, 158, 11, 0.15)' : 'none'
+                    padding: '16px 18px',
+                    position: 'relative'
                   }}
                 >
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                     <span style={{ 
                       fontSize: '0.72rem', 
                       fontWeight: 700, 
@@ -202,29 +280,47 @@ export default function RecursosPage() {
                       background: 'rgba(232, 93, 93, 0.15)',
                       color: 'var(--color-primary)'
                     }}>
-                      {p.tipo}
+                      {r.tipo}
                     </span>
+
                     <span style={{ 
-                      fontSize: '0.8rem', 
-                      fontWeight: 800, 
-                      color: isOverdue ? '#f87171' : (isUrgent ? '#fbbf24' : '#34d399')
+                      fontSize: '0.75rem', 
+                      fontWeight: 700, 
+                      color: isUrgent ? '#f87171' : '#fbbf24',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '4px'
                     }}>
-                      {isOverdue ? `Vencido há ${Math.abs(p.daysLeft!)} dias` : (p.daysLeft === 0 ? 'Vence HOJE' : `Vence em ${p.daysLeft} dias`)}
+                      <Clock size={12} />
+                      {days !== null ? (days < 0 ? `Vencido há ${Math.abs(days)} dias` : (days === 0 ? 'VENCE HOJE!' : `${days} dias restantes`)) : ''}
                     </span>
                   </div>
 
-                  <div>
-                    <h3 style={{ fontSize: '0.95rem', fontWeight: 700, color: 'var(--text-primary)', lineHeight: 1.3 }}>
-                      {p.licitacao?.orgaoNome}
-                    </h3>
-                    <p style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', marginTop: '4px' }}>
-                      {p.resumo}
-                    </p>
+                  <div style={{ fontWeight: 700, color: 'var(--text-primary)', fontSize: '0.95rem' }}>
+                    {r.licitacao?.orgaoNome}
                   </div>
 
-                  <div style={{ fontSize: '0.76rem', color: 'var(--text-muted)', display: 'flex', justifyContent: 'space-between', borderTop: '1px solid var(--border-color)', paddingTop: '8px', marginTop: 'auto' }}>
-                    <span>Resp: {p.responsavel}</span>
-                    <span>Setor: {p.setor}</span>
+                  <p style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', lineHeight: 1.4, margin: 0 }}>
+                    {r.resumo}
+                  </p>
+
+                  {r.proximaAcao && (
+                    <div style={{ fontSize: '0.78rem', color: '#60a5fa', background: 'rgba(59, 130, 246, 0.1)', padding: '6px 10px', borderRadius: 'var(--radius-sm)' }}>
+                      <strong>Ação a realizar:</strong> {r.proximaAcao}
+                    </div>
+                  )}
+
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '4px', paddingTop: '10px', borderTop: '1px solid var(--border-color)' }}>
+                    <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                      Resp: {r.responsavel || 'Não atribuído'}
+                    </span>
+                    <button 
+                      onClick={() => handleOpenEdit(r)} 
+                      className="btn btn-secondary btn-sm"
+                      style={{ fontSize: '0.75rem', padding: '3px 8px' }}
+                    >
+                      <Edit3 size={12} /> Editar Prazo & Ação
+                    </button>
                   </div>
                 </div>
               );
@@ -233,10 +329,10 @@ export default function RecursosPage() {
         </div>
       )}
 
-      {/* Filter / Search Bar */}
-      <div className="card" style={{ marginBottom: '28px', padding: '16px 20px', background: 'var(--bg-surface)' }}>
+      {/* Search and Filters */}
+      <div className="card" style={{ marginBottom: '24px', padding: '16px 20px', background: 'var(--bg-surface)' }}>
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: '12px', alignItems: 'center' }}>
-          <div style={{ position: 'relative', flex: '1 1 300px' }}>
+          <div style={{ position: 'relative', flex: '1 1 280px' }}>
             <Search size={16} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
             <input 
               type="text" 
@@ -252,21 +348,22 @@ export default function RecursosPage() {
             value={filterTipo} 
             onChange={(e) => setFilterTipo(e.target.value)}
             className="form-control" 
-            style={{ width: 'auto', height: '40px', minWidth: '180px' }}
+            style={{ width: 'auto', height: '40px', minWidth: '160px' }}
           >
             <option value="">Tipo: Todos</option>
             <option value="IMPUGNACAO">Impugnação</option>
             <option value="ESCLARECIMENTO">Esclarecimento</option>
             <option value="INTENCAO_RECURSAL">Intenção Recursal</option>
-            <option value="RECURSO">Recurso Administrativo</option>
+            <option value="RECURSO">Recurso</option>
             <option value="CONTRARRAZOES">Contrarrazões</option>
+            <option value="DILIGENCIA">Diligência</option>
           </select>
 
           <select 
             value={filterSetor} 
             onChange={(e) => setFilterSetor(e.target.value)}
             className="form-control" 
-            style={{ width: 'auto', height: '40px', minWidth: '150px' }}
+            style={{ width: 'auto', height: '40px', minWidth: '160px' }}
           >
             <option value="">Setor: Todos</option>
             <option value="JURIDICO">Jurídico</option>
@@ -282,13 +379,13 @@ export default function RecursosPage() {
               className="btn btn-ghost btn-sm" 
               style={{ height: '40px' }}
             >
-              Limpar Filtros
+              Limpar
             </button>
           )}
         </div>
       </div>
 
-      {/* Table of Recursos */}
+      {/* Table */}
       {loading ? (
         <div style={{ textAlign: 'center', padding: '60px 0' }}>
           <Loader2 size={36} className="animate-spin" style={{ margin: '0 auto 12px', color: 'var(--color-primary)' }} />
@@ -297,12 +394,12 @@ export default function RecursosPage() {
       ) : filteredRecursos.length === 0 ? (
         <div className="card" style={{ textAlign: 'center', padding: '60px 20px' }}>
           <Scale size={44} style={{ margin: '0 auto 16px', opacity: 0.3, color: 'var(--text-muted)' }} />
-          <h3 style={{ fontSize: '1.15rem', marginBottom: '8px', color: 'var(--text-primary)' }}>Nenhum recurso encontrado</h3>
+          <h3 style={{ fontSize: '1.15rem', marginBottom: '8px', color: 'var(--text-primary)' }}>Nenhum recurso cadastrado</h3>
           <p style={{ color: 'var(--text-secondary)', marginBottom: '24px', fontSize: '0.9rem' }}>
-            Cadastre impugnações e peças recursais para manter o controle de prazos da Lei 14.133.
+            Cadastre prazos de impugnações e recursos para controle da equipe.
           </p>
           <button onClick={() => setModalOpen(true)} className="btn btn-primary btn-sm">
-            <Plus size={16} /> Cadastrar Nova Peça
+            <Plus size={16} /> Novo Recurso / Peça
           </button>
         </div>
       ) : (
@@ -312,7 +409,7 @@ export default function RecursosPage() {
               <tr>
                 <th>Tipo & Posição</th>
                 <th>Órgão Licitante</th>
-                <th>Resumo do Caso</th>
+                <th>Resumo / Ação a Realizar</th>
                 <th>Prazo Fatal</th>
                 <th>Responsável / Setor</th>
                 <th>Status</th>
@@ -339,9 +436,9 @@ export default function RecursosPage() {
                     </td>
 
                     <td style={{ maxWidth: '350px' }}>
-                      <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', lineHeight: 1.4 }}>{r.resumo}</p>
+                      <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', lineHeight: 1.4, margin: 0 }}>{r.resumo}</p>
                       {r.proximaAcao && (
-                        <div style={{ fontSize: '0.76rem', color: '#60a5fa', marginTop: '4px' }}>
+                        <div style={{ fontSize: '0.76rem', color: '#60a5fa', marginTop: '4px', background: 'rgba(59, 130, 246, 0.08)', padding: '4px 8px', borderRadius: '4px' }}>
                           <strong>Ação:</strong> {r.proximaAcao}
                         </div>
                       )}
@@ -352,7 +449,7 @@ export default function RecursosPage() {
                         <div>
                           <div style={{ fontWeight: 600, color: 'var(--text-primary)', fontSize: '0.85rem' }}>{formatDate(new Date(r.prazo))}</div>
                           <span style={{ fontSize: '0.72rem', color: days !== null && days <= 2 ? '#f87171' : 'var(--text-muted)' }}>
-                            {days !== null ? (days < 0 ? `Vencido` : `${days}d restantes`) : ''}
+                            {days !== null ? (days < 0 ? `Vencido (${Math.abs(days)}d)` : `${days}d restantes`) : ''}
                           </span>
                         </div>
                       ) : (
@@ -373,23 +470,32 @@ export default function RecursosPage() {
                         fontWeight: 700, 
                         padding: '3px 8px', 
                         borderRadius: 'var(--radius-sm)',
-                        background: r.status === 'CONCLUIDO' || r.status === 'JULGADO' ? 'rgba(34, 197, 94, 0.15)' : 'rgba(245, 158, 11, 0.15)',
-                        color: r.status === 'CONCLUIDO' || r.status === 'JULGADO' ? '#34d399' : '#fbbf24'
+                        background: r.status === 'CONCLUIDO' || r.status === 'DEFERIDO' ? 'rgba(34, 197, 94, 0.15)' : (r.status === 'EM_ANDAMENTO' ? 'rgba(59, 130, 246, 0.15)' : 'rgba(245, 158, 11, 0.15)'),
+                        color: r.status === 'CONCLUIDO' || r.status === 'DEFERIDO' ? '#34d399' : (r.status === 'EM_ANDAMENTO' ? '#60a5fa' : '#fbbf24')
                       }}>
                         {r.status}
                       </span>
                     </td>
 
                     <td>
-                      <div style={{ display: 'flex', gap: '4px' }}>
+                      <div style={{ display: 'flex', gap: '6px' }}>
+                        <button 
+                          onClick={() => handleOpenEdit(r)}
+                          className="btn btn-secondary btn-sm"
+                          style={{ padding: '4px 8px', fontSize: '0.75rem', display: 'flex', alignItems: 'center', gap: '4px' }}
+                          title="Editar Prazo, Ação e Status"
+                        >
+                          <Edit3 size={13} style={{ color: '#60a5fa' }} /> Editar
+                        </button>
+
                         {r.status !== 'CONCLUIDO' && (
                           <button 
                             onClick={() => updateStatus(r.id, 'CONCLUIDO')}
                             className="btn btn-ghost btn-sm"
                             style={{ padding: '4px 8px', color: '#34d399', fontSize: '0.75rem' }}
-                            title="Concluir"
+                            title="Marcar como Concluído"
                           >
-                            ✓ Concluir
+                            ✓
                           </button>
                         )}
                       </div>
@@ -402,26 +508,197 @@ export default function RecursosPage() {
         </div>
       )}
 
+      {/* Modal Editar Recurso & Prazo */}
+      {editModalOpen && editingRecurso && (
+        <div style={{
+          position: 'fixed',
+          inset: 0,
+          background: 'rgba(0, 0, 0, 0.85)',
+          backdropFilter: 'blur(6px)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 9999,
+          padding: '20px'
+        }}
+        onClick={() => setEditModalOpen(false)}
+        >
+          <div 
+            className="card" 
+            style={{ 
+              maxWidth: '650px', 
+              width: '100%', 
+              maxHeight: '90vh', 
+              overflowY: 'auto',
+              background: 'var(--bg-surface)',
+              border: '1px solid var(--border-color-strong)',
+              borderRadius: 'var(--radius-xl)',
+              padding: '26px'
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <div style={{ width: '38px', height: '38px', borderRadius: 'var(--radius-md)', background: 'var(--gradient-primary)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff' }}>
+                  <Edit3 size={18} />
+                </div>
+                <div>
+                  <h3 style={{ fontSize: '1.2rem', fontWeight: 700 }}>Editar Recurso & Prazo</h3>
+                  <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>{editingRecurso.licitacao?.orgaoNome}</p>
+                </div>
+              </div>
+              <button onClick={() => setEditModalOpen(false)} className="btn btn-ghost btn-sm">
+                <X size={20} />
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveEdit} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px' }}>
+                <div className="form-group">
+                  <label className="form-label">Data do Prazo Fatal *</label>
+                  <input 
+                    type="date"
+                    value={editData.prazo} 
+                    onChange={(e) => setEditData({ ...editData, prazo: e.target.value })}
+                    className="form-control" 
+                  />
+                </div>
+
+                <div className="form-group">
+                  <label className="form-label">Status do Procedimento</label>
+                  <select 
+                    value={editData.status} 
+                    onChange={(e) => setEditData({ ...editData, status: e.target.value })}
+                    className="form-control"
+                  >
+                    <option value="ABERTO">Aberto / Em Análise</option>
+                    <option value="EM_ANDAMENTO">Em Andamento / Redação</option>
+                    <option value="PROTOCOLADO">Protocolado no Portal</option>
+                    <option value="DEFERIDO">Deferido / Aceito</option>
+                    <option value="INDEFERIDO">Indeferido / Recusado</option>
+                    <option value="CONCLUIDO">Concluído</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="form-group">
+                <label className="form-label">Próxima Ação a Realizar *</label>
+                <input 
+                  value={editData.proximaAcao} 
+                  onChange={(e) => setEditData({ ...editData, proximaAcao: e.target.value })}
+                  className="form-control" 
+                  placeholder="Ex: Protocolar impugnação via Comprasnet até as 18h"
+                />
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px' }}>
+                <div className="form-group">
+                  <label className="form-label">Responsável</label>
+                  <input 
+                    value={editData.responsavel} 
+                    onChange={(e) => setEditData({ ...editData, responsavel: e.target.value })}
+                    className="form-control" 
+                    placeholder="Ex: Ana Paula Souza / Dr. Luciano"
+                  />
+                </div>
+
+                <div className="form-group">
+                  <label className="form-label">Setor Responsável</label>
+                  <select 
+                    value={editData.setor} 
+                    onChange={(e) => setEditData({ ...editData, setor: e.target.value })}
+                    className="form-control"
+                  >
+                    <option value="JURIDICO">Jurídico</option>
+                    <option value="TECNICO">Técnico / Engenharia</option>
+                    <option value="ORCAMENTO">Orçamento / Custos</option>
+                    <option value="LICITACOES">Licitações</option>
+                    <option value="DIRETORIA">Diretoria</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="form-group">
+                <label className="form-label">Resumo do Caso / Motivo</label>
+                <textarea 
+                  value={editData.resumo} 
+                  onChange={(e) => setEditData({ ...editData, resumo: e.target.value })}
+                  className="form-control" 
+                  rows={2}
+                />
+              </div>
+
+              <div className="form-group">
+                <label className="form-label">Fundamento Legal / Jurisprudência (TCU / Lei 14.133)</label>
+                <textarea 
+                  value={editData.fundamento} 
+                  onChange={(e) => setEditData({ ...editData, fundamento: e.target.value })}
+                  className="form-control" 
+                  rows={2}
+                  placeholder="Ex: Violação ao Art. 67 da Lei 14.133/2021 e Súmula TCU nº 263..."
+                />
+              </div>
+
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '12px', paddingTop: '16px', borderTop: '1px solid var(--border-color)' }}>
+                <button 
+                  type="button" 
+                  onClick={() => handleDeleteRecurso(editingRecurso.id)}
+                  className="btn btn-ghost btn-sm"
+                  style={{ color: '#f87171', display: 'flex', alignItems: 'center', gap: '6px' }}
+                >
+                  <Trash2 size={15} /> Excluir Caso
+                </button>
+
+                <div style={{ display: 'flex', gap: '10px' }}>
+                  <button type="button" onClick={() => setEditModalOpen(false)} className="btn btn-secondary">
+                    Cancelar
+                  </button>
+                  <button type="submit" disabled={savingEdit} className="btn btn-primary" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    {savingEdit ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
+                    Salvar Alterações
+                  </button>
+                </div>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
       {/* Modal Novo Recurso */}
       {modalOpen && (
         <div style={{
           position: 'fixed',
           inset: 0,
-          background: 'rgba(0, 0, 0, 0.8)',
-          backdropFilter: 'blur(4px)',
+          background: 'rgba(0, 0, 0, 0.85)',
+          backdropFilter: 'blur(6px)',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          zIndex: 999,
+          zIndex: 9999,
           padding: '20px'
-        }}>
-          <div className="card" style={{ maxWidth: '650px', width: '100%', maxHeight: '90vh', overflowY: 'auto' }}>
+        }}
+        onClick={() => setModalOpen(false)}
+        >
+          <div 
+            className="card" 
+            style={{ 
+              maxWidth: '650px', 
+              width: '100%', 
+              maxHeight: '90vh', 
+              overflowY: 'auto',
+              background: 'var(--bg-surface)',
+              border: '1px solid var(--border-color-strong)',
+              borderRadius: 'var(--radius-xl)',
+              padding: '26px'
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                 <Scale size={20} style={{ color: 'var(--color-primary)' }} />
-                <h3 style={{ fontSize: '1.2rem', fontWeight: 700 }}>Nova Peça / Recurso Administrativo</h3>
+                <h3 style={{ fontSize: '1.2rem', fontWeight: 700 }}>Novo Caso de Recurso / Prazo</h3>
               </div>
-              <button onClick={() => setModalOpen(false)} className="btn btn-ghost btn-sm" style={{ padding: '4px' }}>
+              <button onClick={() => setModalOpen(false)} className="btn btn-ghost btn-sm">
                 <X size={20} />
               </button>
             </div>
@@ -432,21 +709,19 @@ export default function RecursosPage() {
                 <select 
                   value={newRecurso.licitacaoId} 
                   onChange={(e) => setNewRecurso({ ...newRecurso, licitacaoId: e.target.value })}
-                  className="form-control"
+                  className="form-control" 
                   required
                 >
                   <option value="">Selecione a licitação...</option>
                   {licitacoes.map(lic => (
-                    <option key={lic.id} value={lic.id}>
-                      {lic.orgaoNome} (Edital nº {lic.numero || 'S/N'})
-                    </option>
+                    <option key={lic.id} value={lic.id}>{lic.orgaoNome} — Edital nº {lic.numero || 'S/N'}</option>
                   ))}
                 </select>
               </div>
 
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px' }}>
                 <div className="form-group">
-                  <label className="form-label">Tipo de Peça *</label>
+                  <label className="form-label">Tipo de Procedimento</label>
                   <select 
                     value={newRecurso.tipo} 
                     onChange={(e) => setNewRecurso({ ...newRecurso, tipo: e.target.value })}
@@ -454,53 +729,31 @@ export default function RecursosPage() {
                   >
                     <option value="ESCLARECIMENTO">Pedido de Esclarecimento</option>
                     <option value="IMPUGNACAO">Impugnação ao Edital</option>
-                    <option value="INTENCAO_RECURSAL">Intenção Recursal</option>
+                    <option value="INTENCAO_RECURSAL">Intenção de Recurso</option>
                     <option value="RECURSO">Recurso Administrativo</option>
                     <option value="CONTRARRAZOES">Contrarrazões</option>
-                    <option value="DILIGENCIA">Resposta a Diligência</option>
+                    <option value="DILIGENCIA">Diligência / Esclarecimento</option>
                   </select>
                 </div>
 
                 <div className="form-group">
-                  <label className="form-label">Posição / Autoria</label>
+                  <label className="form-label">Posição da Peça</label>
                   <select 
                     value={newRecurso.posicao} 
                     onChange={(e) => setNewRecurso({ ...newRecurso, posicao: e.target.value })}
                     className="form-control"
                   >
-                    <option value="NOSSA_EMPRESA">Nossa Empresa (Interponente)</option>
-                    <option value="ADVERSARIO">Adversário / Concorrente</option>
+                    <option value="NOSSA_EMPRESA">Nossa Empresa (Autora)</option>
+                    <option value="CONCORRENTE">Concorrente (Adversário)</option>
                   </select>
                 </div>
               </div>
 
-              <div className="form-group">
-                <label className="form-label">Resumo do Pleito / Controvérsia *</label>
-                <input 
-                  value={newRecurso.resumo} 
-                  onChange={(e) => setNewRecurso({ ...newRecurso, resumo: e.target.value })}
-                  className="form-control" 
-                  placeholder="Ex: Impugnação da cláusula de visita técnica obrigatória restritiva"
-                  required 
-                />
-              </div>
-
-              <div className="form-group">
-                <label className="form-label">Fundamento Técnico e Legal</label>
-                <textarea 
-                  value={newRecurso.fundamento} 
-                  onChange={(e) => setNewRecurso({ ...newRecurso, fundamento: e.target.value })}
-                  className="form-control" 
-                  rows={3}
-                  placeholder="Ex: Art. 164 da Lei 14.133/2021 e Acórdão 1443/2023-TCU Plenário..." 
-                />
-              </div>
-
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '14px' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px' }}>
                 <div className="form-group">
-                  <label className="form-label">Prazo Fatal</label>
+                  <label className="form-label">Data do Prazo Fatal</label>
                   <input 
-                    type="datetime-local" 
+                    type="date" 
                     value={newRecurso.prazo} 
                     onChange={(e) => setNewRecurso({ ...newRecurso, prazo: e.target.value })}
                     className="form-control" 
@@ -508,25 +761,15 @@ export default function RecursosPage() {
                 </div>
 
                 <div className="form-group">
-                  <label className="form-label">Responsável</label>
-                  <input 
-                    value={newRecurso.responsavel} 
-                    onChange={(e) => setNewRecurso({ ...newRecurso, responsavel: e.target.value })}
-                    className="form-control" 
-                    placeholder="Ex: Dr. Carlos Mendes" 
-                  />
-                </div>
-
-                <div className="form-group">
-                  <label className="form-label">Setor Encarregado</label>
+                  <label className="form-label">Setor Responsável</label>
                   <select 
                     value={newRecurso.setor} 
                     onChange={(e) => setNewRecurso({ ...newRecurso, setor: e.target.value })}
                     className="form-control"
                   >
                     <option value="JURIDICO">Jurídico</option>
-                    <option value="TECNICO">Técnico</option>
-                    <option value="ORCAMENTO">Orçamento</option>
+                    <option value="TECNICO">Técnico / Engenharia</option>
+                    <option value="ORCAMENTO">Orçamento / Custos</option>
                     <option value="LICITACOES">Licitações</option>
                     <option value="DIRETORIA">Diretoria</option>
                   </select>
@@ -534,12 +777,35 @@ export default function RecursosPage() {
               </div>
 
               <div className="form-group">
-                <label className="form-label">Próxima Ação Imediata</label>
+                <label className="form-label">Próxima Ação a Realizar</label>
                 <input 
                   value={newRecurso.proximaAcao} 
                   onChange={(e) => setNewRecurso({ ...newRecurso, proximaAcao: e.target.value })}
                   className="form-control" 
-                  placeholder="Ex: Protocolar minuta no portal Comprasnet até as 18h" 
+                  placeholder="Ex: Protocolar recurso no Comprasnet" 
+                />
+              </div>
+
+              <div className="form-group">
+                <label className="form-label">Resumo do Caso / Motivo da Peça *</label>
+                <textarea 
+                  value={newRecurso.resumo} 
+                  onChange={(e) => setNewRecurso({ ...newRecurso, resumo: e.target.value })}
+                  className="form-control" 
+                  rows={2}
+                  placeholder="Descreva o motivo da impugnação ou recurso..." 
+                  required
+                />
+              </div>
+
+              <div className="form-group">
+                <label className="form-label">Fundamento Legal (Opcional)</label>
+                <textarea 
+                  value={newRecurso.fundamento} 
+                  onChange={(e) => setNewRecurso({ ...newRecurso, fundamento: e.target.value })}
+                  className="form-control" 
+                  rows={2}
+                  placeholder="Artigos da Lei 14.133/2021, jurisprudência do TCU..." 
                 />
               </div>
 
@@ -549,7 +815,7 @@ export default function RecursosPage() {
                 </button>
                 <button type="submit" disabled={saving} className="btn btn-primary">
                   {saving ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
-                  Salvar Peça
+                  Salvar no Radar de Prazos
                 </button>
               </div>
             </form>

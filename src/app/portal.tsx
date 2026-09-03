@@ -1,5 +1,7 @@
 "use client";
 
+import "./portal.css";
+
 import {
   Component,
   type ErrorInfo,

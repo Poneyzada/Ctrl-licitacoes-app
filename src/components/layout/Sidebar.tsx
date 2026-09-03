@@ -23,7 +23,7 @@ interface SidebarProps {
 
 const menuItems = [
   { href: '/dashboard', label: 'Visão Geral', icon: LayoutDashboard, roles: ['OPERADOR','COORDENADOR','DIRETOR','MANUTENCAO_MASTER','DIRETORIA','OPERADOR_CAMPO','OPERADOR_ADM'] },
-  { href: '/dashboard/portal', label: 'Painel Central Completo', icon: Sparkles, roles: ['OPERADOR','COORDENADOR','DIRETOR','MANUTENCAO_MASTER','DIRETORIA','OPERADOR_CAMPO','OPERADOR_ADM'] },
+  { href: '/portal', label: 'Painel Central Completo', icon: Sparkles, roles: ['OPERADOR','COORDENADOR','DIRETOR','MANUTENCAO_MASTER','DIRETORIA','OPERADOR_CAMPO','OPERADOR_ADM'] },
   { href: '/dashboard/axxia', label: 'Entrada AXXIA', icon: Inbox, roles: ['COORDENADOR','DIRETOR','MANUTENCAO_MASTER','DIRETORIA'] },
   { href: '/dashboard/licitacoes', label: 'Licitações', icon: FileSearch, roles: ['OPERADOR','COORDENADOR','DIRETOR','MANUTENCAO_MASTER','DIRETORIA','OPERADOR_CAMPO','OPERADOR_ADM'] },
   { href: '/dashboard/recursos', label: 'Recursos & Prazos', icon: Scale, roles: ['COORDENADOR','DIRETOR','MANUTENCAO_MASTER','DIRETORIA'] },

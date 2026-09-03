@@ -10,11 +10,11 @@ export async function GET(req: Request) {
     const followups = await prisma.tenderFollowup.findMany({
       include: {
         licitacao: {
-          select: {
-            orgaoNome: true,
-            numero: true,
-            modalidade: true,
-            valorEstimado: true,
+          include: {
+            organization: true,
+            documentos: true,
+            requisitos: true,
+            editalVersions: true
           }
         }
       },

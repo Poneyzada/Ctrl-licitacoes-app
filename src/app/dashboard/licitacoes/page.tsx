@@ -38,6 +38,7 @@ export default async function LicitacoesPage({ searchParams }: { searchParams: P
         organization: true,
         consorcio: true,
         requisitos: true,
+        documentos: true,
         analises: { take: 1, orderBy: { createdAt: 'desc' } }
       },
       orderBy: { dataHoraSessao: 'asc' }
@@ -305,6 +306,42 @@ export default async function LicitacoesPage({ searchParams }: { searchParams: P
                 >
                   {lic.objetoResumo || lic.objeto}
                 </p>
+
+                {/* Documentation Checklist Status */}
+                {(() => {
+                  const hasEdital = (lic.documentos && lic.documentos.some((d: any) => d.categoria === 'EDITAL')) || Boolean(lic.pncpUrl) || Boolean(lic.plataformaUrl);
+                  const hasTR = (lic.documentos && lic.documentos.some((d: any) => d.categoria === 'CONTRATO' || d.nome?.toLowerCase().includes('termo') || d.nome?.toLowerCase().includes('tr'))) || (lic.objeto && lic.objeto.length > 50);
+                  const hasQualificacao = (lic.requisitos && lic.requisitos.length > 0) || (lic.analises && lic.analises.length > 0);
+                  const isComplete = hasEdital && hasTR && hasQualificacao;
+
+                  return (
+                    <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', alignItems: 'center', marginTop: '-4px' }}>
+                      {isComplete ? (
+                        <span style={{ fontSize: '0.72rem', background: 'rgba(34, 197, 94, 0.15)', color: '#34d399', padding: '2px 8px', borderRadius: '4px', border: '1px solid rgba(34, 197, 94, 0.3)', fontWeight: 600 }}>
+                          ✓ Documentação Completa
+                        </span>
+                      ) : (
+                        <>
+                          {!hasEdital && (
+                            <span style={{ fontSize: '0.7rem', background: 'rgba(239, 68, 68, 0.15)', color: '#f87171', padding: '2px 6px', borderRadius: '4px', border: '1px solid rgba(239, 68, 68, 0.3)', fontWeight: 600 }}>
+                              ⚠ Falta Edital
+                            </span>
+                          )}
+                          {!hasTR && (
+                            <span style={{ fontSize: '0.7rem', background: 'rgba(245, 158, 11, 0.15)', color: '#fbbf24', padding: '2px 6px', borderRadius: '4px', border: '1px solid rgba(245, 158, 11, 0.3)', fontWeight: 600 }}>
+                              ⚠ Falta TR
+                            </span>
+                          )}
+                          {!hasQualificacao && (
+                            <span style={{ fontSize: '0.7rem', background: 'rgba(239, 68, 68, 0.15)', color: '#f87171', padding: '2px 6px', borderRadius: '4px', border: '1px solid rgba(239, 68, 68, 0.3)', fontWeight: 600 }}>
+                              ⚠ Falta Qualificação
+                            </span>
+                          )}
+                        </>
+                      )}
+                    </div>
+                  );
+                })()}
 
                 {/* Values & Session Timeline */}
                 <div style={{ 

@@ -682,6 +682,7 @@ model Professional {
 
   organization Organization    @relation(fields: [orgId], references: [id])
   equipes      EquipeLicitacao[]
+  acervos      AcervoTecnico[]
 
   @@map("profissionais")
 }
@@ -718,6 +719,8 @@ model AcervoTecnico {
   updatedAt       DateTime @updatedAt
 
   organization Organization  @relation(fields: [orgId], references: [id])
+  professional Professional? @relation(fields: [professionalId], references: [id])
+  professionalId String?
   matches      AcervoMatch[]
 
   @@map("acervo_tecnico")

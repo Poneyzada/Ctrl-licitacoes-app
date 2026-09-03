@@ -9,6 +9,7 @@ export async function GET(req: Request) {
 
     const { searchParams } = new URL(req.url);
     const orgId = searchParams.get('orgId');
+    const professionalId = searchParams.get('professionalId');
     const tipoServico = searchParams.get('tipoServico');
     const uf = searchParams.get('uf');
     const search = searchParams.get('search') || '';
@@ -16,6 +17,7 @@ export async function GET(req: Request) {
     const whereClause: any = { deletedAt: null };
     
     if (orgId) whereClause.orgId = orgId;
+    if (professionalId) whereClause.professionalId = professionalId;
     if (tipoServico) whereClause.tipoServico = tipoServico;
     if (uf) whereClause.uf = uf;
     
@@ -25,14 +27,17 @@ export async function GET(req: Request) {
         { emitente: { contains: search, mode: 'insensitive' } },
         { palavrasChave: { contains: search, mode: 'insensitive' } },
         { numeroAtestado: { contains: search, mode: 'insensitive' } },
-        { numeroCat: { contains: search, mode: 'insensitive' } }
+        { numeroCat: { contains: search, mode: 'insensitive' } },
+        { responsavelTecnico: { contains: search, mode: 'insensitive' } },
+        { local: { contains: search, mode: 'insensitive' } }
       ];
     }
 
     const acervos = await prisma.acervoTecnico.findMany({
       where: whereClause,
       include: {
-        organization: true
+        organization: true,
+        professional: true
       },
       orderBy: { createdAt: 'desc' }
     });
@@ -57,6 +62,7 @@ export async function POST(req: Request) {
     const acervo = await prisma.acervoTecnico.create({
       data: {
         orgId: body.orgId,
+        professionalId: body.professionalId || null,
         numeroAtestado: body.numeroAtestado,
         numeroCat: body.numeroCat,
         numeroContrato: body.numeroContrato,
@@ -71,6 +77,7 @@ export async function POST(req: Request) {
         periodoFim,
         responsavelTecnico: body.responsavelTecnico,
         palavrasChave: body.palavrasChave,
+        storageUrl: body.storageUrl,
         urlOrigem: body.urlOrigem,
         observacoes: body.observacoes,
         createdBy: session.user?.id,

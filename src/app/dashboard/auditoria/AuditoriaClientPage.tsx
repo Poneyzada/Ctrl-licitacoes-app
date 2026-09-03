@@ -1,9 +1,8 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { signOut } from 'next-auth/react'
 import { formatDateTime } from '@/lib/utils'
-import { ClipboardList, X, Info, ShieldAlert } from 'lucide-react'
+import { ClipboardList, X, Info, ShieldAlert, Search, Filter, ShieldCheck, UserCheck } from 'lucide-react'
 
 // Definição dos tipos locais
 interface AuditLog {
@@ -15,6 +14,7 @@ interface AuditLog {
   createdAt: string
   user: {
     name: string
+    email?: string
     role: string
   }
   contract?: {
@@ -24,17 +24,22 @@ interface AuditLog {
 }
 
 const actionConfig: Record<string, { label: string; color: string; bg: string }> = {
-  LOGIN: { label: 'Login', color: '#a5b4fc', bg: 'rgba(99,102,241,0.12)' },
+  LOGIN: { label: 'Acesso / Login', color: '#a5b4fc', bg: 'rgba(99,102,241,0.12)' },
   CREATE: { label: 'Criação', color: '#6ee7b7', bg: 'rgba(16,185,129,0.12)' },
   UPDATE: { label: 'Atualização', color: '#fcd34d', bg: 'rgba(245,158,11,0.12)' },
   DELETE: { label: 'Exclusão', color: '#f87171', bg: 'rgba(239,68,68,0.12)' },
   APPROVE: { label: 'Aprovação', color: '#34d399', bg: 'rgba(16,185,129,0.15)' },
   REJECT: { label: 'Rejeição', color: '#fb923c', bg: 'rgba(249,115,22,0.12)' },
+  DEDUPLICATE: { label: 'Deduplicação', color: '#c084fc', bg: 'rgba(168,85,247,0.15)' },
+  UPLOAD: { label: 'Envio de Documento', color: '#60a5fa', bg: 'rgba(59,130,246,0.15)' },
 }
 
 const roleColors: Record<string, string> = {
-  DIRETORIA: '#93c5fd',
+  DIRETORIA: '#f87171',
+  DIRETOR: '#f87171',
   COORDENADOR: '#a5b4fc',
+  MANUTENCAO_MASTER: '#c084fc',
+  OPERADOR: '#6ee7b7',
   OPERADOR_CAMPO: '#6ee7b7',
   OPERADOR_ADM: '#fcd34d',
 }
@@ -42,6 +47,9 @@ const roleColors: Record<string, string> = {
 export default function AuditoriaClientPage({ initialLogs }: { initialLogs: any[] }) {
   const [selectedLog, setSelectedLog] = useState<AuditLog | null>(null)
   const [logs] = useState<AuditLog[]>(initialLogs)
+  const [search, setSearch] = useState('')
+  const [actionFilter, setActionFilter] = useState('ALL')
+  const [userFilter, setUserFilter] = useState('ALL')
 
   // Desativa scroll do body quando o modal está aberto
   useEffect(() => {
@@ -55,98 +63,173 @@ export default function AuditoriaClientPage({ initialLogs }: { initialLogs: any[
     }
   }, [selectedLog])
 
+  // Unique users for filter
+  const uniqueUsers = Array.from(new Set(logs.map(l => l.user?.name).filter(Boolean)))
+
+  const filteredLogs = logs.filter(log => {
+    if (actionFilter !== 'ALL' && log.action !== actionFilter) return false
+    if (userFilter !== 'ALL' && log.user?.name !== userFilter) return false
+    if (search) {
+      const q = search.toLowerCase()
+      const matchUser = log.user?.name?.toLowerCase().includes(q) || log.user?.email?.toLowerCase().includes(q)
+      const matchEntity = log.entity?.toLowerCase().includes(q)
+      const matchMeta = log.metadata?.toLowerCase().includes(q)
+      if (!matchUser && !matchEntity && !matchMeta) return false
+    }
+    return true
+  })
+
   return (
     <div className="animate-fade-in">
-      <div className="page-header">
+      <div className="page-header" style={{ marginBottom: '24px' }}>
         <div>
-          <h1 className="page-title">Trilha de Auditoria</h1>
-          <p className="page-subtitle">Histórico completo de ações no sistema · {logs.length} registros</p>
+          <h1 className="page-title" style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <ShieldCheck size={26} style={{ color: 'var(--color-primary)' }} />
+            Trilha de Auditoria & Acessos Unificados
+          </h1>
+          <p className="page-subtitle">
+            Rastreamento em tempo real de acessos, uploads de documentos e alterações de todos os membros
+          </p>
         </div>
-        <div className="flex items-center gap-2">
-          <div className="audit-legend">
-            <ClipboardList size={16} color="#64748b" />
-            <span>Somente Diretoria</span>
+      </div>
+
+      {/* Filter Bar */}
+      <div className="card" style={{ marginBottom: '24px', padding: '16px 20px', background: 'var(--bg-surface)' }}>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '12px', alignItems: 'center' }}>
+          <div style={{ position: 'relative', flex: '1 1 280px' }}>
+            <Search size={16} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
+            <input 
+              type="text" 
+              value={search} 
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Buscar por usuário, ação, documento ou detalhes..." 
+              className="form-control"
+              style={{ paddingLeft: '38px', height: '40px', width: '100%' }}
+            />
           </div>
+
+          <select 
+            value={actionFilter} 
+            onChange={(e) => setActionFilter(e.target.value)}
+            className="form-control" 
+            style={{ width: 'auto', height: '40px', minWidth: '170px' }}
+          >
+            <option value="ALL">Ação: Todas</option>
+            <option value="LOGIN">Acessos / Logins</option>
+            <option value="CREATE">Criações</option>
+            <option value="UPDATE">Atualizações</option>
+            <option value="DELETE">Exclusões</option>
+            <option value="DEDUPLICATE">Deduplicações</option>
+            <option value="APPROVE">Aprovações</option>
+          </select>
+
+          <select 
+            value={userFilter} 
+            onChange={(e) => setUserFilter(e.target.value)}
+            className="form-control" 
+            style={{ width: 'auto', height: '40px', minWidth: '180px' }}
+          >
+            <option value="ALL">Membro: Todos</option>
+            {uniqueUsers.map(name => (
+              <option key={name} value={name}>{name}</option>
+            ))}
+          </select>
+
+          {(search || actionFilter !== 'ALL' || userFilter !== 'ALL') && (
+            <button 
+              onClick={() => { setSearch(''); setActionFilter('ALL'); setUserFilter('ALL'); }}
+              className="btn btn-ghost btn-sm" 
+              style={{ height: '40px' }}
+            >
+              Limpar
+            </button>
+          )}
         </div>
       </div>
 
       <div className="card">
-        <div className="card-header" style={{ marginBottom: '16px' }}>
-          <h3 className="card-title">Registros de Atividade</h3>
-          <span className="badge badge-neutral-dark">{logs.length} eventos</span>
+        <div className="card-header" style={{ marginBottom: '16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <h3 className="card-title">Registros de Atividade ({filteredLogs.length})</h3>
+          <span className="badge badge-neutral-dark">Visível para toda a Diretoria & Coordenação</span>
         </div>
 
-        <p className="help-text-click">💡 Clique em qualquer linha para ver os detalhes completos em um pop-up.</p>
+        <p className="help-text-click" style={{ fontSize: '0.82rem', color: 'var(--text-muted)', marginBottom: '12px' }}>
+          💡 Clique em qualquer linha para visualizar o conteúdo exato das alterações ou dados enviados.
+        </p>
 
         <div className="table-wrapper">
           <table className="table audit-table">
             <thead>
               <tr>
-                <th>Ação</th>
-                <th>Usuário</th>
+                <th>Ação Realizada</th>
+                <th>Membro / Usuário</th>
                 <th>Perfil</th>
-                <th>Entidade</th>
-                <th>Contrato</th>
-                <th>Data/Hora</th>
+                <th>Módulo / Entidade</th>
+                <th>Data e Hora</th>
               </tr>
             </thead>
             <tbody>
-              {logs.length === 0 ? (
+              {filteredLogs.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="text-center text-muted py-8">
-                    Nenhum log de auditoria registrado
+                  <td colSpan={5} style={{ textAlign: 'center', padding: '32px 0', color: 'var(--text-muted)' }}>
+                    Nenhum log de auditoria encontrado com os filtros atuais.
                   </td>
                 </tr>
               ) : (
-                logs.map((log) => {
-                  const action = actionConfig[log.action] || {
-                    label: log.action,
-                    color: '#94a3b8',
-                    bg: 'rgba(148,163,184,0.1)',
-                  }
+                filteredLogs.map((log) => {
+                  const cfg = actionConfig[log.action] || { label: log.action, color: '#94a3b8', bg: 'rgba(148,163,184,0.1)' }
+                  const rColor = roleColors[log.user?.role] || '#94a3b8'
+
                   return (
-                    <tr key={log.id} onClick={() => setSelectedLog(log)} className="audit-row">
+                    <tr
+                      key={log.id}
+                      onClick={() => setSelectedLog(log)}
+                      style={{ cursor: 'pointer' }}
+                    >
                       <td>
                         <span
-                          className="badge"
-                          style={{ background: action.bg, color: action.color }}
+                          style={{
+                            fontSize: '0.75rem',
+                            fontWeight: 700,
+                            padding: '3px 8px',
+                            borderRadius: 'var(--radius-sm)',
+                            background: cfg.bg,
+                            color: cfg.color,
+                            border: `1px solid ${cfg.color}30`,
+                            display: 'inline-block',
+                          }}
                         >
-                          {action.label}
+                          {cfg.label}
                         </span>
                       </td>
                       <td>
-                        <div className="flex items-center gap-2">
-                          <div
-                            className="avatar avatar-sm"
-                            style={{ background: 'rgba(99,102,241,0.2)', color: '#a5b4fc', fontSize: '0.6rem' }}
-                          >
-                            {log.user.name.split(' ').map((n: string) => n[0]).join('').slice(0, 2).toUpperCase()}
-                          </div>
-                          <span className="text-primary text-sm font-medium">{log.user.name}</span>
+                        <div style={{ fontWeight: 600, color: 'var(--text-primary)' }}>
+                          {log.user?.name || 'Sistema'}
                         </div>
-                      </td>
-                      <td>
-                        <span
-                          className="text-xs font-medium"
-                          style={{ color: roleColors[log.user.role] || '#94a3b8' }}
-                        >
-                          {log.user.role.replace('_', ' ')}
-                        </span>
-                      </td>
-                      <td className="text-secondary text-sm">{log.entity}</td>
-                      <td>
-                        {log.contract ? (
-                          <div>
-                            <div className="text-sm text-primary truncate" style={{ maxWidth: '180px' }}>
-                              {log.contract.title}
-                            </div>
-                            <div className="text-xs text-muted">{log.contract.number}</div>
+                        {log.user?.email && (
+                          <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                            {log.user.email}
                           </div>
-                        ) : (
-                          <span className="text-muted">—</span>
                         )}
                       </td>
-                      <td className="text-muted text-sm whitespace-nowrap">
+                      <td>
+                        <span
+                          style={{
+                            fontSize: '0.72rem',
+                            fontWeight: 700,
+                            padding: '2px 7px',
+                            borderRadius: 'var(--radius-sm)',
+                            background: `${rColor}18`,
+                            color: rColor,
+                          }}
+                        >
+                          {log.user?.role || 'N/A'}
+                        </span>
+                      </td>
+                      <td style={{ color: 'var(--text-secondary)', fontSize: '0.85rem' }}>
+                        {log.entity} {log.entityId ? `(#${log.entityId.slice(0, 8)})` : ''}
+                      </td>
+                      <td style={{ color: 'var(--text-muted)', fontSize: '0.82rem' }}>
                         {formatDateTime(new Date(log.createdAt))}
                       </td>
                     </tr>
@@ -158,317 +241,93 @@ export default function AuditoriaClientPage({ initialLogs }: { initialLogs: any[
         </div>
       </div>
 
-      {/* POP-UP / MODAL DETALHADO DO LOG DE AUDITORIA */}
+      {/* Modal de Detalhes do Log */}
       {selectedLog && (
-        <div className="modal-overlay" onClick={() => setSelectedLog(null)}>
-          <div className="modal audit-modal animate-scale-in" onClick={(e) => e.stopPropagation()}>
-            <div className="modal-header">
-              <h3 className="modal-title flex items-center gap-2">
-                <Info size={18} color="#3b82f6" />
-                Detalhes da Atividade
-              </h3>
-              <button className="btn-close" onClick={() => setSelectedLog(null)}>
-                <X size={18} />
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            background: 'rgba(0,0,0,0.85)',
+            backdropFilter: 'blur(4px)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 9999,
+            padding: '20px',
+          }}
+          onClick={() => setSelectedLog(null)}
+        >
+          <div
+            className="card"
+            style={{
+              maxWidth: '650px',
+              width: '100%',
+              maxHeight: '90vh',
+              overflowY: 'auto',
+              background: 'var(--bg-surface)',
+              border: '1px solid var(--border-color-strong)',
+              borderRadius: 'var(--radius-xl)',
+              padding: '24px',
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <Info size={20} style={{ color: 'var(--color-primary)' }} />
+                <h3 style={{ fontSize: '1.2rem', fontWeight: 700 }}>Detalhes do Evento</h3>
+              </div>
+              <button onClick={() => setSelectedLog(null)} className="btn btn-ghost btn-sm">
+                <X size={20} />
               </button>
             </div>
 
-            <div className="modal-body">
-              <div className="detail-grid">
-                <div className="detail-item">
-                  <span className="detail-label">Ação Realizada</span>
-                  <div>
-                    <span
-                      className="badge"
-                      style={{
-                        background: actionConfig[selectedLog.action]?.bg || 'rgba(255,255,255,0.08)',
-                        color: actionConfig[selectedLog.action]?.color || '#fff',
-                        fontSize: '0.8rem',
-                        padding: '4px 10px'
-                      }}
-                    >
-                      {actionConfig[selectedLog.action]?.label || selectedLog.action}
-                    </span>
-                  </div>
-                </div>
-
-                <div className="detail-item">
-                  <span className="detail-label">Usuário Responsável</span>
-                  <div className="flex items-center gap-2">
-                    <div className="avatar avatar-sm" style={{ background: 'rgba(99,102,241,0.2)', color: '#a5b4fc' }}>
-                      {getInitials(selectedLog.user.name)}
-                    </div>
-                    <div>
-                      <div className="text-primary font-medium text-sm">{selectedLog.user.name}</div>
-                      <div
-                        className="text-xs font-semibold"
-                        style={{ color: roleColors[selectedLog.user.role] }}
-                      >
-                        {selectedLog.user.role.replace('_', ' ')}
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="detail-item">
-                  <span className="detail-label">Data e Hora</span>
-                  <span className="text-primary text-sm font-medium">
-                    {formatDateTime(new Date(selectedLog.createdAt))}
-                  </span>
-                </div>
-
-                <div className="detail-item">
-                  <span className="detail-label">Tabela / Entidade</span>
-                  <span className="text-secondary text-sm font-mono bg-elevated px-2 py-1 rounded">
-                    {selectedLog.entity} {selectedLog.entityId && `(ID: ${selectedLog.entityId})`}
-                  </span>
-                </div>
-
-                {selectedLog.contract && (
-                  <div className="detail-item full-width">
-                    <span className="detail-label">Contrato Vinculado</span>
-                    <div className="bg-elevated p-3 rounded-md border border-color">
-                      <div className="text-sm font-semibold text-primary">{selectedLog.contract.title}</div>
-                      <div className="text-xs text-muted mt-1">Número: {selectedLog.contract.number}</div>
-                    </div>
-                  </div>
-                )}
-
-                <div className="detail-item full-width">
-                  <span className="detail-label">Informações Adicionais</span>
-                  <div className="metadata-container bg-elevated">
-                    {(() => {
-                      try {
-                        const meta = JSON.parse(selectedLog.metadata)
-                        const keys = Object.keys(meta)
-                        if (keys.length === 0) return <span className="text-muted text-xs">Nenhuma informação extra registrada.</span>
-                        
-                        const translateKey = (k: string) => {
-                          const dict: Record<string, string> = {
-                            ip: 'Endereço IP',
-                            amount: 'Valor Relacionado',
-                            period: 'Período de Referência',
-                            decision: 'Parecer / Decisão',
-                            note: 'Notas / Justificativa',
-                            nfNumber: 'Número da Nota Fiscal',
-                            date: 'Data informada',
-                            weather: 'Clima lançado',
-                          }
-                          return dict[k] || k.charAt(0).toUpperCase() + k.slice(1)
-                        }
-
-                        const formatValue = (k: string, v: any) => {
-                          if (k === 'amount' && typeof v === 'number') {
-                            return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(v)
-                          }
-                          if (k === 'weather' && typeof v === 'string') {
-                            const weatherDict: Record<string, string> = {
-                              ENSOLARADO: 'Ensolarado ☀️',
-                              NUBLADO: 'Nublado ☁️',
-                              CHUVOSO: 'Chuvoso 🌧️',
-                              TEMPESTADE: 'Tempestade ⛈️',
-                            }
-                            return weatherDict[v] || v
-                          }
-                          if (k === 'date' && typeof v === 'string') {
-                            try {
-                              return new Date(v).toLocaleDateString('pt-BR')
-                            } catch (e) {
-                              return v
-                            }
-                          }
-                          if (v === null || v === undefined) return '—'
-                          if (typeof v === 'object') return JSON.stringify(v)
-                          return String(v)
-                        }
-
-                        return (
-                          <div className="meta-list">
-                            {keys.map((k) => (
-                              <div key={k} className="meta-row">
-                                <span className="meta-key">{translateKey(k)}</span>
-                                <span className="meta-value">{formatValue(k, meta[k])}</span>
-                              </div>
-                            ))}
-                          </div>
-                        )
-                      } catch (e) {
-                        return <span className="text-primary text-xs font-mono">{selectedLog.metadata}</span>
-                      }
-                    })()}
-                  </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+              <div>
+                <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Usuário</span>
+                <div style={{ fontWeight: 600, color: 'var(--text-primary)', marginTop: '2px' }}>
+                  {selectedLog.user?.name} ({selectedLog.user?.email || 'N/A'}) — Cargo: {selectedLog.user?.role}
                 </div>
               </div>
-            </div>
 
-            <div className="modal-footer">
-              <button className="btn btn-secondary btn-sm" onClick={() => setSelectedLog(null)}>
-                Fechar Detalhes
-              </button>
+              <div>
+                <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Ação / Entidade</span>
+                <div style={{ fontWeight: 600, color: 'var(--text-primary)', marginTop: '2px' }}>
+                  {selectedLog.action} em {selectedLog.entity} (ID: {selectedLog.entityId || 'N/A'})
+                </div>
+              </div>
+
+              <div>
+                <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Data e Hora Exata</span>
+                <div style={{ color: 'var(--text-secondary)', marginTop: '2px' }}>
+                  {formatDateTime(new Date(selectedLog.createdAt))}
+                </div>
+              </div>
+
+              <div>
+                <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Dados Registrados (Payload)</span>
+                <pre style={{
+                  background: 'var(--bg-elevated)',
+                  padding: '12px',
+                  borderRadius: 'var(--radius-md)',
+                  border: '1px solid var(--border-color)',
+                  fontSize: '0.8rem',
+                  overflowX: 'auto',
+                  marginTop: '4px',
+                  color: 'var(--text-primary)'
+                }}>
+                  {(() => {
+                    try {
+                      return JSON.stringify(JSON.parse(selectedLog.metadata), null, 2)
+                    } catch {
+                      return selectedLog.metadata || 'Sem payload adicional'
+                    }
+                  })()}
+                </pre>
+              </div>
             </div>
           </div>
         </div>
       )}
-
-      <style>{`
-        .audit-legend {
-          display: flex;
-          align-items: center;
-          gap: 6px;
-          font-size: 0.75rem;
-          color: var(--text-muted);
-          padding: 6px 12px;
-          background: rgba(255,255,255,0.04);
-          border: 1px solid var(--border-color);
-          border-radius: var(--radius-md);
-        }
-
-        .help-text-click {
-          font-size: 0.75rem;
-          color: var(--color-primary);
-          margin-bottom: 12px;
-          background: rgba(59, 130, 246, 0.05);
-          padding: 6px 12px;
-          border-radius: var(--radius-sm);
-          display: inline-block;
-        }
-
-        .audit-row {
-          cursor: pointer;
-          transition: background var(--transition-fast);
-        }
-
-        .audit-row:hover {
-          background: rgba(255, 255, 255, 0.035) !important;
-        }
-
-        .whitespace-nowrap { white-space: nowrap; }
-
-        /* Modal customizado */
-        .audit-modal {
-          background: var(--bg-surface);
-          border-radius: var(--radius-xl);
-          width: 100%;
-          max-width: 520px;
-          border: 1px solid var(--border-color-strong);
-        }
-
-        .btn-close {
-          background: transparent;
-          border: none;
-          color: var(--text-muted);
-          cursor: pointer;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          padding: 4px;
-          border-radius: var(--radius-sm);
-          transition: background var(--transition-fast);
-        }
-
-        .btn-close:hover {
-          background: rgba(255, 255, 255, 0.05);
-          color: var(--text-primary);
-        }
-
-        .detail-grid {
-          display: grid;
-          grid-template-columns: 1fr 1fr;
-          gap: 16px;
-          margin-top: 8px;
-        }
-
-        .detail-item {
-          display: flex;
-          flex-direction: column;
-          gap: 6px;
-        }
-
-        .detail-item.full-width {
-          grid-column: span 2;
-        }
-
-        .detail-label {
-          font-size: 0.7rem;
-          font-weight: 600;
-          color: var(--text-secondary);
-          text-transform: uppercase;
-          letter-spacing: 0.05em;
-        }
-
-        .bg-elevated {
-          background: rgba(255, 255, 255, 0.03);
-          border: 1px solid var(--border-color);
-        }
-
-        .metadata-container {
-          border: 1px solid var(--border-color);
-          border-radius: var(--radius-md);
-          padding: 12px;
-          max-height: 180px;
-          overflow-y: auto;
-        }
-
-        .meta-list {
-          display: flex;
-          flex-direction: column;
-          gap: 10px;
-        }
-
-        .meta-row {
-          display: flex;
-          justify-content: space-between;
-          align-items: center;
-          gap: 12px;
-          border-bottom: 1px dashed var(--border-color);
-          padding-bottom: 6px;
-        }
-
-        .meta-row:last-child {
-          border-bottom: none;
-          padding-bottom: 0;
-        }
-
-        .meta-key {
-          font-size: 0.725rem;
-          color: var(--text-secondary);
-          font-weight: 500;
-        }
-
-        .meta-value {
-          font-size: 0.75rem;
-          color: var(--text-primary);
-          font-weight: 600;
-          font-family: var(--font-mono);
-          text-align: right;
-        }
-
-        @media (max-width: 500px) {
-          .detail-grid {
-            grid-template-columns: 1fr;
-          }
-          .detail-item.full-width {
-            grid-column: span 1;
-          }
-        }
-
-        @keyframes scaleIn {
-          from { transform: scale(0.96); opacity: 0; }
-          to { transform: scale(1); opacity: 1; }
-        }
-
-        .animate-scale-in {
-          animation: scaleIn 0.18s cubic-bezier(0.34, 1.56, 0.64, 1);
-        }
-      `}</style>
     </div>
   )
-}
-
-function getInitials(name: string) {
-  return name
-    .split(' ')
-    .map((n) => n[0])
-    .join('')
-    .slice(0, 2)
-    .toUpperCase()
 }

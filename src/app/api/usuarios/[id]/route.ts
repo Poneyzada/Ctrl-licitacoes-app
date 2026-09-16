@@ -12,6 +12,11 @@ export async function PATCH(
     const session = await auth();
     if (!session) return NextResponse.json({ error: 'Não autorizado' }, { status: 401 });
 
+    const userRole = (session.user as any)?.role;
+    if (userRole !== 'DIRETOR' && userRole !== 'DIRETORIA' && userRole !== 'MANUTENCAO_MASTER') {
+      return NextResponse.json({ error: 'Apenas a Diretoria pode alterar dados de acesso.' }, { status: 403 });
+    }
+
     const { id } = await params;
     const body = await req.json();
     const { name, email, role, password, active } = body;
@@ -65,6 +70,11 @@ export async function DELETE(
   try {
     const session = await auth();
     if (!session) return NextResponse.json({ error: 'Não autorizado' }, { status: 401 });
+
+    const userRole = (session.user as any)?.role;
+    if (userRole !== 'DIRETOR' && userRole !== 'DIRETORIA' && userRole !== 'MANUTENCAO_MASTER') {
+      return NextResponse.json({ error: 'Apenas a Diretoria pode desativar usuários.' }, { status: 403 });
+    }
 
     const { id } = await params;
 

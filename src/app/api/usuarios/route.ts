@@ -9,6 +9,11 @@ export async function GET(req: Request) {
     const session = await auth();
     if (!session) return NextResponse.json({ error: 'Não autorizado' }, { status: 401 });
 
+    const userRole = (session.user as any)?.role;
+    if (userRole !== 'DIRETOR' && userRole !== 'DIRETORIA' && userRole !== 'MANUTENCAO_MASTER') {
+      return NextResponse.json({ error: 'Acesso restrito à Diretoria' }, { status: 403 });
+    }
+
     const users = await prisma.user.findMany({
       select: {
         id: true,
@@ -33,6 +38,11 @@ export async function POST(req: Request) {
   try {
     const session = await auth();
     if (!session) return NextResponse.json({ error: 'Não autorizado' }, { status: 401 });
+
+    const userRole = (session.user as any)?.role;
+    if (userRole !== 'DIRETOR' && userRole !== 'DIRETORIA' && userRole !== 'MANUTENCAO_MASTER') {
+      return NextResponse.json({ error: 'Apenas a Diretoria pode cadastrar novos acessos.' }, { status: 403 });
+    }
 
     const body = await req.json();
     const { name, email, password, role } = body;

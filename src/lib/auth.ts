@@ -59,11 +59,25 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
       return token
     },
     async session({ session, token }) {
-      if (token) {
-        session.user.role = token.role as string
-        session.user.id = token.id as string
+      if (token?.id) {
+        try {
+          const dbUser = await prisma.user.findUnique({
+            where: { id: token.id as string },
+            select: { id: true, active: true, role: true }
+          });
+
+          // Se o usuário foi desativado pela diretoria, derruba a sessão imediatamente
+          if (!dbUser || !dbUser.active) {
+            return null as any;
+          }
+
+          session.user.role = dbUser.role as string;
+          session.user.id = token.id as string;
+        } catch (err) {
+          console.error('Erro ao verificar status do usuário na sessão:', err);
+        }
       }
-      return session
+      return session;
     },
   },
   pages: {

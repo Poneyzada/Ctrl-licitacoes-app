@@ -417,9 +417,7 @@ export default function EquipeAcessosPage() {
           justifyContent: 'center',
           zIndex: 9999,
           padding: '20px'
-        }}
-        onClick={() => setModalUserOpen(false)}
-        >
+        }}>
           <div 
             className="card" 
             style={{ 
@@ -430,7 +428,6 @@ export default function EquipeAcessosPage() {
               borderRadius: 'var(--radius-xl)',
               padding: '26px'
             }}
-            onClick={(e) => e.stopPropagation()}
           >
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
@@ -526,9 +523,7 @@ export default function EquipeAcessosPage() {
           justifyContent: 'center',
           zIndex: 9999,
           padding: '20px'
-        }}
-        onClick={() => setEditUserModalOpen(false)}
-        >
+        }}>
           <div 
             className="card" 
             style={{ 
@@ -539,7 +534,6 @@ export default function EquipeAcessosPage() {
               borderRadius: 'var(--radius-xl)',
               padding: '26px'
             }}
-            onClick={(e) => e.stopPropagation()}
           >
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>

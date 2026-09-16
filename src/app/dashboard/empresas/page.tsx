@@ -956,9 +956,7 @@ export default function EmpresasPage() {
           justifyContent: 'center',
           zIndex: 9999,
           padding: '20px'
-        }}
-        onClick={() => setDossieModalOpen(false)}
-        >
+        }}>
           <div 
             className="card" 
             style={{ 
@@ -971,7 +969,6 @@ export default function EmpresasPage() {
               borderRadius: 'var(--radius-xl)',
               padding: '28px'
             }}
-            onClick={(e) => e.stopPropagation()}
           >
             {/* Cabeçalho da Pasta */}
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', borderBottom: '1px solid var(--border-color)', paddingBottom: '18px', marginBottom: '20px' }}>
@@ -1119,9 +1116,7 @@ export default function EmpresasPage() {
           justifyContent: 'center',
           zIndex: 9999,
           padding: '20px'
-        }}
-        onClick={() => setModalOpen(false)}
-        >
+        }}>
           <div 
             className="card" 
             style={{ 
@@ -1134,7 +1129,6 @@ export default function EmpresasPage() {
               borderRadius: 'var(--radius-xl)',
               padding: '28px'
             }}
-            onClick={(e) => e.stopPropagation()}
           >
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
@@ -1316,9 +1310,7 @@ export default function EmpresasPage() {
           justifyContent: 'center',
           zIndex: 9999,
           padding: '20px'
-        }}
-        onClick={() => setModalProfOpen(false)}
-        >
+        }}>
           <div 
             className="card" 
             style={{ 
@@ -1329,7 +1321,6 @@ export default function EmpresasPage() {
               borderRadius: 'var(--radius-xl)',
               padding: '28px'
             }}
-            onClick={(e) => e.stopPropagation()}
           >
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
@@ -1474,6 +1465,169 @@ export default function EmpresasPage() {
       )}
 
       {/* ─────────────────────────────────────────────────────────── */}
+      {/* MODAL: EDITAR PROFISSIONAL                                  */}
+      {/* ─────────────────────────────────────────────────────────── */}
+      {editProfModalOpen && editingProf && (
+        <div style={{
+          position: 'fixed',
+          inset: 0,
+          background: 'rgba(0, 0, 0, 0.85)',
+          backdropFilter: 'blur(6px)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 9999,
+          padding: '20px'
+        }}>
+          <div 
+            className="card" 
+            style={{ 
+              maxWidth: '620px', 
+              width: '100%', 
+              background: 'var(--bg-surface)',
+              border: '1px solid var(--border-color-strong)',
+              borderRadius: 'var(--radius-xl)',
+              padding: '28px'
+            }}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <div style={{ width: '38px', height: '38px', borderRadius: 'var(--radius-md)', background: 'var(--gradient-primary)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff' }}>
+                  <Edit3 size={18} />
+                </div>
+                <div>
+                  <h3 style={{ fontSize: '1.2rem', fontWeight: 700 }}>Editar Profissional</h3>
+                  <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>Atualizar cadastro do quadro técnico</p>
+                </div>
+              </div>
+              <button onClick={() => setEditProfModalOpen(false)} className="btn btn-ghost btn-sm">
+                <X size={20} />
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveEditProf} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px' }}>
+                <div className="form-group">
+                  <label className="form-label">Nome Completo *</label>
+                  <input 
+                    value={editProfData.nome || ''} 
+                    onChange={(e) => setEditProfData({ ...editProfData, nome: e.target.value })}
+                    className="form-control" 
+                    required
+                  />
+                </div>
+
+                <div className="form-group">
+                  <label className="form-label">Empresa Vinculada *</label>
+                  <select 
+                    value={editProfData.orgId || ''} 
+                    onChange={(e) => setEditProfData({ ...editProfData, orgId: e.target.value })}
+                    className="form-control"
+                    required
+                  >
+                    {empresas.map(emp => (
+                      <option key={emp.id} value={emp.id}>{emp.tradeName || emp.name}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px' }}>
+                <div className="form-group">
+                  <label className="form-label">Função / Cargo</label>
+                  <input 
+                    value={editProfData.funcao || ''} 
+                    onChange={(e) => setEditProfData({ ...editProfData, funcao: e.target.value })}
+                    className="form-control" 
+                  />
+                </div>
+
+                <div className="form-group">
+                  <label className="form-label">Tipo de Vínculo</label>
+                  <select 
+                    value={editProfData.vinculo || 'CLT'} 
+                    onChange={(e) => setEditProfData({ ...editProfData, vinculo: e.target.value })}
+                    className="form-control"
+                  >
+                    <option value="CLT">CLT</option>
+                    <option value="PJ">PJ (Prestador)</option>
+                    <option value="SOCIO">Sócio / Diretor Técnico</option>
+                    <option value="AUTONOMO">Autônomo</option>
+                    <option value="PARCEIRO">Parceiro</option>
+                  </select>
+                </div>
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '14px' }}>
+                <div className="form-group">
+                  <label className="form-label">Conselho</label>
+                  <select 
+                    value={editProfData.conselho || 'CREA'} 
+                    onChange={(e) => setEditProfData({ ...editProfData, conselho: e.target.value })}
+                    className="form-control"
+                  >
+                    <option value="CREA">CREA</option>
+                    <option value="CAU">CAU</option>
+                    <option value="CRQ">CRQ</option>
+                  </select>
+                </div>
+
+                <div className="form-group">
+                  <label className="form-label">Nº do Registro</label>
+                  <input 
+                    value={editProfData.numeroConselho || ''} 
+                    onChange={(e) => setEditProfData({ ...editProfData, numeroConselho: e.target.value })}
+                    className="form-control" 
+                  />
+                </div>
+
+                <div className="form-group">
+                  <label className="form-label">Situação</label>
+                  <select 
+                    value={editProfData.situacaoConselho || 'ATIVO'} 
+                    onChange={(e) => setEditProfData({ ...editProfData, situacaoConselho: e.target.value })}
+                    className="form-control"
+                  >
+                    <option value="ATIVO">Ativo / Regular</option>
+                    <option value="INATIVO">Inativo</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="form-group">
+                <label className="form-label">Formação / Graduação</label>
+                <input 
+                  value={editProfData.formacao || ''} 
+                  onChange={(e) => setEditProfData({ ...editProfData, formacao: e.target.value })}
+                  className="form-control" 
+                />
+              </div>
+
+              <div className="form-group">
+                <label className="form-label">Resumo Profissional / Experiência</label>
+                <textarea 
+                  value={editProfData.resumoProfissional || ''} 
+                  onChange={(e) => setEditProfData({ ...editProfData, resumoProfissional: e.target.value })}
+                  className="form-control" 
+                  rows={2}
+                />
+              </div>
+
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '12px' }}>
+                <button type="button" onClick={() => setEditProfModalOpen(false)} className="btn btn-secondary">
+                  Cancelar
+                </button>
+                <button type="submit" disabled={savingEditProf} className="btn btn-primary" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  {savingEditProf ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
+                  Salvar Alterações
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ─────────────────────────────────────────────────────────── */}
       {/* MODAL: VINCULAR CAT DIRETA AO PROFISSIONAL                  */}
       {/* ─────────────────────────────────────────────────────────── */}
       {modalProfCatOpen && selectedProfDossie && (
@@ -1487,9 +1641,7 @@ export default function EmpresasPage() {
           justifyContent: 'center',
           zIndex: 10000,
           padding: '20px'
-        }}
-        onClick={() => setModalProfCatOpen(false)}
-        >
+        }}>
           <div 
             className="card" 
             style={{ 
@@ -1500,7 +1652,6 @@ export default function EmpresasPage() {
               borderRadius: 'var(--radius-xl)',
               padding: '26px'
             }}
-            onClick={(e) => e.stopPropagation()}
           >
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '18px' }}>
               <div>
@@ -1621,9 +1772,7 @@ export default function EmpresasPage() {
           justifyContent: 'center',
           zIndex: 9999,
           padding: '20px'
-        }}
-        onClick={() => setCompanyModalOpen(false)}
-        >
+        }}>
           <div 
             className="card" 
             style={{ 
@@ -1636,7 +1785,6 @@ export default function EmpresasPage() {
               borderRadius: 'var(--radius-xl)',
               padding: '28px'
             }}
-            onClick={(e) => e.stopPropagation()}
           >
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
               <div>
@@ -1903,9 +2051,7 @@ export default function EmpresasPage() {
           justifyContent: 'center',
           zIndex: 10000,
           padding: '20px'
-        }}
-        onClick={() => setModalCatOpen(false)}
-        >
+        }}>
           <div 
             className="card" 
             style={{ 
@@ -1916,7 +2062,6 @@ export default function EmpresasPage() {
               borderRadius: 'var(--radius-xl)',
               padding: '26px'
             }}
-            onClick={(e) => e.stopPropagation()}
           >
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '18px' }}>
               <h3 style={{ fontSize: '1.2rem', fontWeight: 700 }}>Cadastrar Atestado / CAT para a Empresa</h3>
@@ -2024,9 +2169,7 @@ export default function EmpresasPage() {
           justifyContent: 'center',
           zIndex: 10000,
           padding: '20px'
-        }}
-        onClick={() => setModalCertidaoOpen(false)}
-        >
+        }}>
           <div 
             className="card" 
             style={{ 
@@ -2037,7 +2180,6 @@ export default function EmpresasPage() {
               borderRadius: 'var(--radius-xl)',
               padding: '26px'
             }}
-            onClick={(e) => e.stopPropagation()}
           >
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '18px' }}>
               <h3 style={{ fontSize: '1.2rem', fontWeight: 700 }}>Nova Certidão de Habilitação</h3>

@@ -49,16 +49,24 @@ export async function POST(req: Request) {
       }
     });
 
-    // Log audit
-    await prisma.auditLog.create({
-      data: {
-        userId: session.user?.id || 'system',
-        action: 'CREATE',
-        entity: 'TenderFollowup',
-        entityId: followup.id,
-        metadata: JSON.stringify(followup)
+    if (session.user?.id) {
+      try {
+        const userExists = await prisma.user.findUnique({ where: { id: session.user.id } });
+        if (userExists) {
+          await prisma.auditLog.create({
+            data: {
+              userId: session.user.id,
+              action: 'CREATE',
+              entity: 'TenderFollowup',
+              entityId: followup.id,
+              metadata: JSON.stringify(followup)
+            }
+          });
+        }
+      } catch (auditErr) {
+        console.warn('Audit log warning:', auditErr);
       }
-    });
+    }
 
     return NextResponse.json(followup, { status: 201 });
   } catch (error) {
@@ -84,16 +92,24 @@ export async function PATCH(req: Request) {
       data
     });
 
-    // Log audit
-    await prisma.auditLog.create({
-      data: {
-        userId: session.user?.id || 'system',
-        action: 'UPDATE',
-        entity: 'TenderFollowup',
-        entityId: followup.id,
-        metadata: JSON.stringify(followup)
+    if (session.user?.id) {
+      try {
+        const userExists = await prisma.user.findUnique({ where: { id: session.user.id } });
+        if (userExists) {
+          await prisma.auditLog.create({
+            data: {
+              userId: session.user.id,
+              action: 'UPDATE',
+              entity: 'TenderFollowup',
+              entityId: followup.id,
+              metadata: JSON.stringify(followup)
+            }
+          });
+        }
+      } catch (auditErr) {
+        console.warn('Audit log warning:', auditErr);
       }
-    });
+    }
 
     return NextResponse.json(followup);
   } catch (error) {

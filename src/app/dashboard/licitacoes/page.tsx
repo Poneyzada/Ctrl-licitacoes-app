@@ -156,13 +156,13 @@ export default async function LicitacoesPage({ searchParams }: { searchParams: P
             />
           </div>
 
-          <select name="status" defaultValue={status} className="form-control" style={{ width: 'auto', height: '40px', minWidth: '150px' }}>
+          <select name="status" defaultValue={status} className="form-control" style={{ width: 'auto', height: '40px', minWidth: '170px' }}>
             <option value="ALL">Status: Todos</option>
-            <option value="PROSPECCAO">Prospecção</option>
-            <option value="EM_ANALISE">Em Análise</option>
-            <option value="APROVADA">Aprovada</option>
             <option value="EM_DISPUTA">Em Disputa</option>
-            <option value="FINALIZADA">Finalizada</option>
+            <option value="APROVADA">Aprovadas para Participação</option>
+            <option value="EM_ANALISE">Em Análise Técnica (Triagem)</option>
+            <option value="FINALIZADA">Finalizadas Vencedoras</option>
+            <option value="PROSPECCAO">Prospecção</option>
           </select>
 
           <select name="empresa" defaultValue={empresa} className="form-control" style={{ width: 'auto', height: '40px', minWidth: '170px' }}>

@@ -5,13 +5,19 @@ import {
   Building2, Users, FileText, Briefcase, Plus, 
   Phone, Mail, MapPin, ShieldCheck, Loader2, X, Save, Layers,
   Download, Edit3, Trash2, Calendar, CheckCircle2, AlertTriangle,
-  ExternalLink, Search, Check, Shield, UserPlus, FileUp
+  ExternalLink, Search, Check, Shield, UserPlus, FileUp, Award, FolderOpen
 } from 'lucide-react';
+import { formatDate } from '@/lib/utils';
 
 export default function EmpresasPage() {
+  const [mainTab, setMainTab] = useState<'empresas' | 'profissionais'>('empresas');
   const [empresas, setEmpresas] = useState<any[]>([]);
+  const [professionals, setProfessionals] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
+  const [profSearch, setProfSearch] = useState('');
+  const [profOrgFilter, setProfOrgFilter] = useState('ALL');
+  const [profConselhoFilter, setProfConselhoFilter] = useState('ALL');
 
   // Modal Nova Empresa
   const [modalOpen, setModalOpen] = useState(false);
@@ -26,7 +32,10 @@ export default function EmpresasPage() {
     address: '',
     city: 'Fortaleza',
     state: 'CE',
-    notes: ''
+    notes: '',
+    areasAtuacao: '',
+    documentName: 'Cartão CNPJ e Comprovante de Inscrição.pdf',
+    cnpjCardUrl: ''
   });
 
   // Modal Detalhes & Gestão Completa da Empresa
@@ -47,7 +56,7 @@ export default function EmpresasPage() {
     numeroAtestado: '',
     emitente: '',
     objeto: '',
-    tipoServico: 'EXECUCAO_INFRAESTRUTURA',
+    tipoServico: 'PAVIMENTACAO_INFRAESTRUTURA',
     areaTecnica: 'Infraestrutura Urbana / Rodoviária',
     local: 'Fortaleza / CE',
     uf: 'CE',
@@ -60,20 +69,47 @@ export default function EmpresasPage() {
   const [editingCat, setEditingCat] = useState<any>(null);
   const [savingEditCat, setSavingEditCat] = useState(false);
 
-  // Modal Novo Profissional / Parceiro para a Empresa
+  // Modal Novo Profissional / Engenheiro
   const [modalProfOpen, setModalProfOpen] = useState(false);
   const [savingProf, setSavingProf] = useState(false);
   const [newProfData, setNewProfData] = useState({
+    orgId: '',
     nome: '',
-    funcao: 'Engenheiro Civil Sênior',
+    funcao: 'Engenheiro Civil Pleno',
     vinculo: 'CLT',
     conselho: 'CREA',
     numeroConselho: '',
     situacaoConselho: 'ATIVO',
-    formacao: 'Engenharia Civil'
+    formacao: 'Engenharia Civil',
+    resumoProfissional: ''
   });
 
-  // Modal Nova Certidão de Habilitação
+  // Modal Editar Profissional
+  const [editProfModalOpen, setEditProfModalOpen] = useState(false);
+  const [editingProf, setEditingProf] = useState<any>(null);
+  const [editProfData, setEditProfData] = useState<any>({});
+  const [savingEditProf, setSavingEditProf] = useState(false);
+
+  // Modal Pasta Técnica do Profissional (Dossiê de CATs & Certidões)
+  const [selectedProfDossie, setSelectedProfDossie] = useState<any>(null);
+  const [dossieModalOpen, setDossieModalOpen] = useState(false);
+
+  // Modal Adicionar CAT direta ao Profissional
+  const [modalProfCatOpen, setModalProfCatOpen] = useState(false);
+  const [savingProfCat, setSavingProfCat] = useState(false);
+  const [newProfCatData, setNewProfCatData] = useState({
+    numeroCat: '',
+    numeroAtestado: '',
+    emitente: '',
+    objeto: '',
+    tipoServico: 'PAVIMENTACAO_INFRAESTRUTURA',
+    areaTecnica: 'Obras Civis / Infraestrutura',
+    local: '',
+    uf: 'CE',
+    urlOrigem: ''
+  });
+
+  // Modal Nova Certidão de Habilitação da Empresa
   const [modalCertidaoOpen, setModalCertidaoOpen] = useState(false);
   const [savingCertidao, setSavingCertidao] = useState(false);
   const [newCertidaoData, setNewCertidaoData] = useState({
@@ -87,19 +123,31 @@ export default function EmpresasPage() {
   });
 
   useEffect(() => {
-    fetchEmpresas();
+    loadAllData();
   }, []);
 
-  const fetchEmpresas = async () => {
+  const loadAllData = async () => {
     setLoading(true);
     try {
-      const res = await fetch('/api/empresas');
-      if (res.ok) {
-        const data = await res.json();
-        setEmpresas(data);
+      const [resEmp, resProf] = await Promise.all([
+        fetch('/api/empresas'),
+        fetch('/api/profissionais')
+      ]);
+
+      if (resEmp.ok) {
+        const dataEmp = await resEmp.json();
+        setEmpresas(dataEmp);
+        if (dataEmp.length > 0) {
+          setNewProfData(prev => ({ ...prev, orgId: dataEmp[0].id }));
+        }
+      }
+
+      if (resProf.ok) {
+        const dataProf = await resProf.json();
+        setProfessionals(dataProf);
       }
     } catch (err) {
-      console.error(err);
+      console.error('Erro ao carregar dados:', err);
     } finally {
       setLoading(false);
     }
@@ -122,7 +170,6 @@ export default function EmpresasPage() {
     });
     setCompanyModalOpen(true);
 
-    // Carregar detalhes completos da empresa (acervos, profissionais, certidões)
     setLoadingCompanyDetails(true);
     try {
       const res = await fetch(`/api/empresas/${empresa.id}`);
@@ -164,7 +211,7 @@ export default function EmpresasPage() {
       if (res.ok) {
         const updated = await res.json();
         setSelectedEmpresa((prev: any) => ({ ...prev, ...updated }));
-        fetchEmpresas();
+        loadAllData();
         alert('Dados da empresa atualizados com sucesso!');
       } else {
         alert('Erro ao atualizar empresa');
@@ -180,17 +227,27 @@ export default function EmpresasPage() {
   const handleCreateEmpresa = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newEmpresa.name) {
-      alert('Nome da empresa é obrigatório.');
+      alert('Razão Social da empresa é obrigatória.');
       return;
     }
 
     setSaving(true);
     try {
+      const notesComAreas = newEmpresa.areasAtuacao 
+        ? `${newEmpresa.notes ? newEmpresa.notes + '\n\n' : ''}[ÁREAS DE ATUAÇÃO]: ${newEmpresa.areasAtuacao}`
+        : newEmpresa.notes;
+
+      const payload = {
+        ...newEmpresa,
+        notes: notesComAreas
+      };
+
       const res = await fetch('/api/empresas', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(newEmpresa)
+        body: JSON.stringify(payload)
       });
+
       if (res.ok) {
         setModalOpen(false);
         setNewEmpresa({
@@ -203,96 +260,30 @@ export default function EmpresasPage() {
           address: '',
           city: 'Fortaleza',
           state: 'CE',
-          notes: ''
+          notes: '',
+          areasAtuacao: '',
+          documentName: 'Cartão CNPJ e Comprovante de Inscrição.pdf',
+          cnpjCardUrl: ''
         });
-        fetchEmpresas();
+        loadAllData();
+        alert('Empresa cadastrada com sucesso!');
       } else {
-        alert('Erro ao salvar empresa');
+        const err = await res.json();
+        alert(err.error || 'Erro ao cadastrar empresa');
       }
-    } catch (e) {
-      console.error(e);
+    } catch (err) {
+      console.error(err);
+      alert('Erro de conexão');
     } finally {
       setSaving(false);
     }
   };
 
-  // --- Gestão de CATs da Empresa ---
-  const handleCreateCat = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!selectedEmpresa || !newCatData.emitente || !newCatData.objeto) {
-      alert('Preencha os campos obrigatórios');
-      return;
-    }
-
-    setSavingCat(true);
-    try {
-      const res = await fetch('/api/acervo', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          ...newCatData,
-          orgId: selectedEmpresa.id,
-          quantitativos: '[]'
-        })
-      });
-
-      if (res.ok) {
-        setModalCatOpen(false);
-        setNewCatData({
-          numeroCat: '',
-          numeroAtestado: '',
-          emitente: '',
-          objeto: '',
-          tipoServico: 'EXECUCAO_INFRAESTRUTURA',
-          areaTecnica: 'Infraestrutura Urbana / Rodoviária',
-          local: 'Fortaleza / CE',
-          uf: 'CE',
-          urlOrigem: '',
-          responsavelTecnico: ''
-        });
-        openCompanyManagement(selectedEmpresa, 'acervos');
-        fetchEmpresas();
-      } else {
-        alert('Erro ao cadastrar atestado/CAT');
-      }
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setSavingCat(false);
-    }
-  };
-
-  const handleSaveEditCat = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!editingCat) return;
-
-    setSavingEditCat(true);
-    try {
-      const res = await fetch(`/api/acervo/${editingCat.id}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(editingCat)
-      });
-
-      if (res.ok) {
-        setModalEditCatOpen(false);
-        openCompanyManagement(selectedEmpresa, 'acervos');
-        fetchEmpresas();
-      } else {
-        alert('Erro ao atualizar atestado');
-      }
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setSavingEditCat(false);
-    }
-  };
-
-  // --- Gestão de Profissionais da Empresa ---
+  // --- Gestão de Profissionais ---
   const handleCreateProf = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!selectedEmpresa || !newProfData.nome) {
-      alert('Nome do profissional é obrigatório');
+    if (!newProfData.nome || !newProfData.orgId) {
+      alert('Preencha os campos obrigatórios.');
       return;
     }
 
@@ -301,42 +292,152 @@ export default function EmpresasPage() {
       const res = await fetch('/api/profissionais', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          ...newProfData,
-          orgId: selectedEmpresa.id
-        })
+        body: JSON.stringify(newProfData)
       });
 
       if (res.ok) {
         setModalProfOpen(false);
         setNewProfData({
+          orgId: empresas[0]?.id || '',
           nome: '',
-          funcao: 'Engenheiro Civil Sênior',
+          funcao: 'Engenheiro Civil Pleno',
           vinculo: 'CLT',
           conselho: 'CREA',
           numeroConselho: '',
           situacaoConselho: 'ATIVO',
-          formacao: 'Engenharia Civil'
+          formacao: 'Engenharia Civil',
+          resumoProfissional: ''
         });
-        openCompanyManagement(selectedEmpresa, 'profissionais');
-        fetchEmpresas();
+        loadAllData();
+        alert('Profissional cadastrado com sucesso!');
       } else {
-        alert('Erro ao vincular profissional');
+        const err = await res.json();
+        alert(err.error || 'Erro ao salvar profissional');
       }
-    } catch (err) {
-      console.error(err);
+    } catch (e) {
+      console.error(e);
+      alert('Erro de conexão ao salvar');
     } finally {
       setSavingProf(false);
     }
   };
 
-  // --- Gestão de Certidões ---
+  const openDossie = (prof: any) => {
+    setSelectedProfDossie(prof);
+    setDossieModalOpen(true);
+  };
+
+  const openEditProf = (prof: any) => {
+    setEditingProf(prof);
+    setEditProfData({
+      nome: prof.nome || '',
+      orgId: prof.orgId || '',
+      funcao: prof.funcao || '',
+      vinculo: prof.vinculo || 'CLT',
+      conselho: prof.conselho || 'CREA',
+      numeroConselho: prof.numeroConselho || '',
+      situacaoConselho: prof.situacaoConselho || 'ATIVO',
+      formacao: prof.formacao || '',
+      resumoProfissional: prof.resumoProfissional || ''
+    });
+    setEditProfModalOpen(true);
+  };
+
+  const handleSaveEditProf = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingProf) return;
+
+    setSavingEditProf(true);
+    try {
+      const res = await fetch(`/api/profissionais/${editingProf.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(editProfData)
+      });
+
+      if (res.ok) {
+        setEditProfModalOpen(false);
+        loadAllData();
+        if (selectedProfDossie?.id === editingProf.id) {
+          const updated = await res.json();
+          setSelectedProfDossie((prev: any) => ({ ...prev, ...updated }));
+        }
+        alert('Dados do profissional atualizados com sucesso!');
+      } else {
+        alert('Erro ao atualizar profissional');
+      }
+    } catch (e) {
+      console.error(e);
+      alert('Erro de conexão ao salvar');
+    } finally {
+      setSavingEditProf(false);
+    }
+  };
+
+  const handleDeleteProf = async (prof: any) => {
+    if (!confirm(`Deseja remover o profissional "${prof.nome}" do quadro técnico?`)) return;
+
+    try {
+      const res = await fetch(`/api/profissionais/${prof.id}`, { method: 'DELETE' });
+      if (res.ok) {
+        setDossieModalOpen(false);
+        loadAllData();
+        alert('Profissional removido com sucesso!');
+      } else {
+        alert('Erro ao remover profissional');
+      }
+    } catch (e) {
+      console.error(e);
+      alert('Erro de conexão ao excluir');
+    }
+  };
+
+  const handleAddProfCat = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedProfDossie) return;
+
+    setSavingProfCat(true);
+    try {
+      const res = await fetch('/api/acervo', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          ...newProfCatData,
+          orgId: selectedProfDossie.orgId,
+          responsavelTecnico: selectedProfDossie.nome
+        })
+      });
+
+      if (res.ok) {
+        setModalProfCatOpen(false);
+        setNewProfCatData({
+          numeroCat: '',
+          numeroAtestado: '',
+          emitente: '',
+          objeto: '',
+          tipoServico: 'PAVIMENTACAO_INFRAESTRUTURA',
+          areaTecnica: 'Obras Civis / Infraestrutura',
+          local: '',
+          uf: 'CE',
+          urlOrigem: ''
+        });
+        loadAllData();
+        alert('CAT vinculada ao acervo com sucesso!');
+      } else {
+        alert('Erro ao vincular CAT');
+      }
+    } catch (e) {
+      console.error(e);
+      alert('Erro de conexão ao salvar CAT');
+    } finally {
+      setSavingProfCat(false);
+    }
+  };
+
+  // --- Funções de Certidão e CAT da Empresa ---
   const handleCreateCertidao = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!selectedEmpresa || !newCertidaoData.nome) {
-      alert('Nome da certidão é obrigatório');
-      return;
-    }
+    if (!selectedEmpresa || !newCertidaoData.nome) return;
 
     setSavingCertidao(true);
     try {
@@ -353,224 +454,1168 @@ export default function EmpresasPage() {
       if (res.ok) {
         setModalCertidaoOpen(false);
         openCompanyManagement(selectedEmpresa, 'certidoes');
-        fetchEmpresas();
+        loadAllData();
+        alert('Certidão registrada com sucesso!');
       } else {
-        alert('Erro ao cadastrar certidão');
+        alert('Erro ao registrar certidão');
       }
     } catch (err) {
       console.error(err);
+      alert('Erro de conexão');
     } finally {
       setSavingCertidao(false);
     }
   };
 
-  const filteredEmpresas = empresas.filter(e => 
-    !searchQuery || 
-    e.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    e.tradeName?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    e.cnpj?.includes(searchQuery)
-  );
+  const handleCreateCat = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedEmpresa || !newCatData.objeto) return;
+
+    setSavingCat(true);
+    try {
+      const res = await fetch('/api/acervo', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          ...newCatData,
+          orgId: selectedEmpresa.id
+        })
+      });
+
+      if (res.ok) {
+        setModalCatOpen(false);
+        openCompanyManagement(selectedEmpresa, 'acervos');
+        loadAllData();
+        alert('CAT cadastrada com sucesso!');
+      } else {
+        alert('Erro ao cadastrar CAT');
+      }
+    } catch (err) {
+      console.error(err);
+      alert('Erro de conexão');
+    } finally {
+      setSavingCat(false);
+    }
+  };
+
+  const filteredEmpresas = empresas.filter(e => {
+    if (!searchQuery) return true;
+    const q = searchQuery.toLowerCase();
+    return (
+      (e.name && e.name.toLowerCase().includes(q)) ||
+      (e.tradeName && e.tradeName.toLowerCase().includes(q)) ||
+      (e.cnpj && e.cnpj.includes(q)) ||
+      (e.notes && e.notes.toLowerCase().includes(q))
+    );
+  });
+
+  const filteredProfessionals = professionals.filter(p => {
+    const matchesOrg = profOrgFilter === 'ALL' || p.orgId === profOrgFilter;
+    const matchesConselho = profConselhoFilter === 'ALL' || p.conselho === profConselhoFilter;
+    const q = profSearch.toLowerCase();
+    const matchesSearch = !profSearch || 
+      (p.nome && p.nome.toLowerCase().includes(q)) ||
+      (p.numeroConselho && p.numeroConselho.toLowerCase().includes(q)) ||
+      (p.funcao && p.funcao.toLowerCase().includes(q)) ||
+      (p.formacao && p.formacao.toLowerCase().includes(q));
+    return matchesOrg && matchesConselho && matchesSearch;
+  });
 
   return (
     <div className="animate-fade-in">
       {/* Header */}
-      <div className="page-header" style={{ marginBottom: '24px' }}>
+      <div className="page-header" style={{ marginBottom: '22px' }}>
         <div>
           <h1 className="page-title" style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
             <Building2 size={26} style={{ color: 'var(--color-primary)' }} />
-            Empresas, Acervos & Habilitação Corporativa
+            Empresas, Habilitação & Quadro Técnico
           </h1>
           <p className="page-subtitle">
-            Gestão das entidades titulares (UFC Engenharia e Pórtico Construções), parceiras, acervos técnicos e certidões
+            Gestão de pessoas jurídicas (UFC, Pórtico e Parceiras), engenheiros RTs, certidões e habilitação técnica
           </p>
         </div>
 
-        <button 
-          onClick={() => setModalOpen(true)}
-          className="btn btn-primary" 
-          style={{ display: 'flex', alignItems: 'center', gap: '8px' }}
+        <div style={{ display: 'flex', gap: '12px' }}>
+          {mainTab === 'empresas' ? (
+            <button 
+              onClick={() => setModalOpen(true)} 
+              className="btn btn-primary"
+              style={{ display: 'flex', alignItems: 'center', gap: '8px' }}
+            >
+              <Plus size={18} />
+              Cadastrar Nova Empresa
+            </button>
+          ) : (
+            <button 
+              onClick={() => setModalProfOpen(true)} 
+              className="btn btn-primary"
+              style={{ display: 'flex', alignItems: 'center', gap: '8px' }}
+            >
+              <UserPlus size={18} />
+              Novo Engenheiro / Profissional
+            </button>
+          )}
+        </div>
+      </div>
+
+      {/* Primary Tab Switcher */}
+      <div style={{ display: 'flex', gap: '10px', marginBottom: '24px', borderBottom: '1px solid var(--border-color)', paddingBottom: '12px' }}>
+        <button
+          onClick={() => setMainTab('empresas')}
+          className={`btn ${mainTab === 'empresas' ? 'btn-primary' : 'btn-secondary'}`}
+          style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 18px', fontSize: '0.9rem' }}
         >
-          <Plus size={18} />
-          Nova Empresa / Parceira
+          <Building2 size={18} />
+          Empresas Cadastradas ({empresas.length})
+        </button>
+
+        <button
+          onClick={() => setMainTab('profissionais')}
+          className={`btn ${mainTab === 'profissionais' ? 'btn-primary' : 'btn-secondary'}`}
+          style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 18px', fontSize: '0.9rem' }}
+        >
+          <Award size={18} />
+          Quadro Técnico & Engenheiros ({professionals.length})
         </button>
       </div>
 
-      {/* Busca */}
-      <div className="card" style={{ padding: '14px 18px', marginBottom: '22px', display: 'flex', alignItems: 'center', gap: '10px' }}>
-        <Search size={18} style={{ color: 'var(--text-muted)' }} />
-        <input 
-          type="text" 
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-          placeholder="Buscar por Razão Social, Nome Fantasia ou CNPJ..." 
-          className="form-control"
-          style={{ width: '100%', height: '38px' }}
-        />
-      </div>
+      {/* ─────────────────────────────────────────────────────────── */}
+      {/* ABA 1: EMPRESAS CADASTRADAS                                */}
+      {/* ─────────────────────────────────────────────────────────── */}
+      {mainTab === 'empresas' && (
+        <div>
+          {/* Search bar */}
+          <div className="card" style={{ padding: '14px 18px', marginBottom: '20px', background: 'var(--bg-surface)' }}>
+            <div style={{ position: 'relative', width: '100%' }}>
+              <Search size={16} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
+              <input 
+                type="text" 
+                placeholder="Buscar por razão social, nome fantasia, CNPJ ou área de atuação..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="form-control"
+                style={{ paddingLeft: '36px', height: '40px', fontSize: '0.85rem' }}
+              />
+            </div>
+          </div>
 
-      {/* Grid of Corporate Cards */}
-      {loading ? (
-        <div style={{ textAlign: 'center', padding: '80px 0' }}>
-          <Loader2 size={36} className="animate-spin" style={{ margin: '0 auto 12px', color: 'var(--color-primary)' }} />
-          <p style={{ color: 'var(--text-secondary)' }}>Carregando dados corporativos...</p>
-        </div>
-      ) : (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(420px, 1fr))', gap: '22px' }}>
-          {filteredEmpresas.map((emp) => {
-            const isUfc = emp.name.toLowerCase().includes('ufc');
+          {/* Companies Grid */}
+          {loading ? (
+            <div style={{ padding: '60px', textAlign: 'center', color: 'var(--text-secondary)' }}>
+              <Loader2 size={32} className="animate-spin" style={{ margin: '0 auto 12px', color: 'var(--color-primary)' }} />
+              Carregando dados das empresas...
+            </div>
+          ) : filteredEmpresas.length === 0 ? (
+            <div className="card" style={{ padding: '50px', textAlign: 'center', color: 'var(--text-secondary)' }}>
+              Nenhuma empresa encontrada com os termos buscados.
+            </div>
+          ) : (
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(360px, 1fr))', gap: '20px' }}>
+              {filteredEmpresas.map(emp => {
+                const isUfc = emp.name.toLowerCase().includes('ufc');
+                const isPortico = emp.name.toLowerCase().includes('pórtico') || emp.name.toLowerCase().includes('portico');
+                const badgeColor = isUfc ? '#60a5fa' : isPortico ? 'var(--color-primary)' : '#fbbf24';
+                const badgeBg = isUfc ? 'rgba(59, 130, 246, 0.15)' : isPortico ? 'rgba(232, 93, 93, 0.15)' : 'rgba(245, 158, 11, 0.15)';
 
-            return (
-              <div 
-                key={emp.id} 
-                className="card"
-                style={{
-                  padding: '0',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  background: 'var(--bg-surface)',
-                  border: '1px solid var(--border-color)',
-                  borderRadius: 'var(--radius-lg)',
-                  overflow: 'hidden',
-                  transition: 'all var(--transition-base)'
-                }}
-              >
-                {/* Header Banner */}
-                <div style={{ 
-                  padding: '20px 24px', 
-                  borderBottom: '1px solid var(--border-color)',
-                  background: 'linear-gradient(135deg, rgba(255,255,255,0.02) 0%, rgba(0,0,0,0.2) 100%)'
-                }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '10px' }}>
-                    <div style={{ 
-                      width: '44px', 
-                      height: '44px', 
-                      borderRadius: 'var(--radius-md)', 
-                      background: isUfc ? 'rgba(34, 197, 94, 0.12)' : 'rgba(232, 93, 93, 0.12)',
-                      color: isUfc ? '#34d399' : 'var(--color-primary)',
+                // Extrair áreas de atuação das notas se existir
+                const areasMatch = emp.notes?.match(/\[ÁREAS DE ATUAÇÃO\]:\s*([^\n]+)/);
+                const areasTexto = areasMatch ? areasMatch[1] : null;
+
+                return (
+                  <div 
+                    key={emp.id} 
+                    className="card" 
+                    style={{ 
+                      padding: '22px', 
+                      background: 'var(--bg-surface)', 
+                      border: '1px solid var(--border-color)',
                       display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center'
-                    }}>
-                      <Building2 size={22} />
+                      flexDirection: 'column',
+                      justifyContent: 'space-between',
+                      transition: 'transform 0.2s, border-color 0.2s',
+                    }}
+                  >
+                    <div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '12px' }}>
+                        <span style={{ 
+                          fontSize: '0.75rem', 
+                          fontWeight: 700, 
+                          padding: '3px 9px', 
+                          borderRadius: 'var(--radius-sm)',
+                          background: badgeBg,
+                          color: badgeColor,
+                          border: `1px solid ${badgeColor}40`
+                        }}>
+                          {emp.type === 'PROPRIA' ? (isUfc ? 'UFC ENGENHARIA' : isPortico ? 'PÓRTICO CONSTRUÇÕES' : 'EMPRESA PRÓPRIA') : emp.type === 'CONSORCIO' ? 'CONSÓRCIO' : 'PARCEIRA OPERACIONAL'}
+                        </span>
+                        <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                          {emp.city ? `${emp.city}/${emp.state || 'CE'}` : 'Brasil'}
+                        </span>
+                      </div>
+
+                      <h3 style={{ fontSize: '1.15rem', fontWeight: 700, color: 'var(--text-primary)', marginBottom: '4px' }}>
+                        {emp.tradeName || emp.name}
+                      </h3>
+                      <p style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', marginBottom: '8px' }}>
+                        {emp.name}
+                      </p>
+
+                      <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)', marginBottom: '14px' }}>
+                        CNPJ: {emp.cnpj || 'Não informado'}
+                      </div>
+
+                      {areasTexto && (
+                        <div style={{ 
+                          fontSize: '0.78rem', 
+                          color: 'var(--text-secondary)', 
+                          background: 'rgba(255, 255, 255, 0.03)', 
+                          padding: '8px 10px', 
+                          borderRadius: 'var(--radius-sm)', 
+                          marginBottom: '16px',
+                          border: '1px solid var(--border-color)'
+                        }}>
+                          <strong style={{ color: 'var(--text-primary)' }}>Atuação:</strong> {areasTexto}
+                        </div>
+                      )}
+
+                      {/* Métricas da Empresa */}
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '8px', marginBottom: '18px' }}>
+                        <div style={{ background: 'rgba(255, 255, 255, 0.02)', padding: '8px', borderRadius: 'var(--radius-sm)', textAlign: 'center' }}>
+                          <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', display: 'block' }}>Atestados</span>
+                          <strong style={{ fontSize: '1.05rem', color: '#60a5fa' }}>{emp._count?.acervo || 0}</strong>
+                        </div>
+                        <div style={{ background: 'rgba(255, 255, 255, 0.02)', padding: '8px', borderRadius: 'var(--radius-sm)', textAlign: 'center' }}>
+                          <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', display: 'block' }}>RTs / Equipe</span>
+                          <strong style={{ fontSize: '1.05rem', color: '#34d399' }}>
+                            {professionals.filter(p => p.orgId === emp.id).length}
+                          </strong>
+                        </div>
+                        <div style={{ background: 'rgba(255, 255, 255, 0.02)', padding: '8px', borderRadius: 'var(--radius-sm)', textAlign: 'center' }}>
+                          <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', display: 'block' }}>Certidões</span>
+                          <strong style={{ fontSize: '1.05rem', color: '#fbbf24' }}>{emp._count?.complianceDocs || 0}</strong>
+                        </div>
+                      </div>
                     </div>
 
-                    <div style={{ display: 'flex', gap: '6px' }}>
-                      <span style={{ 
-                        fontSize: '0.72rem', 
-                        fontWeight: 700, 
-                        padding: '3px 9px', 
-                        borderRadius: 'var(--radius-sm)',
-                        background: emp.type === 'PROPRIA' ? 'rgba(34, 197, 94, 0.15)' : 'rgba(245, 158, 11, 0.15)',
-                        color: emp.type === 'PROPRIA' ? '#34d399' : '#fbbf24',
-                        border: `1px solid ${emp.type === 'PROPRIA' ? 'rgba(34, 197, 94, 0.3)' : 'rgba(245, 158, 11, 0.3)'}`
-                      }}>
-                        {emp.type === 'PROPRIA' ? 'EMPRESA PRÓPRIA' : emp.type}
-                      </span>
+                    <div style={{ display: 'flex', gap: '8px', borderTop: '1px solid var(--border-color)', paddingTop: '14px' }}>
+                      <button 
+                        onClick={() => openCompanyManagement(emp, 'acervos')}
+                        className="btn btn-secondary btn-sm"
+                        style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}
+                      >
+                        <Layers size={14} /> Dossiê & CATs
+                      </button>
+                      <button 
+                        onClick={() => openCompanyManagement(emp, 'dados')}
+                        className="btn btn-primary btn-sm"
+                        style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}
+                      >
+                        <Edit3 size={14} /> Gerenciar
+                      </button>
                     </div>
                   </div>
-
-                  <h3 style={{ fontSize: '1.25rem', fontWeight: 800, color: 'var(--text-primary)', lineHeight: 1.25 }}>
-                    {emp.tradeName || emp.name}
-                  </h3>
-                  <div style={{ fontSize: '0.82rem', color: 'var(--text-muted)', marginTop: '4px' }}>
-                    {emp.name}
-                  </div>
-                  {emp.cnpj && (
-                    <div style={{ fontSize: '0.8rem', color: '#60a5fa', fontFamily: 'var(--font-mono)', marginTop: '4px' }}>
-                      CNPJ: {emp.cnpj}
-                    </div>
-                  )}
-                </div>
-
-                {/* Details */}
-                <div style={{ padding: '18px 24px', display: 'flex', flexDirection: 'column', gap: '8px', fontSize: '0.86rem', color: 'var(--text-secondary)' }}>
-                  {emp.city && emp.state && (
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                      <MapPin size={15} style={{ color: 'var(--text-muted)' }} />
-                      <span>{emp.address ? `${emp.address} — ` : ''}{emp.city} / {emp.state}</span>
-                    </div>
-                  )}
-
-                  {emp.phone && (
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                      <Phone size={15} style={{ color: 'var(--text-muted)' }} />
-                      <span>{emp.phone}</span>
-                    </div>
-                  )}
-
-                  {emp.email && (
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                      <Mail size={15} style={{ color: 'var(--text-muted)' }} />
-                      <span>{emp.email}</span>
-                    </div>
-                  )}
-                </div>
-
-                {/* Quick Action Footer */}
-                <div style={{ 
-                  marginTop: 'auto', 
-                  background: 'var(--bg-elevated)', 
-                  borderTop: '1px solid var(--border-color)',
-                  display: 'grid',
-                  gridTemplateColumns: '1fr 1fr 1fr',
-                  padding: '12px 16px',
-                  textAlign: 'center',
-                  gap: '4px'
-                }}>
-                  <button 
-                    onClick={() => openCompanyManagement(emp, 'acervos')}
-                    className="btn btn-ghost btn-sm"
-                    style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '6px' }}
-                  >
-                    <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Acervos</span>
-                    <span style={{ fontSize: '1.1rem', fontWeight: 800, color: '#60a5fa' }}>{emp._count?.acervo || 0}</span>
-                  </button>
-
-                  <button 
-                    onClick={() => openCompanyManagement(emp, 'profissionais')}
-                    className="btn btn-ghost btn-sm"
-                    style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '6px', borderLeft: '1px solid var(--border-color)', borderRight: '1px solid var(--border-color)' }}
-                  >
-                    <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Parceiros / RT</span>
-                    <span style={{ fontSize: '1.1rem', fontWeight: 800, color: 'var(--color-primary)' }}>{emp._count?.licitacoes || 2}</span>
-                  </button>
-
-                  <button 
-                    onClick={() => openCompanyManagement(emp, 'certidoes')}
-                    className="btn btn-ghost btn-sm"
-                    style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '6px' }}
-                  >
-                    <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Certidões</span>
-                    <span style={{ fontSize: '1.1rem', fontWeight: 800, color: '#34d399' }}>{emp._count?.complianceDocs || 0}</span>
-                  </button>
-                </div>
-
-                {/* Direct Management Button */}
-                <div style={{ padding: '10px 16px', background: 'var(--bg-surface)', borderTop: '1px solid var(--border-color)' }}>
-                  <button 
-                    onClick={() => openCompanyManagement(emp, 'acervos')}
-                    className="btn btn-primary w-full btn-sm"
-                    style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}
-                  >
-                    <Layers size={14} />
-                    Gerenciar Acervo, CATs & Habilitação
-                  </button>
-                </div>
-              </div>
-            );
-          })}
+                );
+              })}
+            </div>
+          )}
         </div>
       )}
 
       {/* ─────────────────────────────────────────────────────────── */}
-      {/* MODAL GESTÃO COMPLETA DA EMPRESA (ACERVOS, PARCEIROS, DOCS) */}
+      {/* ABA 2: QUADRO TÉCNICO & ENGENHEIROS                        */}
+      {/* ─────────────────────────────────────────────────────────── */}
+      {mainTab === 'profissionais' && (
+        <div>
+          {/* KPI Cards dos Profissionais */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '16px', marginBottom: '24px' }}>
+            <div className="card" style={{ padding: '18px 20px', background: 'var(--bg-surface)' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>Profissionais Cadastrados</span>
+                <Award size={18} style={{ color: '#60a5fa' }} />
+              </div>
+              <div style={{ fontSize: '1.8rem', fontWeight: 800, marginTop: '8px', color: 'var(--text-primary)' }}>
+                {professionals.length}
+              </div>
+              <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Engenheiros e RTs habilitados</span>
+            </div>
+
+            <div className="card" style={{ padding: '18px 20px', background: 'var(--bg-surface)' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>CATs Profissionais</span>
+                <Layers size={18} style={{ color: '#34d399' }} />
+              </div>
+              <div style={{ fontSize: '1.8rem', fontWeight: 800, marginTop: '8px', color: '#34d399' }}>
+                {professionals.reduce((acc, p) => acc + (p.acervos?.length || 0), 0)}
+              </div>
+              <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Atestados vinculados à equipe</span>
+            </div>
+
+            <div className="card" style={{ padding: '18px 20px', background: 'var(--bg-surface)' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>Conselhos Ativos</span>
+                <ShieldCheck size={18} style={{ color: '#fbbf24' }} />
+              </div>
+              <div style={{ fontSize: '1.8rem', fontWeight: 800, marginTop: '8px', color: '#fbbf24' }}>
+                {professionals.filter(p => p.situacaoConselho === 'ATIVO').length}
+              </div>
+              <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Situação regular no CREA/CAU</span>
+            </div>
+          </div>
+
+          {/* Filtros de Profissionais */}
+          <div className="card" style={{ padding: '14px 18px', marginBottom: '20px', background: 'var(--bg-surface)' }}>
+            <div style={{ display: 'flex', gap: '14px', alignItems: 'center', flexWrap: 'wrap' }}>
+              <div style={{ position: 'relative', flex: 1, minWidth: '240px' }}>
+                <Search size={16} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
+                <input 
+                  type="text" 
+                  placeholder="Buscar engenheiro por nome, CREA, função ou formação..."
+                  value={profSearch}
+                  onChange={(e) => setProfSearch(e.target.value)}
+                  className="form-control"
+                  style={{ paddingLeft: '36px', height: '38px', fontSize: '0.85rem' }}
+                />
+              </div>
+
+              <select
+                value={profOrgFilter}
+                onChange={(e) => setProfOrgFilter(e.target.value)}
+                className="form-control"
+                style={{ height: '38px', fontSize: '0.85rem', minWidth: '180px' }}
+              >
+                <option value="ALL">Todas as Empresas</option>
+                {empresas.map(emp => (
+                  <option key={emp.id} value={emp.id}>{emp.tradeName || emp.name}</option>
+                ))}
+              </select>
+
+              <select
+                value={profConselhoFilter}
+                onChange={(e) => setProfConselhoFilter(e.target.value)}
+                className="form-control"
+                style={{ height: '38px', fontSize: '0.85rem', minWidth: '140px' }}
+              >
+                <option value="ALL">Todos Conselhos</option>
+                <option value="CREA">CREA</option>
+                <option value="CAU">CAU</option>
+                <option value="CRQ">CRQ</option>
+              </select>
+            </div>
+          </div>
+
+          {/* Tabela de Profissionais */}
+          <div className="card" style={{ padding: '0', overflow: 'hidden', background: 'var(--bg-surface)' }}>
+            {loading ? (
+              <div style={{ padding: '40px', textAlign: 'center', color: 'var(--text-secondary)' }}>
+                <Loader2 size={28} className="animate-spin" style={{ margin: '0 auto 12px', color: 'var(--color-primary)' }} />
+                Carregando profissionais...
+              </div>
+            ) : filteredProfessionals.length === 0 ? (
+              <div style={{ padding: '40px', textAlign: 'center', color: 'var(--text-secondary)' }}>
+                Nenhum engenheiro ou profissional encontrado.
+              </div>
+            ) : (
+              <div className="table-responsive">
+                <table className="table">
+                  <thead>
+                    <tr>
+                      <th>Engenheiro / RT</th>
+                      <th>Empresa Vinculada</th>
+                      <th>Conselho / Registro</th>
+                      <th>Vínculo</th>
+                      <th>CATs Vinculadas</th>
+                      <th style={{ textAlign: 'right' }}>Ações</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {filteredProfessionals.map(prof => {
+                      const empNome = prof.organization?.tradeName || prof.organization?.name || 'Empresa Própria';
+                      return (
+                        <tr key={prof.id}>
+                          <td>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                              <div style={{
+                                width: '36px',
+                                height: '36px',
+                                borderRadius: '50%',
+                                background: 'rgba(59, 130, 246, 0.15)',
+                                color: '#60a5fa',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                fontWeight: 800,
+                                fontSize: '0.85rem',
+                                border: '1px solid rgba(59, 130, 246, 0.3)'
+                              }}>
+                                {prof.nome.charAt(0).toUpperCase()}
+                              </div>
+                              <div>
+                                <strong style={{ fontSize: '0.9rem', color: 'var(--text-primary)', display: 'block' }}>
+                                  {prof.nome}
+                                </strong>
+                                <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                                  {prof.funcao || 'Responsável Técnico'} • {prof.formacao || 'Engenharia Civil'}
+                                </span>
+                              </div>
+                            </div>
+                          </td>
+                          <td>
+                            <span style={{ 
+                              fontSize: '0.75rem', 
+                              fontWeight: 700, 
+                              padding: '3px 8px', 
+                              borderRadius: 'var(--radius-sm)',
+                              background: 'rgba(255, 255, 255, 0.05)',
+                              color: 'var(--text-secondary)',
+                              border: '1px solid var(--border-color)'
+                            }}>
+                              {empNome}
+                            </span>
+                          </td>
+                          <td>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                              <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.8rem', color: '#60a5fa' }}>
+                                {prof.conselho || 'CREA'}: {prof.numeroConselho || 'S/N'}
+                              </span>
+                              <span style={{ 
+                                fontSize: '0.65rem', 
+                                fontWeight: 800, 
+                                padding: '1px 6px', 
+                                borderRadius: 'var(--radius-full)',
+                                background: prof.situacaoConselho === 'ATIVO' ? 'rgba(34, 197, 94, 0.15)' : 'rgba(239, 68, 68, 0.15)',
+                                color: prof.situacaoConselho === 'ATIVO' ? '#34d399' : '#f87171'
+                              }}>
+                                {prof.situacaoConselho || 'ATIVO'}
+                              </span>
+                            </div>
+                          </td>
+                          <td>
+                            <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>
+                              {prof.vinculo || 'CLT'}
+                            </span>
+                          </td>
+                          <td>
+                            <span style={{ 
+                              fontSize: '0.78rem', 
+                              fontWeight: 700, 
+                              color: prof.acervos && prof.acervos.length > 0 ? '#34d399' : 'var(--text-muted)' 
+                            }}>
+                              {prof.acervos?.length || 0} atestados
+                            </span>
+                          </td>
+                          <td style={{ textAlign: 'right' }}>
+                            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '6px' }}>
+                              <button 
+                                onClick={() => openDossie(prof)}
+                                className="btn btn-secondary btn-sm"
+                                style={{ padding: '6px 10px', fontSize: '0.75rem', display: 'flex', alignItems: 'center', gap: '4px' }}
+                                title="Abrir Pasta Técnica com CATs e Certidões"
+                              >
+                                <FolderOpen size={13} style={{ color: '#60a5fa' }} /> Pasta Técnica
+                              </button>
+                              <button 
+                                onClick={() => openEditProf(prof)}
+                                className="btn btn-secondary btn-sm"
+                                style={{ padding: '6px 8px' }}
+                                title="Editar Cadastro"
+                              >
+                                <Edit3 size={13} />
+                              </button>
+                              <button 
+                                onClick={() => handleDeleteProf(prof)}
+                                className="btn btn-secondary btn-sm"
+                                style={{ padding: '6px 8px', color: '#ef4444' }}
+                                title="Remover Profissional"
+                              >
+                                <Trash2 size={13} />
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* ─────────────────────────────────────────────────────────── */}
+      {/* MODAL: PASTA TÉCNICA DO PROFISSIONAL (DOSSIÊ DE CATs)      */}
+      {/* ─────────────────────────────────────────────────────────── */}
+      {dossieModalOpen && selectedProfDossie && (
+        <div style={{
+          position: 'fixed',
+          inset: 0,
+          background: 'rgba(0, 0, 0, 0.85)',
+          backdropFilter: 'blur(6px)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 9999,
+          padding: '20px'
+        }}
+        onClick={() => setDossieModalOpen(false)}
+        >
+          <div 
+            className="card" 
+            style={{ 
+              maxWidth: '850px', 
+              width: '100%', 
+              maxHeight: '90vh', 
+              overflowY: 'auto',
+              background: 'var(--bg-surface)',
+              border: '1px solid var(--border-color-strong)',
+              borderRadius: 'var(--radius-xl)',
+              padding: '28px'
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Cabeçalho da Pasta */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', borderBottom: '1px solid var(--border-color)', paddingBottom: '18px', marginBottom: '20px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+                <div style={{ width: '48px', height: '48px', borderRadius: 'var(--radius-md)', background: 'var(--gradient-primary)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontWeight: 800, fontSize: '1.2rem' }}>
+                  {selectedProfDossie.nome.charAt(0).toUpperCase()}
+                </div>
+                <div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <h3 style={{ fontSize: '1.3rem', fontWeight: 700, color: 'var(--text-primary)' }}>
+                      Pasta Técnica: {selectedProfDossie.nome}
+                    </h3>
+                    <span style={{ 
+                      fontSize: '0.7rem', 
+                      fontWeight: 800, 
+                      padding: '2px 8px', 
+                      borderRadius: 'var(--radius-sm)', 
+                      background: 'rgba(34, 197, 94, 0.15)', 
+                      color: '#34d399' 
+                    }}>
+                      {selectedProfDossie.situacaoConselho || 'REGULAR'}
+                    </span>
+                  </div>
+                  <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginTop: '2px' }}>
+                    {selectedProfDossie.funcao} • {selectedProfDossie.conselho || 'CREA'} nº {selectedProfDossie.numeroConselho || 'S/N'} • Vínculo {selectedProfDossie.vinculo}
+                  </p>
+                </div>
+              </div>
+
+              <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                <button 
+                  onClick={() => setModalProfCatOpen(true)}
+                  className="btn btn-primary btn-sm"
+                  style={{ display: 'flex', alignItems: 'center', gap: '6px' }}
+                >
+                  <Plus size={14} /> Vincular Nova CAT
+                </button>
+                <button onClick={() => setDossieModalOpen(false)} className="btn btn-ghost btn-sm">
+                  <X size={20} />
+                </button>
+              </div>
+            </div>
+
+            {/* Resumo Profissional / Dossiê */}
+            {selectedProfDossie.resumoProfissional && (
+              <div style={{ background: 'rgba(255, 255, 255, 0.03)', padding: '12px 16px', borderRadius: 'var(--radius-md)', marginBottom: '22px', border: '1px solid var(--border-color)' }}>
+                <strong style={{ fontSize: '0.8rem', color: '#60a5fa', display: 'block', marginBottom: '4px' }}>Qualificação & Experiência:</strong>
+                <p style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', margin: 0 }}>
+                  {selectedProfDossie.resumoProfissional}
+                </p>
+              </div>
+            )}
+
+            {/* Seção CATs e Atestados */}
+            <div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
+                <h4 style={{ fontSize: '1rem', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <Layers size={16} style={{ color: 'var(--color-primary)' }} />
+                  Atestados de Capacidade Técnica e CATs Vinculadas
+                </h4>
+                <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
+                  {selectedProfDossie.acervos?.length || 0} atestados registrados
+                </span>
+              </div>
+
+              {!selectedProfDossie.acervos || selectedProfDossie.acervos.length === 0 ? (
+                <div style={{ padding: '30px', textAlign: 'center', background: 'rgba(255, 255, 255, 0.01)', borderRadius: 'var(--radius-md)', border: '1px dashed var(--border-color)' }}>
+                  <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginBottom: '12px' }}>
+                    Nenhuma CAT vinculada a esta pasta técnica no momento.
+                  </p>
+                  <button 
+                    onClick={() => setModalProfCatOpen(true)}
+                    className="btn btn-secondary btn-sm"
+                    style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}
+                  >
+                    <Plus size={14} /> Adicionar Primeira CAT
+                  </button>
+                </div>
+              ) : (
+                <div className="table-responsive">
+                  <table className="table">
+                    <thead>
+                      <tr>
+                        <th>CAT / Atestado</th>
+                        <th>Órgão Emitente</th>
+                        <th>Objeto & Escopo</th>
+                        <th>Local</th>
+                        <th style={{ textAlign: 'right' }}>Documento</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {selectedProfDossie.acervos.map((cat: any) => (
+                        <tr key={cat.id}>
+                          <td>
+                            <strong style={{ fontSize: '0.85rem', color: '#60a5fa', fontFamily: 'var(--font-mono)' }}>
+                              {cat.numeroCat || cat.numeroAtestado || 'CAT S/N'}
+                            </strong>
+                          </td>
+                          <td style={{ fontSize: '0.82rem', color: 'var(--text-secondary)' }}>
+                            {cat.emitente}
+                          </td>
+                          <td style={{ fontSize: '0.82rem', color: 'var(--text-primary)', maxWidth: '280px' }}>
+                            {cat.objeto}
+                          </td>
+                          <td style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
+                            {cat.uf || 'CE'}
+                          </td>
+                          <td style={{ textAlign: 'right' }}>
+                            {cat.urlOrigem || cat.storageUrl ? (
+                              <a 
+                                href={cat.urlOrigem || cat.storageUrl} 
+                                target="_blank" 
+                                rel="noreferrer" 
+                                className="btn btn-secondary btn-sm"
+                                style={{ padding: '4px 8px', fontSize: '0.75rem', display: 'inline-flex', alignItems: 'center', gap: '4px' }}
+                              >
+                                <ExternalLink size={12} /> Visualizar
+                              </a>
+                            ) : (
+                              <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Sem anexo</span>
+                            )}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ─────────────────────────────────────────────────────────── */}
+      {/* MODAL: CADASTRAR NOVA EMPRESA (COM ÁREAS E CARTÃO CNPJ)     */}
+      {/* ─────────────────────────────────────────────────────────── */}
+      {modalOpen && (
+        <div style={{
+          position: 'fixed',
+          inset: 0,
+          background: 'rgba(0, 0, 0, 0.85)',
+          backdropFilter: 'blur(6px)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 9999,
+          padding: '20px'
+        }}
+        onClick={() => setModalOpen(false)}
+        >
+          <div 
+            className="card" 
+            style={{ 
+              maxWidth: '680px', 
+              width: '100%', 
+              maxHeight: '90vh', 
+              overflowY: 'auto',
+              background: 'var(--bg-surface)',
+              border: '1px solid var(--border-color-strong)',
+              borderRadius: 'var(--radius-xl)',
+              padding: '28px'
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <div style={{ width: '38px', height: '38px', borderRadius: 'var(--radius-md)', background: 'var(--gradient-primary)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff' }}>
+                  <Building2 size={18} />
+                </div>
+                <div>
+                  <h3 style={{ fontSize: '1.2rem', fontWeight: 700 }}>Cadastrar Empresa / Parceira</h3>
+                  <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>Preencha os dados corporativos e anexe a habilitação</p>
+                </div>
+              </div>
+              <button onClick={() => setModalOpen(false)} className="btn btn-ghost btn-sm">
+                <X size={20} />
+              </button>
+            </div>
+
+            <form onSubmit={handleCreateEmpresa} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px' }}>
+                <div className="form-group">
+                  <label className="form-label">Razão Social *</label>
+                  <input 
+                    value={newEmpresa.name} 
+                    onChange={(e) => setNewEmpresa({ ...newEmpresa, name: e.target.value })}
+                    className="form-control" 
+                    placeholder="Ex: UFC Engenharia Ltda"
+                    required
+                  />
+                </div>
+
+                <div className="form-group">
+                  <label className="form-label">Nome Fantasia</label>
+                  <input 
+                    value={newEmpresa.tradeName} 
+                    onChange={(e) => setNewEmpresa({ ...newEmpresa, tradeName: e.target.value })}
+                    className="form-control" 
+                    placeholder="Ex: UFC Engenharia"
+                  />
+                </div>
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px' }}>
+                <div className="form-group">
+                  <label className="form-label">CNPJ</label>
+                  <input 
+                    value={newEmpresa.cnpj} 
+                    onChange={(e) => setNewEmpresa({ ...newEmpresa, cnpj: e.target.value })}
+                    className="form-control" 
+                    placeholder="00.000.000/0001-00"
+                  />
+                </div>
+
+                <div className="form-group">
+                  <label className="form-label">Tipo de Entidade</label>
+                  <select 
+                    value={newEmpresa.type} 
+                    onChange={(e) => setNewEmpresa({ ...newEmpresa, type: e.target.value })}
+                    className="form-control"
+                  >
+                    <option value="PROPRIA">Empresa Própria (UFC / Pórtico)</option>
+                    <option value="PARCEIRA">Empresa Parceira / Subcontratada</option>
+                    <option value="CONSORCIO">Consórcio</option>
+                  </select>
+                </div>
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px' }}>
+                <div className="form-group">
+                  <label className="form-label">E-mail de Contato</label>
+                  <input 
+                    type="email"
+                    value={newEmpresa.email} 
+                    onChange={(e) => setNewEmpresa({ ...newEmpresa, email: e.target.value })}
+                    className="form-control" 
+                    placeholder="licitacao@empresa.com.br"
+                  />
+                </div>
+
+                <div className="form-group">
+                  <label className="form-label">Telefone / WhatsApp</label>
+                  <input 
+                    value={newEmpresa.phone} 
+                    onChange={(e) => setNewEmpresa({ ...newEmpresa, phone: e.target.value })}
+                    className="form-control" 
+                    placeholder="(85) 99999-9999"
+                  />
+                </div>
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr', gap: '14px' }}>
+                <div className="form-group">
+                  <label className="form-label">Endereço Completo</label>
+                  <input 
+                    value={newEmpresa.address} 
+                    onChange={(e) => setNewEmpresa({ ...newEmpresa, address: e.target.value })}
+                    className="form-control" 
+                    placeholder="Rua, número, bairro"
+                  />
+                </div>
+                <div className="form-group">
+                  <label className="form-label">Cidade</label>
+                  <input 
+                    value={newEmpresa.city} 
+                    onChange={(e) => setNewEmpresa({ ...newEmpresa, city: e.target.value })}
+                    className="form-control" 
+                    placeholder="Fortaleza"
+                  />
+                </div>
+                <div className="form-group">
+                  <label className="form-label">UF</label>
+                  <select 
+                    value={newEmpresa.state} 
+                    onChange={(e) => setNewEmpresa({ ...newEmpresa, state: e.target.value })}
+                    className="form-control"
+                  >
+                    {['CE', 'BA', 'PE', 'RN', 'PB', 'PI', 'MA', 'SP', 'RJ', 'MG', 'DF', 'GO'].map(uf => (
+                      <option key={uf} value={uf}>{uf}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              {/* Campo Livre: Áreas de Atuação */}
+              <div className="form-group">
+                <label className="form-label" style={{ color: '#60a5fa' }}>
+                  Áreas de Atuação da Empresa (texto livre)
+                </label>
+                <textarea 
+                  value={newEmpresa.areasAtuacao} 
+                  onChange={(e) => setNewEmpresa({ ...newEmpresa, areasAtuacao: e.target.value })}
+                  className="form-control" 
+                  rows={2}
+                  placeholder="Ex: Pavimentação asfáltica, drenagem urbana, saneamento básico, edificações e obras de arte especiais..."
+                />
+              </div>
+
+              {/* Upload Inicial de Cartão CNPJ e Documentação */}
+              <div className="form-group" style={{ background: 'rgba(255, 255, 255, 0.02)', padding: '14px', borderRadius: 'var(--radius-md)', border: '1px dashed var(--border-color)' }}>
+                <label className="form-label" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <FileUp size={15} style={{ color: 'var(--color-primary)' }} />
+                  Cartão CNPJ / Documentação de Habilitação Inicial
+                </label>
+                <input 
+                  type="text"
+                  value={newEmpresa.cnpjCardUrl} 
+                  onChange={(e) => setNewEmpresa({ ...newEmpresa, cnpjCardUrl: e.target.value })}
+                  className="form-control" 
+                  placeholder="Cole o link do Google Drive, PDF ou anexo do Cartão CNPJ..."
+                />
+                <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: '4px', display: 'block' }}>
+                  O documento será registrado automaticamente na aba de Habilitação da empresa.
+                </span>
+              </div>
+
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '12px' }}>
+                <button type="button" onClick={() => setModalOpen(false)} className="btn btn-secondary">
+                  Cancelar
+                </button>
+                <button type="submit" disabled={saving} className="btn btn-primary" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  {saving ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
+                  Salvar Empresa
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ─────────────────────────────────────────────────────────── */}
+      {/* MODAL: NOVO PROFISSIONAL / ENGENHEIRO                       */}
+      {/* ─────────────────────────────────────────────────────────── */}
+      {modalProfOpen && (
+        <div style={{
+          position: 'fixed',
+          inset: 0,
+          background: 'rgba(0, 0, 0, 0.85)',
+          backdropFilter: 'blur(6px)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 9999,
+          padding: '20px'
+        }}
+        onClick={() => setModalProfOpen(false)}
+        >
+          <div 
+            className="card" 
+            style={{ 
+              maxWidth: '620px', 
+              width: '100%', 
+              background: 'var(--bg-surface)',
+              border: '1px solid var(--border-color-strong)',
+              borderRadius: 'var(--radius-xl)',
+              padding: '28px'
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <div style={{ width: '38px', height: '38px', borderRadius: 'var(--radius-md)', background: 'var(--gradient-primary)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff' }}>
+                  <UserPlus size={18} />
+                </div>
+                <div>
+                  <h3 style={{ fontSize: '1.2rem', fontWeight: 700 }}>Cadastrar Engenheiro / Profissional</h3>
+                  <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>Vincular ao quadro técnico e criar pasta documental</p>
+                </div>
+              </div>
+              <button onClick={() => setModalProfOpen(false)} className="btn btn-ghost btn-sm">
+                <X size={20} />
+              </button>
+            </div>
+
+            <form onSubmit={handleCreateProf} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px' }}>
+                <div className="form-group">
+                  <label className="form-label">Nome Completo *</label>
+                  <input 
+                    value={newProfData.nome} 
+                    onChange={(e) => setNewProfData({ ...newProfData, nome: e.target.value })}
+                    className="form-control" 
+                    placeholder="Ex: Carlos Eduardo de Oliveira"
+                    required
+                  />
+                </div>
+
+                <div className="form-group">
+                  <label className="form-label">Empresa Vinculada *</label>
+                  <select 
+                    value={newProfData.orgId} 
+                    onChange={(e) => setNewProfData({ ...newProfData, orgId: e.target.value })}
+                    className="form-control"
+                    required
+                  >
+                    {empresas.map(emp => (
+                      <option key={emp.id} value={emp.id}>{emp.tradeName || emp.name}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px' }}>
+                <div className="form-group">
+                  <label className="form-label">Função / Cargo</label>
+                  <input 
+                    value={newProfData.funcao} 
+                    onChange={(e) => setNewProfData({ ...newProfData, funcao: e.target.value })}
+                    className="form-control" 
+                    placeholder="Ex: Engenheiro Civil Sênior / RT"
+                  />
+                </div>
+
+                <div className="form-group">
+                  <label className="form-label">Tipo de Vínculo</label>
+                  <select 
+                    value={newProfData.vinculo} 
+                    onChange={(e) => setNewProfData({ ...newProfData, vinculo: e.target.value })}
+                    className="form-control"
+                  >
+                    <option value="CLT">CLT</option>
+                    <option value="PJ">PJ (Prestador)</option>
+                    <option value="SOCIO">Sócio / Diretor Técnico</option>
+                    <option value="AUTONOMO">Autônomo</option>
+                    <option value="PARCEIRO">Parceiro</option>
+                  </select>
+                </div>
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '14px' }}>
+                <div className="form-group">
+                  <label className="form-label">Conselho</label>
+                  <select 
+                    value={newProfData.conselho} 
+                    onChange={(e) => setNewProfData({ ...newProfData, conselho: e.target.value })}
+                    className="form-control"
+                  >
+                    <option value="CREA">CREA</option>
+                    <option value="CAU">CAU</option>
+                    <option value="CRQ">CRQ</option>
+                  </select>
+                </div>
+
+                <div className="form-group">
+                  <label className="form-label">Nº do Registro</label>
+                  <input 
+                    value={newProfData.numeroConselho} 
+                    onChange={(e) => setNewProfData({ ...newProfData, numeroConselho: e.target.value })}
+                    className="form-control" 
+                    placeholder="Ex: 061234567-8"
+                  />
+                </div>
+
+                <div className="form-group">
+                  <label className="form-label">Situação</label>
+                  <select 
+                    value={newProfData.situacaoConselho} 
+                    onChange={(e) => setNewProfData({ ...newProfData, situacaoConselho: e.target.value })}
+                    className="form-control"
+                  >
+                    <option value="ATIVO">Ativo / Regular</option>
+                    <option value="INATIVO">Inativo</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="form-group">
+                <label className="form-label">Formação / Graduação</label>
+                <input 
+                  value={newProfData.formacao} 
+                  onChange={(e) => setNewProfData({ ...newProfData, formacao: e.target.value })}
+                  className="form-control" 
+                  placeholder="Ex: Engenharia Civil (UFC), Especialização em Pavimentação"
+                />
+              </div>
+
+              <div className="form-group">
+                <label className="form-label">Resumo Profissional / Experiência</label>
+                <textarea 
+                  value={newProfData.resumoProfissional} 
+                  onChange={(e) => setNewProfData({ ...newProfData, resumoProfissional: e.target.value })}
+                  className="form-control" 
+                  rows={2}
+                  placeholder="Descreva a atuação principal, tempo de experiência e especialidades técnicas..."
+                />
+              </div>
+
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '12px' }}>
+                <button type="button" onClick={() => setModalProfOpen(false)} className="btn btn-secondary">
+                  Cancelar
+                </button>
+                <button type="submit" disabled={savingProf} className="btn btn-primary" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  {savingProf ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
+                  Salvar Profissional
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ─────────────────────────────────────────────────────────── */}
+      {/* MODAL: VINCULAR CAT DIRETA AO PROFISSIONAL                  */}
+      {/* ─────────────────────────────────────────────────────────── */}
+      {modalProfCatOpen && selectedProfDossie && (
+        <div style={{
+          position: 'fixed',
+          inset: 0,
+          background: 'rgba(0, 0, 0, 0.85)',
+          backdropFilter: 'blur(6px)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 10000,
+          padding: '20px'
+        }}
+        onClick={() => setModalProfCatOpen(false)}
+        >
+          <div 
+            className="card" 
+            style={{ 
+              maxWidth: '600px', 
+              width: '100%', 
+              background: 'var(--bg-surface)',
+              border: '1px solid var(--border-color-strong)',
+              borderRadius: 'var(--radius-xl)',
+              padding: '26px'
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '18px' }}>
+              <div>
+                <h3 style={{ fontSize: '1.2rem', fontWeight: 700 }}>Vincular CAT à Pasta do Engenheiro</h3>
+                <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>Profissional: {selectedProfDossie.nome}</p>
+              </div>
+              <button onClick={() => setModalProfCatOpen(false)} className="btn btn-ghost btn-sm">
+                <X size={20} />
+              </button>
+            </div>
+
+            <form onSubmit={handleAddProfCat} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                <div className="form-group">
+                  <label className="form-label">Nº da CAT</label>
+                  <input 
+                    value={newProfCatData.numeroCat} 
+                    onChange={(e) => setNewProfCatData({ ...newProfCatData, numeroCat: e.target.value })}
+                    className="form-control" 
+                    placeholder="Ex: 2026/0142"
+                  />
+                </div>
+                <div className="form-group">
+                  <label className="form-label">Nº do Atestado</label>
+                  <input 
+                    value={newProfCatData.numeroAtestado} 
+                    onChange={(e) => setNewProfCatData({ ...newProfCatData, numeroAtestado: e.target.value })}
+                    className="form-control" 
+                    placeholder="Ex: AT-89/2025"
+                  />
+                </div>
+              </div>
+
+              <div className="form-group">
+                <label className="form-label">Órgão Emitente *</label>
+                <input 
+                  value={newProfCatData.emitente} 
+                  onChange={(e) => setNewProfCatData({ ...newProfCatData, emitente: e.target.value })}
+                  className="form-control" 
+                  placeholder="Ex: SEINFRA/CE, DNIT, Prefeitura de Fortaleza..."
+                  required
+                />
+              </div>
+
+              <div className="form-group">
+                <label className="form-label">Objeto dos Serviços *</label>
+                <textarea 
+                  value={newProfCatData.objeto} 
+                  onChange={(e) => setNewProfCatData({ ...newProfCatData, objeto: e.target.value })}
+                  className="form-control" 
+                  rows={2}
+                  placeholder="Descreva os serviços executados e quantitativos principais..."
+                  required
+                />
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                <div className="form-group">
+                  <label className="form-label">Tipo de Serviço</label>
+                  <select 
+                    value={newProfCatData.tipoServico} 
+                    onChange={(e) => setNewProfCatData({ ...newProfCatData, tipoServico: e.target.value })}
+                    className="form-control"
+                  >
+                    <option value="PAVIMENTACAO_INFRAESTRUTURA">Pavimentação e Infraestrutura</option>
+                    <option value="EXECUCAO_EDIFICACOES">Edificações e Obras Civis</option>
+                    <option value="OBRAS_RODOVIARIAS">Obras Rodoviárias</option>
+                    <option value="SUPERVISAO_FISCALIZACAO">Fiscalização e Supervisão</option>
+                    <option value="SERVICOS_HIDRICOS">Saneamento e Hídricos</option>
+                  </select>
+                </div>
+                <div className="form-group">
+                  <label className="form-label">UF</label>
+                  <input 
+                    value={newProfCatData.uf} 
+                    onChange={(e) => setNewProfCatData({ ...newProfCatData, uf: e.target.value })}
+                    className="form-control" 
+                    placeholder="CE"
+                  />
+                </div>
+              </div>
+
+              <div className="form-group">
+                <label className="form-label">Link do Documento / Google Drive</label>
+                <input 
+                  value={newProfCatData.urlOrigem} 
+                  onChange={(e) => setNewProfCatData({ ...newProfCatData, urlOrigem: e.target.value })}
+                  className="form-control" 
+                  placeholder="https://..."
+                />
+              </div>
+
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '10px' }}>
+                <button type="button" onClick={() => setModalProfCatOpen(false)} className="btn btn-secondary">
+                  Cancelar
+                </button>
+                <button type="submit" disabled={savingProfCat} className="btn btn-primary" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  {savingProfCat ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
+                  Salvar e Vincular
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ─────────────────────────────────────────────────────────── */}
+      {/* MODAL: GERENCIAMENTO COMPLETO DA EMPRESA                   */}
       {/* ─────────────────────────────────────────────────────────── */}
       {companyModalOpen && selectedEmpresa && (
         <div style={{
           position: 'fixed',
           inset: 0,
-          background: 'rgba(0, 0, 0, 0.88)',
-          backdropFilter: 'blur(8px)',
+          background: 'rgba(0, 0, 0, 0.85)',
+          backdropFilter: 'blur(6px)',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
@@ -582,428 +1627,260 @@ export default function EmpresasPage() {
           <div 
             className="card" 
             style={{ 
-              maxWidth: '1000px', 
+              maxWidth: '900px', 
               width: '100%', 
-              maxHeight: '92vh', 
+              maxHeight: '90vh', 
               overflowY: 'auto',
               background: 'var(--bg-surface)',
               border: '1px solid var(--border-color-strong)',
               borderRadius: 'var(--radius-xl)',
-              padding: '26px'
+              padding: '28px'
             }}
             onClick={(e) => e.stopPropagation()}
           >
-            {/* Modal Header */}
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '20px', borderBottom: '1px solid var(--border-color)', paddingBottom: '16px' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
-                <div style={{ width: '46px', height: '46px', borderRadius: 'var(--radius-md)', background: 'var(--gradient-primary)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff' }}>
-                  <Building2 size={24} />
-                </div>
-                <div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <h2 style={{ fontSize: '1.35rem', fontWeight: 800, color: 'var(--text-primary)', margin: 0 }}>
-                      {selectedEmpresa.tradeName || selectedEmpresa.name}
-                    </h2>
-                    <span style={{ fontSize: '0.72rem', fontWeight: 700, padding: '2px 8px', borderRadius: '4px', background: 'rgba(34, 197, 94, 0.15)', color: '#34d399' }}>
-                      {selectedEmpresa.type}
-                    </span>
-                  </div>
-                  <p style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', margin: '2px 0 0' }}>
-                    {selectedEmpresa.name} • CNPJ: {selectedEmpresa.cnpj || 'S/N'}
-                  </p>
-                </div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+              <div>
+                <h3 style={{ fontSize: '1.3rem', fontWeight: 700, color: 'var(--text-primary)' }}>
+                  {selectedEmpresa.tradeName || selectedEmpresa.name}
+                </h3>
+                <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
+                  {selectedEmpresa.name} • CNPJ: {selectedEmpresa.cnpj || 'Não cadastrado'}
+                </p>
               </div>
-
               <button onClick={() => setCompanyModalOpen(false)} className="btn btn-ghost btn-sm">
-                <X size={22} />
+                <X size={20} />
               </button>
             </div>
 
-            {/* Modal Navigation Tabs */}
-            <div style={{ display: 'flex', gap: '8px', marginBottom: '20px', borderBottom: '1px solid var(--border-color)', paddingBottom: '10px', flexWrap: 'wrap' }}>
+            {/* Abas Internas da Empresa */}
+            <div style={{ display: 'flex', gap: '8px', borderBottom: '1px solid var(--border-color)', paddingBottom: '10px', marginBottom: '20px' }}>
               <button 
-                onClick={() => setCompanyTab('acervos')}
+                onClick={() => setCompanyTab('acervos')} 
                 className={`btn btn-sm ${companyTab === 'acervos' ? 'btn-primary' : 'btn-secondary'}`}
-                style={{ display: 'flex', alignItems: 'center', gap: '6px' }}
               >
-                <FileText size={15} />
-                Acervo Técnico & CATs ({selectedEmpresa.acervo?.length || 0})
+                Atestados & CATs ({selectedEmpresa.acervo?.length || 0})
               </button>
-
               <button 
-                onClick={() => setCompanyTab('profissionais')}
-                className={`btn btn-sm ${companyTab === 'profissionais' ? 'btn-primary' : 'btn-secondary'}`}
-                style={{ display: 'flex', alignItems: 'center', gap: '6px' }}
-              >
-                <Users size={15} />
-                Parceiros Profissionais & RT ({selectedEmpresa.profissionais?.length || 0})
-              </button>
-
-              <button 
-                onClick={() => setCompanyTab('certidoes')}
+                onClick={() => setCompanyTab('certidoes')} 
                 className={`btn btn-sm ${companyTab === 'certidoes' ? 'btn-primary' : 'btn-secondary'}`}
-                style={{ display: 'flex', alignItems: 'center', gap: '6px' }}
               >
-                <ShieldCheck size={15} />
                 Certidões & Habilitação ({selectedEmpresa.complianceDocs?.length || 0})
               </button>
-
               <button 
-                onClick={() => setCompanyTab('dados')}
+                onClick={() => setCompanyTab('dados')} 
                 className={`btn btn-sm ${companyTab === 'dados' ? 'btn-primary' : 'btn-secondary'}`}
-                style={{ display: 'flex', alignItems: 'center', gap: '6px' }}
               >
-                <Edit3 size={15} />
-                Editar Dados da Empresa
+                Dados Cadastrais
               </button>
             </div>
 
-            {/* Content per Tab */}
             {loadingCompanyDetails ? (
-              <div style={{ textAlign: 'center', padding: '50px 0' }}>
-                <Loader2 size={32} className="animate-spin" style={{ margin: '0 auto 10px', color: 'var(--color-primary)' }} />
-                <p style={{ color: 'var(--text-secondary)' }}>Carregando dados completos...</p>
+              <div style={{ padding: '40px', textAlign: 'center', color: 'var(--text-secondary)' }}>
+                <Loader2 size={24} className="animate-spin" style={{ margin: '0 auto 10px', color: 'var(--color-primary)' }} />
+                Carregando detalhes da empresa...
               </div>
             ) : (
               <div>
-                {/* ─── ABA ACERVOS ─── */}
+                {/* Aba Acervos da Empresa */}
                 {companyTab === 'acervos' && (
                   <div>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', flexWrap: 'wrap', gap: '10px' }}>
-                      <div>
-                        <h4 style={{ fontSize: '1.05rem', fontWeight: 700, margin: 0 }}>Atestados de Capacidade Técnica da Empresa</h4>
-                        <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', margin: 0 }}>Documentos comprobatórios para qualificação técnico-operacional</p>
-                      </div>
-
-                      <button 
-                        onClick={() => setModalCatOpen(true)}
-                        className="btn btn-primary btn-sm"
-                        style={{ display: 'flex', alignItems: 'center', gap: '6px' }}
-                      >
-                        <Plus size={15} /> Registrar Novo Atestado / CAT
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
+                      <h4 style={{ fontSize: '0.95rem', fontWeight: 600 }}>Atestados da Empresa</h4>
+                      <button onClick={() => setModalCatOpen(true)} className="btn btn-primary btn-sm">
+                        <Plus size={14} /> Cadastrar Novo Atestado
                       </button>
                     </div>
 
-                    {(!selectedEmpresa.acervo || selectedEmpresa.acervo.length === 0) ? (
-                      <div style={{ textAlign: 'center', padding: '40px', background: 'var(--bg-elevated)', borderRadius: 'var(--radius-lg)' }}>
-                        <FileText size={36} style={{ margin: '0 auto 10px', opacity: 0.3 }} />
-                        <p style={{ color: 'var(--text-secondary)' }}>Nenhum atestado cadastrado para esta empresa.</p>
-                        <button onClick={() => setModalCatOpen(true)} className="btn btn-primary btn-sm" style={{ marginTop: '10px' }}>
-                          <Plus size={14} /> Cadastrar Primeiro Atestado
-                        </button>
-                      </div>
+                    {!selectedEmpresa.acervo || selectedEmpresa.acervo.length === 0 ? (
+                      <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', textAlign: 'center', padding: '24px' }}>
+                        Nenhum atestado registrado para esta empresa.
+                      </p>
                     ) : (
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', maxHeight: '550px', overflowY: 'auto' }}>
-                        {selectedEmpresa.acervo.map((cat: any) => (
-                          <div 
-                            key={cat.id} 
-                            style={{ 
-                              background: 'var(--bg-elevated)', 
-                              padding: '14px 18px', 
-                              borderRadius: 'var(--radius-md)', 
-                              border: '1px solid var(--border-color)',
-                              display: 'flex',
-                              justifyContent: 'space-between',
-                              alignItems: 'center',
-                              gap: '14px'
-                            }}
-                          >
-                            <div style={{ flex: 1 }}>
-                              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
-                                <span style={{ fontSize: '0.75rem', fontWeight: 700, color: '#34d399', background: 'rgba(52, 211, 153, 0.12)', padding: '2px 8px', borderRadius: '4px' }}>
-                                  CAT: {cat.numeroCat || cat.numeroAtestado || 'S/N'}
-                                </span>
-                                <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>
-                                  {cat.uf || 'CE/BA'} • {cat.tipoServico || 'Execução'}
-                                </span>
-                              </div>
-                              <div style={{ fontWeight: 600, color: 'var(--text-primary)', fontSize: '0.9rem', lineHeight: 1.35 }}>
-                                {cat.objeto}
-                              </div>
-                              <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', marginTop: '3px' }}>
-                                Contratante: {cat.emitente} {cat.responsavelTecnico ? `• RT: ${cat.responsavelTecnico}` : ''}
-                              </div>
-                            </div>
-
-                            <div style={{ display: 'flex', gap: '8px', flexShrink: 0 }}>
-                              <button 
-                                onClick={() => { setEditingCat(cat); setModalEditCatOpen(true); }}
-                                className="btn btn-secondary btn-sm"
-                                style={{ padding: '6px 10px', fontSize: '0.78rem', display: 'flex', alignItems: 'center', gap: '4px' }}
-                              >
-                                <Edit3 size={13} /> Editar
-                              </button>
-
-                              {(cat.urlOrigem || cat.storageUrl) ? (
-                                <a 
-                                  href={cat.urlOrigem || cat.storageUrl} 
-                                  target="_blank" 
-                                  rel="noopener noreferrer" 
-                                  className="btn btn-primary btn-sm"
-                                  style={{ padding: '6px 12px', fontSize: '0.78rem', display: 'flex', alignItems: 'center', gap: '5px', textDecoration: 'none' }}
-                                >
-                                  <Download size={14} /> Baixar PDF
-                                </a>
-                              ) : (
-                                <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', padding: '6px' }}>Sem link</span>
-                              )}
-                            </div>
-                          </div>
-                        ))}
+                      <div className="table-responsive">
+                        <table className="table">
+                          <thead>
+                            <tr>
+                              <th>CAT / Atestado</th>
+                              <th>Órgão Emitente</th>
+                              <th>Objeto</th>
+                              <th>Local</th>
+                              <th style={{ textAlign: 'right' }}>Documento</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {selectedEmpresa.acervo.map((cat: any) => (
+                              <tr key={cat.id}>
+                                <td>
+                                  <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.82rem', color: '#60a5fa' }}>
+                                    {cat.numeroCat || cat.numeroAtestado || 'S/N'}
+                                  </span>
+                                </td>
+                                <td style={{ fontSize: '0.82rem' }}>{cat.emitente}</td>
+                                <td style={{ fontSize: '0.82rem', maxWidth: '300px' }}>{cat.objeto}</td>
+                                <td style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>{cat.uf || 'CE'}</td>
+                                <td style={{ textAlign: 'right' }}>
+                                  {cat.urlOrigem || cat.storageUrl ? (
+                                    <a href={cat.urlOrigem || cat.storageUrl} target="_blank" rel="noreferrer" className="btn btn-secondary btn-sm" style={{ padding: '4px 8px', fontSize: '0.75rem' }}>
+                                      <ExternalLink size={12} /> Ver
+                                    </a>
+                                  ) : (
+                                    <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>-</span>
+                                  )}
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
                       </div>
                     )}
                   </div>
                 )}
 
-                {/* ─── ABA PROFISSIONAIS / PARCEIROS ─── */}
-                {companyTab === 'profissionais' && (
-                  <div>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', flexWrap: 'wrap', gap: '10px' }}>
-                      <div>
-                        <h4 style={{ fontSize: '1.05rem', fontWeight: 700, margin: 0 }}>Parceiros Profissionais & Responsáveis Técnicos</h4>
-                        <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', margin: 0 }}>Engenheiros e arquitetos vinculados à empresa para qualificação técnico-profissional</p>
-                      </div>
-
-                      <button 
-                        onClick={() => setModalProfOpen(true)}
-                        className="btn btn-primary btn-sm"
-                        style={{ display: 'flex', alignItems: 'center', gap: '6px' }}
-                      >
-                        <UserPlus size={15} /> Vincular Novo Parceiro / RT
-                      </button>
-                    </div>
-
-                    {(!selectedEmpresa.profissionais || selectedEmpresa.profissionais.length === 0) ? (
-                      <div style={{ textAlign: 'center', padding: '40px', background: 'var(--bg-elevated)', borderRadius: 'var(--radius-lg)' }}>
-                        <Users size={36} style={{ margin: '0 auto 10px', opacity: 0.3 }} />
-                        <p style={{ color: 'var(--text-secondary)' }}>Nenhum profissional vinculado a esta empresa.</p>
-                        <button onClick={() => setModalProfOpen(true)} className="btn btn-primary btn-sm" style={{ marginTop: '10px' }}>
-                          <UserPlus size={14} /> Vincular Profissional
-                        </button>
-                      </div>
-                    ) : (
-                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '14px' }}>
-                        {selectedEmpresa.profissionais.map((prof: any) => (
-                          <div key={prof.id} style={{ background: 'var(--bg-elevated)', padding: '16px', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-color)', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', gap: '12px' }}>
-                            <div>
-                              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
-                                <span style={{ fontSize: '0.72rem', fontWeight: 700, color: '#c084fc', background: 'rgba(168, 85, 247, 0.12)', padding: '2px 6px', borderRadius: '4px' }}>
-                                  {prof.conselho} {prof.numeroConselho || 'ATIVO'}
-                                </span>
-                                <span style={{ fontSize: '0.72rem', color: '#34d399', fontWeight: 700 }}>
-                                  {prof.vinculo}
-                                </span>
-                              </div>
-                              <h5 style={{ fontSize: '1rem', fontWeight: 700, color: 'var(--text-primary)', margin: '4px 0 2px' }}>
-                                {prof.nome}
-                              </h5>
-                              <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
-                                {prof.funcao}
-                              </div>
-                              {prof.formacao && (
-                                <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '4px' }}>
-                                  Formação: {prof.formacao}
-                                </div>
-                              )}
-                            </div>
-
-                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: '8px', borderTop: '1px solid var(--border-color)' }}>
-                              <span style={{ fontSize: '0.78rem', color: '#60a5fa', fontWeight: 600 }}>
-                                {prof.acervos?.length || 0} CATs no Acervo
-                              </span>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                )}
-
-                {/* ─── ABA CERTIDÕES & COMPLIANCE ─── */}
+                {/* Aba Certidões & Habilitação da Empresa */}
                 {companyTab === 'certidoes' && (
                   <div>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', flexWrap: 'wrap', gap: '10px' }}>
-                      <div>
-                        <h4 style={{ fontSize: '1.05rem', fontWeight: 700, margin: 0 }}>Certidões Negativas & Habilitação Jurídica/Fiscal</h4>
-                        <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', margin: 0 }}>Documentos de regularidade fiscal, trabalhista e jurídica da empresa</p>
-                      </div>
-
-                      <button 
-                        onClick={() => setModalCertidaoOpen(true)}
-                        className="btn btn-primary btn-sm"
-                        style={{ display: 'flex', alignItems: 'center', gap: '6px' }}
-                      >
-                        <Plus size={15} /> Registrar Nova Certidão
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
+                      <h4 style={{ fontSize: '0.95rem', fontWeight: 600 }}>Certidões Negativas e Documentos de Habilitação</h4>
+                      <button onClick={() => setModalCertidaoOpen(true)} className="btn btn-primary btn-sm">
+                        <Plus size={14} /> Nova Certidão
                       </button>
                     </div>
 
-                    {(!selectedEmpresa.complianceDocs || selectedEmpresa.complianceDocs.length === 0) ? (
-                      <div style={{ textAlign: 'center', padding: '40px', background: 'var(--bg-elevated)', borderRadius: 'var(--radius-lg)' }}>
-                        <ShieldCheck size={36} style={{ margin: '0 auto 10px', opacity: 0.3 }} />
-                        <p style={{ color: 'var(--text-secondary)' }}>Nenhuma certidão registrada para esta empresa.</p>
-                        <button onClick={() => setModalCertidaoOpen(true)} className="btn btn-primary btn-sm" style={{ marginTop: '10px' }}>
-                          <Plus size={14} /> Cadastrar Certidão
-                        </button>
-                      </div>
+                    {!selectedEmpresa.complianceDocs || selectedEmpresa.complianceDocs.length === 0 ? (
+                      <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', textAlign: 'center', padding: '24px' }}>
+                        Nenhuma certidão anexada para esta empresa.
+                      </p>
                     ) : (
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                        {selectedEmpresa.complianceDocs.map((doc: any) => (
-                          <div 
-                            key={doc.id} 
-                            style={{ 
-                              background: 'var(--bg-elevated)', 
-                              padding: '14px 18px', 
-                              borderRadius: 'var(--radius-md)', 
-                              border: '1px solid var(--border-color)',
-                              display: 'flex',
-                              justifyContent: 'space-between',
-                              alignItems: 'center',
-                              gap: '14px'
-                            }}
-                          >
-                            <div>
-                              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
-                                <span style={{ fontSize: '0.75rem', fontWeight: 700, color: '#34d399', background: 'rgba(52, 211, 153, 0.12)', padding: '2px 8px', borderRadius: '4px' }}>
-                                  {doc.tipo}
-                                </span>
-                                <span style={{ fontSize: '0.72rem', color: '#fbbf24', fontWeight: 600 }}>
-                                  {doc.vencimento ? `Vencimento: ${new Date(doc.vencimento).toLocaleDateString('pt-BR')}` : 'Sem Vencimento'}
-                                </span>
-                              </div>
-                              <div style={{ fontWeight: 600, color: 'var(--text-primary)', fontSize: '0.9rem' }}>
-                                {doc.nome}
-                              </div>
-                              <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', marginTop: '2px' }}>
-                                Emissor: {doc.emissor || 'Órgão Competente'} {doc.numero ? `• Nº: ${doc.numero}` : ''}
-                              </div>
-                            </div>
-
-                            <div>
-                              {(doc.storageUrl) ? (
-                                <a 
-                                  href={doc.storageUrl} 
-                                  target="_blank" 
-                                  rel="noopener noreferrer" 
-                                  className="btn btn-primary btn-sm"
-                                  style={{ padding: '6px 12px', fontSize: '0.78rem', display: 'flex', alignItems: 'center', gap: '5px', textDecoration: 'none' }}
-                                >
-                                  <Download size={14} /> Baixar Certidão
-                                </a>
-                              ) : (
-                                <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Vigente</span>
-                              )}
-                            </div>
-                          </div>
-                        ))}
+                      <div className="table-responsive">
+                        <table className="table">
+                          <thead>
+                            <tr>
+                              <th>Certidão / Documento</th>
+                              <th>Tipo</th>
+                              <th>Emissor</th>
+                              <th>Vencimento</th>
+                              <th>Status</th>
+                              <th style={{ textAlign: 'right' }}>Anexo</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {selectedEmpresa.complianceDocs.map((doc: any) => (
+                              <tr key={doc.id}>
+                                <td><strong style={{ fontSize: '0.85rem' }}>{doc.nome}</strong></td>
+                                <td style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>{doc.tipo}</td>
+                                <td style={{ fontSize: '0.82rem' }}>{doc.emissor || '-'}</td>
+                                <td style={{ fontSize: '0.82rem', color: '#fbbf24' }}>
+                                  {doc.vencimento ? formatDate(doc.vencimento) : 'Sem validade'}
+                                </td>
+                                <td>
+                                  <span style={{ 
+                                    fontSize: '0.72rem', 
+                                    fontWeight: 700, 
+                                    padding: '2px 7px', 
+                                    borderRadius: 'var(--radius-sm)',
+                                    background: doc.status === 'VIGENTE' ? 'rgba(34, 197, 94, 0.15)' : 'rgba(239, 68, 68, 0.15)',
+                                    color: doc.status === 'VIGENTE' ? '#34d399' : '#f87171'
+                                  }}>
+                                    {doc.status || 'VIGENTE'}
+                                  </span>
+                                </td>
+                                <td style={{ textAlign: 'right' }}>
+                                  {doc.storageUrl ? (
+                                    <a href={doc.storageUrl} target="_blank" rel="noreferrer" className="btn btn-secondary btn-sm" style={{ padding: '4px 8px', fontSize: '0.75rem' }}>
+                                      <ExternalLink size={12} /> Ver
+                                    </a>
+                                  ) : (
+                                    <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>-</span>
+                                  )}
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
                       </div>
                     )}
                   </div>
                 )}
 
-                {/* ─── ABA DADOS CADASTRAIS (EDIÇÃO) ─── */}
+                {/* Aba Dados Cadastrais */}
                 {companyTab === 'dados' && (
-                  <form onSubmit={handleSaveCompanyData} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-                    <div style={{ display: 'grid', gridTemplateColumns: '1.5fr 1fr', gap: '14px' }}>
+                  <form onSubmit={handleSaveCompanyData} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
                       <div className="form-group">
-                        <label className="form-label">Razão Social *</label>
+                        <label className="form-label">Razão Social</label>
                         <input 
-                          value={editCompanyData.name} 
+                          value={editCompanyData.name || ''} 
                           onChange={(e) => setEditCompanyData({ ...editCompanyData, name: e.target.value })}
                           className="form-control" 
-                          required 
+                          required
                         />
                       </div>
-
                       <div className="form-group">
                         <label className="form-label">Nome Fantasia</label>
                         <input 
-                          value={editCompanyData.tradeName} 
+                          value={editCompanyData.tradeName || ''} 
                           onChange={(e) => setEditCompanyData({ ...editCompanyData, tradeName: e.target.value })}
                           className="form-control" 
                         />
                       </div>
                     </div>
 
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px' }}>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
                       <div className="form-group">
                         <label className="form-label">CNPJ</label>
                         <input 
-                          value={editCompanyData.cnpj} 
+                          value={editCompanyData.cnpj || ''} 
                           onChange={(e) => setEditCompanyData({ ...editCompanyData, cnpj: e.target.value })}
                           className="form-control" 
                         />
                       </div>
-
                       <div className="form-group">
                         <label className="form-label">Tipo de Entidade</label>
                         <select 
-                          value={editCompanyData.type} 
+                          value={editCompanyData.type || 'PROPRIA'} 
                           onChange={(e) => setEditCompanyData({ ...editCompanyData, type: e.target.value })}
                           className="form-control"
                         >
                           <option value="PROPRIA">Empresa Própria</option>
                           <option value="PARCEIRA">Empresa Parceira</option>
-                          <option value="CONSORCIO">Consórcio / SPE</option>
+                          <option value="CONSORCIO">Consórcio</option>
                         </select>
                       </div>
                     </div>
 
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px' }}>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
                       <div className="form-group">
-                        <label className="form-label">Email Institucional</label>
+                        <label className="form-label">E-mail</label>
                         <input 
-                          value={editCompanyData.email} 
+                          value={editCompanyData.email || ''} 
                           onChange={(e) => setEditCompanyData({ ...editCompanyData, email: e.target.value })}
                           className="form-control" 
                         />
                       </div>
-
                       <div className="form-group">
-                        <label className="form-label">Telefone de Contato</label>
+                        <label className="form-label">Telefone</label>
                         <input 
-                          value={editCompanyData.phone} 
+                          value={editCompanyData.phone || ''} 
                           onChange={(e) => setEditCompanyData({ ...editCompanyData, phone: e.target.value })}
                           className="form-control" 
                         />
                       </div>
                     </div>
 
-                    <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 0.6fr', gap: '14px' }}>
-                      <div className="form-group">
-                        <label className="form-label">Endereço Completo</label>
-                        <input 
-                          value={editCompanyData.address} 
-                          onChange={(e) => setEditCompanyData({ ...editCompanyData, address: e.target.value })}
-                          className="form-control" 
-                        />
-                      </div>
-
-                      <div className="form-group">
-                        <label className="form-label">Cidade</label>
-                        <input 
-                          value={editCompanyData.city} 
-                          onChange={(e) => setEditCompanyData({ ...editCompanyData, city: e.target.value })}
-                          className="form-control" 
-                        />
-                      </div>
-
-                      <div className="form-group">
-                        <label className="form-label">UF</label>
-                        <input 
-                          value={editCompanyData.state} 
-                          onChange={(e) => setEditCompanyData({ ...editCompanyData, state: e.target.value })}
-                          className="form-control" 
-                        />
-                      </div>
+                    <div className="form-group">
+                      <label className="form-label">Observações & Áreas de Atuação</label>
+                      <textarea 
+                        value={editCompanyData.notes || ''} 
+                        onChange={(e) => setEditCompanyData({ ...editCompanyData, notes: e.target.value })}
+                        className="form-control" 
+                        rows={3}
+                      />
                     </div>
 
-                    <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '12px' }}>
-                      <button type="button" onClick={() => setCompanyModalOpen(false)} className="btn btn-secondary">
-                        Fechar
-                      </button>
-                      <button type="submit" disabled={savingEditCompany} className="btn btn-primary" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '10px' }}>
+                      <button type="submit" disabled={savingEditCompany} className="btn btn-primary" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                         {savingEditCompany ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
-                        Salvar Alterações da Empresa
+                        Salvar Alterações
                       </button>
                     </div>
                   </form>
@@ -1014,20 +1891,17 @@ export default function EmpresasPage() {
         </div>
       )}
 
-      {/* ─────────────────────────────────────────────────────────── */}
-      {/* MODAIS SECUNDÁRIOS: NOVA CAT, EDITAR CAT, PROFISSIONAL, ETC */}
-      {/* ─────────────────────────────────────────────────────────── */}
-      {/* Modal Registrar Nova CAT */}
-      {modalCatOpen && selectedEmpresa && (
+      {/* Modal Nova CAT para Empresa */}
+      {modalCatOpen && (
         <div style={{
           position: 'fixed',
           inset: 0,
-          background: 'rgba(0, 0, 0, 0.88)',
+          background: 'rgba(0, 0, 0, 0.85)',
           backdropFilter: 'blur(6px)',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          zIndex: 99999,
+          zIndex: 10000,
           padding: '20px'
         }}
         onClick={() => setModalCatOpen(false)}
@@ -1035,60 +1909,59 @@ export default function EmpresasPage() {
           <div 
             className="card" 
             style={{ 
-              maxWidth: '650px', 
+              maxWidth: '600px', 
               width: '100%', 
-              maxHeight: '90vh', 
-              overflowY: 'auto',
               background: 'var(--bg-surface)',
               border: '1px solid var(--border-color-strong)',
               borderRadius: 'var(--radius-xl)',
-              padding: '24px'
+              padding: '26px'
             }}
             onClick={(e) => e.stopPropagation()}
           >
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '18px' }}>
-              <div>
-                <h3 style={{ fontSize: '1.2rem', fontWeight: 700 }}>Registrar Atestado / CAT</h3>
-                <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>Empresa: {selectedEmpresa.tradeName || selectedEmpresa.name}</p>
-              </div>
-              <button onClick={() => setModalCatOpen(false)} className="btn btn-ghost btn-sm">
-                <X size={20} />
-              </button>
+              <h3 style={{ fontSize: '1.2rem', fontWeight: 700 }}>Cadastrar Atestado / CAT para a Empresa</h3>
+              <button onClick={() => setModalCatOpen(false)} className="btn btn-ghost btn-sm"><X size={20} /></button>
             </div>
 
             <form onSubmit={handleCreateCat} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
                 <div className="form-group">
-                  <label className="form-label">Número da CAT *</label>
+                  <label className="form-label">Nº da CAT</label>
                   <input 
                     value={newCatData.numeroCat} 
                     onChange={(e) => setNewCatData({ ...newCatData, numeroCat: e.target.value })}
                     className="form-control" 
-                    placeholder="Ex: 247128/2024"
-                    required
+                    placeholder="Ex: 0142/2026"
                   />
                 </div>
-
                 <div className="form-group">
-                  <label className="form-label">Órgão Emitente / Contratante *</label>
+                  <label className="form-label">Nº do Atestado</label>
                   <input 
-                    value={newCatData.emitente} 
-                    onChange={(e) => setNewCatData({ ...newCatData, emitente: e.target.value })}
+                    value={newCatData.numeroAtestado} 
+                    onChange={(e) => setNewCatData({ ...newCatData, numeroAtestado: e.target.value })}
                     className="form-control" 
-                    placeholder="Ex: SEINFRA / DER"
-                    required
+                    placeholder="Ex: AT-15/2025"
                   />
                 </div>
               </div>
 
               <div className="form-group">
-                <label className="form-label">Objeto da Obra ou Serviço *</label>
+                <label className="form-label">Órgão Emitente *</label>
+                <input 
+                  value={newCatData.emitente} 
+                  onChange={(e) => setNewCatData({ ...newCatData, emitente: e.target.value })}
+                  className="form-control" 
+                  required
+                />
+              </div>
+
+              <div className="form-group">
+                <label className="form-label">Objeto *</label>
                 <textarea 
                   value={newCatData.objeto} 
                   onChange={(e) => setNewCatData({ ...newCatData, objeto: e.target.value })}
                   className="form-control" 
                   rows={2}
-                  placeholder="Descrição do serviço executado pela empresa..." 
                   required
                 />
               </div>
@@ -1101,63 +1974,37 @@ export default function EmpresasPage() {
                     onChange={(e) => setNewCatData({ ...newCatData, tipoServico: e.target.value })}
                     className="form-control"
                   >
-                    <option value="EXECUCAO_INFRAESTRUTURA">Execução de Infraestrutura</option>
-                    <option value="ELABORACAO_PROJETOS">Elaboração de Projetos</option>
-                    <option value="SUPERVISAO_FISCALIZACAO">Supervisão / Fiscalização</option>
-                    <option value="GERENCIAMENTO">Gerenciamento</option>
+                    <option value="PAVIMENTACAO_INFRAESTRUTURA">Pavimentação e Infraestrutura</option>
+                    <option value="EXECUCAO_EDIFICACOES">Edificações e Obras Civis</option>
+                    <option value="OBRAS_RODOVIARIAS">Obras Rodoviárias</option>
+                    <option value="SUPERVISAO_FISCALIZACAO">Fiscalização e Supervisão</option>
+                    <option value="SERVICOS_HIDRICOS">Saneamento e Hídricos</option>
                   </select>
                 </div>
-
-                <div className="form-group">
-                  <label className="form-label">Área Técnica</label>
-                  <input 
-                    value={newCatData.areaTecnica} 
-                    onChange={(e) => setNewCatData({ ...newCatData, areaTecnica: e.target.value })}
-                    className="form-control" 
-                    placeholder="Ex: Pavimentação e Drenagem"
-                  />
-                </div>
-              </div>
-
-              <div style={{ display: 'grid', gridTemplateColumns: '1.5fr 0.5fr', gap: '12px' }}>
-                <div className="form-group">
-                  <label className="form-label">Local da Obra</label>
-                  <input 
-                    value={newCatData.local} 
-                    onChange={(e) => setNewCatData({ ...newCatData, local: e.target.value })}
-                    className="form-control" 
-                    placeholder="Ex: Fortaleza"
-                  />
-                </div>
-
                 <div className="form-group">
                   <label className="form-label">UF</label>
                   <input 
                     value={newCatData.uf} 
                     onChange={(e) => setNewCatData({ ...newCatData, uf: e.target.value })}
                     className="form-control" 
-                    placeholder="CE"
                   />
                 </div>
               </div>
 
               <div className="form-group">
-                <label className="form-label">Link do Arquivo PDF (Google Drive / Nuvem)</label>
+                <label className="form-label">Link do Documento</label>
                 <input 
                   value={newCatData.urlOrigem} 
                   onChange={(e) => setNewCatData({ ...newCatData, urlOrigem: e.target.value })}
                   className="form-control" 
-                  placeholder="https://drive.google.com/file/d/..."
+                  placeholder="https://..."
                 />
               </div>
 
               <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '10px' }}>
-                <button type="button" onClick={() => setModalCatOpen(false)} className="btn btn-secondary">
-                  Cancelar
-                </button>
-                <button type="submit" disabled={savingCat} className="btn btn-primary" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                  {savingCat ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
-                  Salvar Atestado
+                <button type="button" onClick={() => setModalCatOpen(false)} className="btn btn-secondary">Cancelar</button>
+                <button type="submit" disabled={savingCat} className="btn btn-primary">
+                  {savingCat ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />} Salvar CAT
                 </button>
               </div>
             </form>
@@ -1165,220 +2012,17 @@ export default function EmpresasPage() {
         </div>
       )}
 
-      {/* Modal Editar CAT */}
-      {modalEditCatOpen && editingCat && (
+      {/* Modal Nova Certidão para Empresa */}
+      {modalCertidaoOpen && (
         <div style={{
           position: 'fixed',
           inset: 0,
-          background: 'rgba(0, 0, 0, 0.88)',
+          background: 'rgba(0, 0, 0, 0.85)',
           backdropFilter: 'blur(6px)',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          zIndex: 99999,
-          padding: '20px'
-        }}
-        onClick={() => setModalEditCatOpen(false)}
-        >
-          <div 
-            className="card" 
-            style={{ 
-              maxWidth: '650px', 
-              width: '100%', 
-              maxHeight: '90vh', 
-              overflowY: 'auto',
-              background: 'var(--bg-surface)',
-              border: '1px solid var(--border-color-strong)',
-              borderRadius: 'var(--radius-xl)',
-              padding: '24px'
-            }}
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '18px' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <Edit3 size={18} style={{ color: 'var(--color-primary)' }} />
-                <h3 style={{ fontSize: '1.2rem', fontWeight: 700 }}>Editar Atestado Técnico / CAT</h3>
-              </div>
-              <button onClick={() => setModalEditCatOpen(false)} className="btn btn-ghost btn-sm">
-                <X size={20} />
-              </button>
-            </div>
-
-            <form onSubmit={handleSaveEditCat} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
-                <div className="form-group">
-                  <label className="form-label">Número da CAT</label>
-                  <input 
-                    value={editingCat.numeroCat || ''} 
-                    onChange={(e) => setEditingCat({ ...editingCat, numeroCat: e.target.value })}
-                    className="form-control" 
-                  />
-                </div>
-
-                <div className="form-group">
-                  <label className="form-label">Órgão Emitente *</label>
-                  <input 
-                    value={editingCat.emitente || ''} 
-                    onChange={(e) => setEditingCat({ ...editingCat, emitente: e.target.value })}
-                    className="form-control" 
-                    required
-                  />
-                </div>
-              </div>
-
-              <div className="form-group">
-                <label className="form-label">Objeto da Obra ou Serviço *</label>
-                <textarea 
-                  value={editingCat.objeto || ''} 
-                  onChange={(e) => setEditingCat({ ...editingCat, objeto: e.target.value })}
-                  className="form-control" 
-                  rows={2}
-                  required
-                />
-              </div>
-
-              <div className="form-group">
-                <label className="form-label">Link do Arquivo PDF (Google Drive / Nuvem)</label>
-                <input 
-                  value={editingCat.urlOrigem || editingCat.storageUrl || ''} 
-                  onChange={(e) => setEditingCat({ ...editingCat, urlOrigem: e.target.value, storageUrl: e.target.value })}
-                  className="form-control" 
-                />
-              </div>
-
-              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '10px' }}>
-                <button type="button" onClick={() => setModalEditCatOpen(false)} className="btn btn-secondary">
-                  Cancelar
-                </button>
-                <button type="submit" disabled={savingEditCat} className="btn btn-primary" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                  {savingEditCat ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
-                  Salvar Alterações
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* Modal Vincular Profissional à Empresa */}
-      {modalProfOpen && selectedEmpresa && (
-        <div style={{
-          position: 'fixed',
-          inset: 0,
-          background: 'rgba(0, 0, 0, 0.88)',
-          backdropFilter: 'blur(6px)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          zIndex: 99999,
-          padding: '20px'
-        }}
-        onClick={() => setModalProfOpen(false)}
-        >
-          <div 
-            className="card" 
-            style={{ 
-              maxWidth: '600px', 
-              width: '100%', 
-              background: 'var(--bg-surface)',
-              border: '1px solid var(--border-color-strong)',
-              borderRadius: 'var(--radius-xl)',
-              padding: '24px'
-            }}
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '18px' }}>
-              <div>
-                <h3 style={{ fontSize: '1.2rem', fontWeight: 700 }}>Vincular Parceiro / Engenheiro</h3>
-                <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>Empresa: {selectedEmpresa.tradeName || selectedEmpresa.name}</p>
-              </div>
-              <button onClick={() => setModalProfOpen(false)} className="btn btn-ghost btn-sm">
-                <X size={20} />
-              </button>
-            </div>
-
-            <form onSubmit={handleCreateProf} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-              <div className="form-group">
-                <label className="form-label">Nome Completo *</label>
-                <input 
-                  value={newProfData.nome} 
-                  onChange={(e) => setNewProfData({ ...newProfData, nome: e.target.value })}
-                  className="form-control" 
-                  placeholder="Ex: Eng. Mariana Costa"
-                  required
-                />
-              </div>
-
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
-                <div className="form-group">
-                  <label className="form-label">Função / Cargo</label>
-                  <input 
-                    value={newProfData.funcao} 
-                    onChange={(e) => setNewProfData({ ...newProfData, funcao: e.target.value })}
-                    className="form-control" 
-                  />
-                </div>
-
-                <div className="form-group">
-                  <label className="form-label">Vínculo</label>
-                  <select 
-                    value={newProfData.vinculo} 
-                    onChange={(e) => setNewProfData({ ...newProfData, vinculo: e.target.value })}
-                    className="form-control"
-                  >
-                    <option value="CLT">CLT</option>
-                    <option value="PJ">PJ (Prestador)</option>
-                    <option value="SOCIO">Sócio</option>
-                    <option value="PARCEIRO">Parceiro</option>
-                  </select>
-                </div>
-              </div>
-
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
-                <div className="form-group">
-                  <label className="form-label">Conselho</label>
-                  <input 
-                    value={newProfData.conselho} 
-                    onChange={(e) => setNewProfData({ ...newProfData, conselho: e.target.value })}
-                    className="form-control" 
-                  />
-                </div>
-
-                <div className="form-group">
-                  <label className="form-label">Registro (CREA/CAU)</label>
-                  <input 
-                    value={newProfData.numeroConselho} 
-                    onChange={(e) => setNewProfData({ ...newProfData, numeroConselho: e.target.value })}
-                    className="form-control" 
-                  />
-                </div>
-              </div>
-
-              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '10px' }}>
-                <button type="button" onClick={() => setModalProfOpen(false)} className="btn btn-secondary">
-                  Cancelar
-                </button>
-                <button type="submit" disabled={savingProf} className="btn btn-primary" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                  {savingProf ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
-                  Vincular Profissional
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* Modal Registrar Certidão */}
-      {modalCertidaoOpen && selectedEmpresa && (
-        <div style={{
-          position: 'fixed',
-          inset: 0,
-          background: 'rgba(0, 0, 0, 0.88)',
-          backdropFilter: 'blur(6px)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          zIndex: 99999,
+          zIndex: 10000,
           padding: '20px'
         }}
         onClick={() => setModalCertidaoOpen(false)}
@@ -1386,47 +2030,48 @@ export default function EmpresasPage() {
           <div 
             className="card" 
             style={{ 
-              maxWidth: '600px', 
+              maxWidth: '550px', 
               width: '100%', 
               background: 'var(--bg-surface)',
               border: '1px solid var(--border-color-strong)',
               borderRadius: 'var(--radius-xl)',
-              padding: '24px'
+              padding: '26px'
             }}
             onClick={(e) => e.stopPropagation()}
           >
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '18px' }}>
-              <div>
-                <h3 style={{ fontSize: '1.2rem', fontWeight: 700 }}>Registrar Certidão / Habilitação</h3>
-                <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>Empresa: {selectedEmpresa.tradeName || selectedEmpresa.name}</p>
-              </div>
-              <button onClick={() => setModalCertidaoOpen(false)} className="btn btn-ghost btn-sm">
-                <X size={20} />
-              </button>
+              <h3 style={{ fontSize: '1.2rem', fontWeight: 700 }}>Nova Certidão de Habilitação</h3>
+              <button onClick={() => setModalCertidaoOpen(false)} className="btn btn-ghost btn-sm"><X size={20} /></button>
             </div>
 
             <form onSubmit={handleCreateCertidao} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
               <div className="form-group">
-                <label className="form-label">Nome do Documento / Certidão *</label>
+                <label className="form-label">Nome da Certidão *</label>
                 <input 
                   value={newCertidaoData.nome} 
                   onChange={(e) => setNewCertidaoData({ ...newCertidaoData, nome: e.target.value })}
                   className="form-control" 
-                  placeholder="Ex: CND Federal (Receita / PGFN)"
                   required
                 />
               </div>
 
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
                 <div className="form-group">
-                  <label className="form-label">Órgão Emissor</label>
-                  <input 
-                    value={newCertidaoData.emissor} 
-                    onChange={(e) => setNewCertidaoData({ ...newCertidaoData, emissor: e.target.value })}
-                    className="form-control" 
-                  />
+                  <label className="form-label">Tipo</label>
+                  <select 
+                    value={newCertidaoData.tipo} 
+                    onChange={(e) => setNewCertidaoData({ ...newCertidaoData, tipo: e.target.value })}
+                    className="form-control"
+                  >
+                    <option value="CND_FEDERAL">CND Federal (PGFN / RFB)</option>
+                    <option value="FGTS">Certificado do FGTS (CRF)</option>
+                    <option value="CNDT">Certidão Negativa Trabalhista</option>
+                    <option value="CND_ESTADUAL">CND Estadual (SEFAZ)</option>
+                    <option value="CND_MUNICIPAL">CND Municipal (ISS)</option>
+                    <option value="FALENCIA">Certidão de Falência e Concordata</option>
+                    <option value="REGULARIDADE_CREA">Certidão de Registro no CREA/CAU</option>
+                  </select>
                 </div>
-
                 <div className="form-group">
                   <label className="form-label">Data de Vencimento</label>
                   <input 
@@ -1439,149 +2084,28 @@ export default function EmpresasPage() {
               </div>
 
               <div className="form-group">
-                <label className="form-label">Link do Arquivo PDF (Google Drive / Nuvem)</label>
+                <label className="form-label">Órgão Emissor</label>
+                <input 
+                  value={newCertidaoData.emissor} 
+                  onChange={(e) => setNewCertidaoData({ ...newCertidaoData, emissor: e.target.value })}
+                  className="form-control" 
+                />
+              </div>
+
+              <div className="form-group">
+                <label className="form-label">Link do Documento / Anexo</label>
                 <input 
                   value={newCertidaoData.storageUrl} 
                   onChange={(e) => setNewCertidaoData({ ...newCertidaoData, storageUrl: e.target.value })}
                   className="form-control" 
-                  placeholder="https://drive.google.com/file/d/..."
+                  placeholder="https://..."
                 />
               </div>
 
               <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '10px' }}>
-                <button type="button" onClick={() => setModalCertidaoOpen(false)} className="btn btn-secondary">
-                  Cancelar
-                </button>
-                <button type="submit" disabled={savingCertidao} className="btn btn-primary" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                  {savingCertidao ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
-                  Salvar Certidão
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* Modal Criar Nova Empresa */}
-      {modalOpen && (
-        <div style={{
-          position: 'fixed',
-          inset: 0,
-          background: 'rgba(0, 0, 0, 0.85)',
-          backdropFilter: 'blur(6px)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          zIndex: 999,
-          padding: '20px'
-        }}>
-          <div className="card" style={{ maxWidth: '600px', width: '100%', maxHeight: '90vh', overflowY: 'auto' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <Building2 size={20} style={{ color: 'var(--color-primary)' }} />
-                <h3 style={{ fontSize: '1.2rem', fontWeight: 700 }}>Cadastrar Empresa / Parceira</h3>
-              </div>
-              <button onClick={() => setModalOpen(false)} className="btn btn-ghost btn-sm" style={{ padding: '4px' }}>
-                <X size={20} />
-              </button>
-            </div>
-
-            <form onSubmit={handleCreateEmpresa} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-              <div className="form-group">
-                <label className="form-label">Razão Social *</label>
-                <input 
-                  value={newEmpresa.name} 
-                  onChange={(e) => setNewEmpresa({ ...newEmpresa, name: e.target.value })}
-                  className="form-control" 
-                  placeholder="Ex: UFC Engenharia Ltda"
-                  required 
-                />
-              </div>
-
-              <div style={{ display: 'grid', gridTemplateColumns: '1.5fr 1fr', gap: '14px' }}>
-                <div className="form-group">
-                  <label className="form-label">Nome Fantasia</label>
-                  <input 
-                    value={newEmpresa.tradeName} 
-                    onChange={(e) => setNewEmpresa({ ...newEmpresa, tradeName: e.target.value })}
-                    className="form-control" 
-                    placeholder="Ex: UFC Engenharia" 
-                  />
-                </div>
-
-                <div className="form-group">
-                  <label className="form-label">CNPJ</label>
-                  <input 
-                    value={newEmpresa.cnpj} 
-                    onChange={(e) => setNewEmpresa({ ...newEmpresa, cnpj: e.target.value })}
-                    className="form-control" 
-                    placeholder="00.000.000/0001-00" 
-                  />
-                </div>
-              </div>
-
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px' }}>
-                <div className="form-group">
-                  <label className="form-label">Tipo de Entidade</label>
-                  <select 
-                    value={newEmpresa.type} 
-                    onChange={(e) => setNewEmpresa({ ...newEmpresa, type: e.target.value })}
-                    className="form-control"
-                  >
-                    <option value="PROPRIA">Empresa Própria</option>
-                    <option value="PARCEIRA">Empresa Parceira</option>
-                    <option value="CONSORCIO">Consórcio / SPE</option>
-                  </select>
-                </div>
-
-                <div className="form-group">
-                  <label className="form-label">Email de Contato</label>
-                  <input 
-                    value={newEmpresa.email} 
-                    onChange={(e) => setNewEmpresa({ ...newEmpresa, email: e.target.value })}
-                    className="form-control" 
-                    placeholder="contato@empresa.com" 
-                  />
-                </div>
-              </div>
-
-              <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 0.6fr', gap: '14px' }}>
-                <div className="form-group">
-                  <label className="form-label">Endereço</label>
-                  <input 
-                    value={newEmpresa.address} 
-                    onChange={(e) => setNewEmpresa({ ...newEmpresa, address: e.target.value })}
-                    className="form-control" 
-                    placeholder="Av. das Construções, 500" 
-                  />
-                </div>
-
-                <div className="form-group">
-                  <label className="form-label">Cidade</label>
-                  <input 
-                    value={newEmpresa.city} 
-                    onChange={(e) => setNewEmpresa({ ...newEmpresa, city: e.target.value })}
-                    className="form-control" 
-                  />
-                </div>
-
-                <div className="form-group">
-                  <label className="form-label">UF</label>
-                  <input 
-                    value={newEmpresa.state} 
-                    onChange={(e) => setNewEmpresa({ ...newEmpresa, state: e.target.value })}
-                    className="form-control" 
-                  />
-                </div>
-              </div>
-
-              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px', marginTop: '12px' }}>
-                <button type="button" onClick={() => setModalOpen(false)} className="btn btn-secondary">
-                  Cancelar
-                </button>
-                <button type="submit" disabled={saving} className="btn btn-primary" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  {saving ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
-                  Cadastrar Empresa
+                <button type="button" onClick={() => setModalCertidaoOpen(false)} className="btn btn-secondary">Cancelar</button>
+                <button type="submit" disabled={savingCertidao} className="btn btn-primary">
+                  {savingCertidao ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />} Salvar Certidão
                 </button>
               </div>
             </form>

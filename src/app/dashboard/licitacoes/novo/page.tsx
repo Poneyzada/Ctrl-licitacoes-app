@@ -338,16 +338,15 @@ export default function NovaLicitacaoPage() {
             </div>
 
             <div className="form-group">
-              <label className="form-label">Tipo de Serviço</label>
+              <label className="form-label">Tipo de Serviço / Obra</label>
               <select name="tipoServico" value={formData.tipoServico} onChange={handleChange} className="form-control">
-                <option value="EXECUCAO_INFRAESTRUTURA">Obras de Infraestrutura</option>
-                <option value="ELABORACAO_PROJETOS">Elaboração de Projetos</option>
-                <option value="CONTRATACAO_INTEGRADA">Contratação Integrada (Projeto + Obra)</option>
-                <option value="SUPERVISAO">Supervisão de Obras</option>
-                <option value="FISCALIZACAO">Fiscalização</option>
-                <option value="GERENCIAMENTO">Gerenciamento</option>
-                <option value="MANUTENCAO">Manutenção Predial / Infra</option>
-                <option value="SERVICOS_HIDRICOS">Saneamento e Hídricos</option>
+                <option value="PAVIMENTACAO_INFRAESTRUTURA">Pavimentação e Execução de Infraestrutura</option>
+                <option value="EXECUCAO_EDIFICACOES">Execução e Projetos de Edificações / Obras Civis</option>
+                <option value="OBRAS_RODOVIARIAS">Obras de Infraestrutura Rodoviária</option>
+                <option value="ELABORACAO_PROJETOS">Elaboração de Projetos e Contratação Integrada</option>
+                <option value="SUPERVISAO_FISCALIZACAO">Fiscalização e Supervisão de Obras</option>
+                <option value="ASSESSORAMENTO_GERENCIAMENTO">Assessoramento e Gerenciamento</option>
+                <option value="SERVICOS_HIDRICOS">Serviços Hídricos e Saneamento Básico</option>
               </select>
             </div>
           </div>

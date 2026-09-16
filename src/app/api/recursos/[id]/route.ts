@@ -54,16 +54,24 @@ export async function PATCH(
       data
     });
 
-    // Log audit
-    await prisma.auditLog.create({
-      data: {
-        userId: session.user?.id || 'system',
-        action: 'UPDATE',
-        entity: 'RecursoCaso',
-        entityId: recurso.id,
-        metadata: JSON.stringify(recurso)
+    if (session.user?.id) {
+      try {
+        const userExists = await prisma.user.findUnique({ where: { id: session.user.id } });
+        if (userExists) {
+          await prisma.auditLog.create({
+            data: {
+              userId: session.user.id,
+              action: 'UPDATE',
+              entity: 'RecursoCaso',
+              entityId: recurso.id,
+              metadata: JSON.stringify(recurso)
+            }
+          });
+        }
+      } catch (auditErr) {
+        console.warn('Audit log warning:', auditErr);
       }
-    });
+    }
 
     return NextResponse.json(recurso);
   } catch (error) {
@@ -86,16 +94,24 @@ export async function DELETE(
       where: { id }
     });
 
-    // Log audit
-    await prisma.auditLog.create({
-      data: {
-        userId: session.user?.id || 'system',
-        action: 'DELETE',
-        entity: 'RecursoCaso',
-        entityId: recurso.id,
-        metadata: JSON.stringify(recurso)
+    if (session.user?.id) {
+      try {
+        const userExists = await prisma.user.findUnique({ where: { id: session.user.id } });
+        if (userExists) {
+          await prisma.auditLog.create({
+            data: {
+              userId: session.user.id,
+              action: 'DELETE',
+              entity: 'RecursoCaso',
+              entityId: recurso.id,
+              metadata: JSON.stringify(recurso)
+            }
+          });
+        }
+      } catch (auditErr) {
+        console.warn('Audit log warning:', auditErr);
       }
-    });
+    }
 
     return NextResponse.json({ success: true });
   } catch (error) {

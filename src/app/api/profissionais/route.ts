@@ -47,19 +47,28 @@ export async function POST(req: Request) {
       }
     });
 
-    await prisma.auditLog.create({
-      data: {
-        userId: session.user?.id || 'system',
-        action: 'CREATE',
-        entity: 'Professional',
-        entityId: professional.id,
-        metadata: JSON.stringify(professional)
+    if (session.user?.id) {
+      try {
+        const userExists = await prisma.user.findUnique({ where: { id: session.user.id } });
+        if (userExists) {
+          await prisma.auditLog.create({
+            data: {
+              userId: session.user.id,
+              action: 'CREATE',
+              entity: 'Professional',
+              entityId: professional.id,
+              metadata: JSON.stringify(professional)
+            }
+          });
+        }
+      } catch (auditErr) {
+        console.warn('Não foi possível gravar log de auditoria:', auditErr);
       }
-    });
+    }
 
     return NextResponse.json(professional, { status: 201 });
   } catch (error) {
     console.error('Erro ao criar profissional:', error);
-    return NextResponse.json({ error: 'Erro interno ao salvar' }, { status: 500 });
+    return NextResponse.json({ error: 'Erro interno ao salvar: ' + (error instanceof Error ? error.message : String(error)) }, { status: 500 });
   }
 }

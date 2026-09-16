@@ -62,16 +62,24 @@ export async function POST(req: Request) {
       }
     });
 
-    // Log audit
-    await prisma.auditLog.create({
-      data: {
-        userId: session.user?.id || 'system',
-        action: 'CREATE',
-        entity: 'RecursoCaso',
-        entityId: recurso.id,
-        metadata: JSON.stringify(recurso)
+    if (session.user?.id) {
+      try {
+        const userExists = await prisma.user.findUnique({ where: { id: session.user.id } });
+        if (userExists) {
+          await prisma.auditLog.create({
+            data: {
+              userId: session.user.id,
+              action: 'CREATE',
+              entity: 'RecursoCaso',
+              entityId: recurso.id,
+              metadata: JSON.stringify(recurso)
+            }
+          });
+        }
+      } catch (auditErr) {
+        console.warn('Audit log warning:', auditErr);
       }
-    });
+    }
 
     return NextResponse.json(recurso, { status: 201 });
   } catch (error) {

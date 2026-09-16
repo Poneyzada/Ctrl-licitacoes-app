@@ -56,19 +56,47 @@ export async function POST(req: Request) {
       }
     });
 
-    await prisma.auditLog.create({
-      data: {
-        userId: session.user?.id || 'system',
-        action: 'CREATE',
-        entity: 'Organization',
-        entityId: organization.id,
-        metadata: JSON.stringify(organization)
+    // Se foi enviado cartão CNPJ ou documento inicial
+    if (body.cnpjCardUrl || body.documentName) {
+      try {
+        await prisma.complianceDocument.create({
+          data: {
+            orgId: organization.id,
+            nome: body.documentName || 'Cartão CNPJ e Comprovante de Inscrição.pdf',
+            tipo: 'CARTAO_CNPJ',
+            numero: body.cnpj || '',
+            emissor: 'Receita Federal do Brasil',
+            storageUrl: body.cnpjCardUrl || '',
+            status: 'VIGENTE'
+          }
+        });
+      } catch (docErr) {
+        console.warn('Erro ao salvar documento inicial da empresa:', docErr);
       }
-    });
+    }
+
+    if (session.user?.id) {
+      try {
+        const userExists = await prisma.user.findUnique({ where: { id: session.user.id } });
+        if (userExists) {
+          await prisma.auditLog.create({
+            data: {
+              userId: session.user.id,
+              action: 'CREATE',
+              entity: 'Organization',
+              entityId: organization.id,
+              metadata: JSON.stringify(organization)
+            }
+          });
+        }
+      } catch (auditErr) {
+        console.warn('Audit log warning:', auditErr);
+      }
+    }
 
     return NextResponse.json(organization, { status: 201 });
   } catch (error) {
     console.error('Error creating organization:', error);
-    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
+    return NextResponse.json({ error: 'Erro interno ao salvar empresa: ' + (error instanceof Error ? error.message : String(error)) }, { status: 500 });
   }
 }

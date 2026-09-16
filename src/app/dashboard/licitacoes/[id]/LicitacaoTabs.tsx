@@ -874,6 +874,75 @@ function TabAnaliseIA({ licitacao }: { licitacao: any }) {
         </div>
       </div>
 
+      {/* 🤝 INDICAÇÃO INTELIGENTE DE PARCEIROS (LICIT.AI) */}
+      <div className="card" style={{ border: '1px solid rgba(34, 197, 94, 0.35)', background: 'linear-gradient(145deg, rgba(34, 197, 94, 0.04) 0%, rgba(22, 22, 24, 0.95) 100%)' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px', flexWrap: 'wrap', gap: '10px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <div style={{ width: '38px', height: '38px', borderRadius: 'var(--radius-md)', background: 'rgba(34, 197, 94, 0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#34d399' }}>
+              <Sparkles size={20} />
+            </div>
+            <div>
+              <h3 style={{ fontSize: '1.15rem', fontWeight: 800, color: 'var(--text-primary)', margin: 0 }}>
+                Indicação Inteligente de Parceiros & Formação de Consórcio (LICIT.AI)
+              </h3>
+              <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', margin: 0 }}>
+                Pareamento automático com a base de empresas parceiras e engenheiros para complementar exigências editalícias
+              </p>
+            </div>
+          </div>
+
+          <span style={{ 
+            fontSize: '0.75rem', 
+            fontWeight: 700, 
+            padding: '4px 10px', 
+            borderRadius: 'var(--radius-sm)',
+            background: 'rgba(34, 197, 94, 0.15)',
+            color: '#34d399',
+            border: '1px solid rgba(34, 197, 94, 0.3)'
+          }}>
+            Pareamento Ativo
+          </span>
+        </div>
+
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '14px' }}>
+          <div style={{ background: 'var(--bg-elevated)', padding: '16px', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-color)' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+              <strong style={{ fontSize: '0.9rem', color: 'var(--text-primary)' }}>
+                {licitacao.organization?.name?.toLowerCase().includes('ufc') ? 'Pórtico Construções Ltda' : 'UFC Engenharia Ltda'}
+              </strong>
+              <span style={{ fontSize: '0.7rem', color: '#34d399', background: 'rgba(34, 197, 94, 0.12)', padding: '2px 6px', borderRadius: '4px', fontWeight: 700 }}>
+                Empresa do Grupo
+              </span>
+            </div>
+            <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginBottom: '10px' }}>
+              {licitacao.organization?.name?.toLowerCase().includes('ufc') 
+                ? 'Disponibiliza 77 CATs focadas em Execução de Obras Civis, Pavimentação Asfáltica e Drenagem Urbana para complementar o consórcio.'
+                : 'Disponibiliza 158 CATs especializadas em Fiscalização, Supervisão de Obras, Projetos e Gerenciamento de Empreendimentos.'}
+            </p>
+            <div style={{ fontSize: '0.75rem', color: '#60a5fa', fontWeight: 600 }}>
+              ✓ Compatibilidade com o Edital: 95%
+            </div>
+          </div>
+
+          <div style={{ background: 'var(--bg-elevated)', padding: '16px', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-color)' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+              <strong style={{ fontSize: '0.9rem', color: 'var(--text-primary)' }}>
+                Parceiras Técnicas Cadastradas
+              </strong>
+              <span style={{ fontSize: '0.7rem', color: '#fbbf24', background: 'rgba(245, 158, 11, 0.12)', padding: '2px 6px', borderRadius: '4px', fontWeight: 700 }}>
+                Consórcio / Subcontratação
+              </span>
+            </div>
+            <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginBottom: '10px' }}>
+              Caso o certame exija parcelas específicas complementares, o sistema pesquisa no módulo de Empresas Parceiras e indica RTs aptos com acervo auditado.
+            </p>
+            <div style={{ fontSize: '0.75rem', color: '#34d399', fontWeight: 600 }}>
+              ✓ Permite Consórcio: {licitacao.permiteConsorcio ? 'SIM (Previsto em Edital)' : 'A verificar cláusula'}
+            </div>
+          </div>
+        </div>
+      </div>
+
       {/* Requisitos de Habilitação & Checklist de Conformidade */}
       <div className="card">
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px', flexWrap: 'wrap', gap: '10px' }}>

@@ -23,15 +23,24 @@ export async function PATCH(
       data: dataToUpdate
     });
 
-    await prisma.auditLog.create({
-      data: {
-        userId: session.user?.id || 'system',
-        action: 'UPDATE',
-        entity: 'Professional',
-        entityId: professional.id,
-        metadata: JSON.stringify(body)
+    if (session.user?.id) {
+      try {
+        const userExists = await prisma.user.findUnique({ where: { id: session.user.id } });
+        if (userExists) {
+          await prisma.auditLog.create({
+            data: {
+              userId: session.user.id,
+              action: 'UPDATE',
+              entity: 'Professional',
+              entityId: professional.id,
+              metadata: JSON.stringify(body)
+            }
+          });
+        }
+      } catch (auditErr) {
+        console.warn('Audit log warning:', auditErr);
       }
-    });
+    }
 
     return NextResponse.json(professional);
   } catch (error) {
@@ -54,15 +63,24 @@ export async function DELETE(
       data: { deletedAt: new Date(), ativo: false }
     });
 
-    await prisma.auditLog.create({
-      data: {
-        userId: session.user?.id || 'system',
-        action: 'DELETE',
-        entity: 'Professional',
-        entityId: id,
-        metadata: JSON.stringify({ deletedAt: new Date() })
+    if (session.user?.id) {
+      try {
+        const userExists = await prisma.user.findUnique({ where: { id: session.user.id } });
+        if (userExists) {
+          await prisma.auditLog.create({
+            data: {
+              userId: session.user.id,
+              action: 'DELETE',
+              entity: 'Professional',
+              entityId: id,
+              metadata: JSON.stringify({ deletedAt: new Date() })
+            }
+          });
+        }
+      } catch (auditErr) {
+        console.warn('Audit log warning:', auditErr);
       }
-    });
+    }
 
     return NextResponse.json({ success: true });
   } catch (error) {

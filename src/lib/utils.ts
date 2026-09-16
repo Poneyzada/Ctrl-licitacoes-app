@@ -133,3 +133,32 @@ export function getInitials(name: string): string {
 export function cn(...classes: (string | undefined | null | false)[]): string {
   return classes.filter(Boolean).join(' ')
 }
+
+export const TIPOS_SERVICO_OPTIONS = [
+  { value: 'ASSESSORAMENTO_GERENCIAMENTO', label: 'Assessoramento e Gerenciamento' },
+  { value: 'SUPERVISAO_FISCALIZACAO', label: 'Fiscalização e Supervisão de Obras' },
+  { value: 'OBRAS_RODOVIARIAS', label: 'Obras de Infraestrutura Rodoviária' },
+  { value: 'PAVIMENTACAO_INFRAESTRUTURA', label: 'Pavimentação e Execução de Infraestrutura' },
+  { value: 'EXECUCAO_EDIFICACOES', label: 'Execução e Projetos de Edificações / Obras Civis' },
+  { value: 'ELABORACAO_PROJETOS', label: 'Elaboração de Projetos e Contratação Integrada' },
+  { value: 'SERVICOS_HIDRICOS', label: 'Serviços Hídricos e Saneamento Básico' },
+];
+
+export function getTipoServicoLabel(tipo: string | null | undefined): string {
+  if (!tipo) return 'Serviço de Engenharia';
+  const match = TIPOS_SERVICO_OPTIONS.find(o => o.value === tipo);
+  if (match) return match.label;
+  
+  // Compatibilidade com valores legados
+  const legacy: Record<string, string> = {
+    'EXECUCAO_INFRAESTRUTURA': 'Pavimentação e Execução de Infraestrutura',
+    'EXECUCAO': 'Execução de Obras Civis',
+    'PROJETO_INFRAESTRUTURA': 'Projetos e Infraestrutura Rodoviária',
+    'CONTRATACAO_INTEGRADA': 'Elaboração de Projetos e Contratação Integrada',
+    'FISCALIZACAO': 'Fiscalização e Supervisão de Obras',
+    'SUPERVISAO': 'Fiscalização e Supervisão de Obras',
+    'ASSESSORAMENTO': 'Assessoramento e Gerenciamento',
+    'GERENCIAMENTO': 'Assessoramento e Gerenciamento',
+  };
+  return legacy[tipo] || tipo.replace(/_/g, ' ');
+}

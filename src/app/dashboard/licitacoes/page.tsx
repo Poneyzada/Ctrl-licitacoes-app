@@ -58,30 +58,30 @@ export default async function LicitacoesPage({ searchParams }: { searchParams: P
   const getRiscoBadge = (r: string | null) => {
     switch (r) {
       case 'CRITICO':
-        return { label: 'Risco Crítico', bg: 'rgba(239, 68, 68, 0.15)', color: '#f87171', border: 'rgba(239, 68, 68, 0.3)' };
+        return { label: 'Risco Crítico', bg: 'rgba(255, 255, 255, 0.03)', color: '#f87171', border: 'rgba(239, 68, 68, 0.35)', isUrgent: true };
       case 'ALTO':
-        return { label: 'Risco Alto', bg: 'rgba(245, 158, 11, 0.15)', color: '#fbbf24', border: 'rgba(245, 158, 11, 0.3)' };
+        return { label: 'Risco Alto', bg: 'rgba(255, 255, 255, 0.03)', color: '#fbbf24', border: 'rgba(245, 158, 11, 0.35)', isUrgent: true };
       case 'MEDIO':
-        return { label: 'Risco Médio', bg: 'rgba(59, 130, 246, 0.15)', color: '#60a5fa', border: 'rgba(59, 130, 246, 0.3)' };
+        return { label: 'Risco Médio', bg: 'rgba(255, 255, 255, 0.03)', color: 'var(--text-secondary)', border: 'var(--border-color)', isUrgent: false };
       default:
-        return { label: 'Risco Baixo', bg: 'rgba(34, 197, 94, 0.15)', color: '#4ade80', border: 'rgba(34, 197, 94, 0.3)' };
+        return { label: 'Risco Baixo', bg: 'rgba(255, 255, 255, 0.03)', color: 'var(--text-muted)', border: 'var(--border-color)', isUrgent: false };
     }
   };
 
   const getStatusBadge = (s: string) => {
     switch (s) {
       case 'EM_DISPUTA':
-        return { label: 'Em Disputa', bg: 'rgba(232, 93, 93, 0.18)', color: '#e85d5d' };
+        return { label: 'Em Disputa', bg: 'rgba(255, 255, 255, 0.03)', color: 'var(--color-primary)', border: 'rgba(232, 93, 93, 0.3)' };
       case 'APROVADA':
-        return { label: 'Aprovada', bg: 'rgba(34, 197, 94, 0.18)', color: '#22c55e' };
+        return { label: 'Aprovada', bg: 'rgba(255, 255, 255, 0.03)', color: 'var(--text-secondary)', border: 'var(--border-color)' };
       case 'EM_ANALISE':
-        return { label: 'Em Análise', bg: 'rgba(59, 130, 246, 0.18)', color: '#60a5fa' };
+        return { label: 'Em Análise', bg: 'rgba(255, 255, 255, 0.03)', color: 'var(--text-secondary)', border: 'var(--border-color)' };
       case 'ATENCAO':
-        return { label: 'Atenção', bg: 'rgba(245, 158, 11, 0.18)', color: '#f59e0b' };
+        return { label: 'Atenção', bg: 'rgba(255, 255, 255, 0.03)', color: '#f59e0b', border: 'rgba(245, 158, 11, 0.3)' };
       case 'FINALIZADA':
-        return { label: 'Finalizada', bg: 'rgba(168, 85, 247, 0.18)', color: '#c084fc' };
+        return { label: 'Finalizada', bg: 'rgba(255, 255, 255, 0.03)', color: 'var(--text-muted)', border: 'var(--border-color)' };
       default:
-        return { label: s, bg: 'rgba(255, 255, 255, 0.08)', color: 'var(--text-secondary)' };
+        return { label: s, bg: 'rgba(255, 255, 255, 0.03)', color: 'var(--text-muted)', border: 'var(--border-color)' };
     }
   };
 
@@ -236,12 +236,12 @@ export default async function LicitacoesPage({ searchParams }: { searchParams: P
                     <span 
                       style={{ 
                         fontSize: '0.72rem', 
-                        fontWeight: 600, 
+                        fontWeight: 500, 
                         padding: '3px 8px', 
                         borderRadius: 'var(--radius-sm)',
-                        background: 'rgba(232, 93, 93, 0.12)',
-                        color: 'var(--color-primary)',
-                        border: '1px solid rgba(232, 93, 93, 0.25)'
+                        background: 'rgba(255, 255, 255, 0.03)',
+                        color: 'var(--text-secondary)',
+                        border: '1px solid var(--border-color)'
                       }}
                     >
                       {lic.organization?.tradeName || lic.organization?.name || lic.consorcio?.name || 'Sem Empresa'}
@@ -250,11 +250,12 @@ export default async function LicitacoesPage({ searchParams }: { searchParams: P
                     <span 
                       style={{ 
                         fontSize: '0.72rem', 
-                        fontWeight: 600, 
+                        fontWeight: 500, 
                         padding: '3px 8px', 
                         borderRadius: 'var(--radius-sm)',
                         background: statusStyle.bg,
                         color: statusStyle.color,
+                        border: `1px solid ${statusStyle.border}`,
                       }}
                     >
                       {statusStyle.label}
@@ -264,14 +265,20 @@ export default async function LicitacoesPage({ searchParams }: { searchParams: P
                   <span 
                     style={{ 
                       fontSize: '0.72rem', 
-                      fontWeight: 600, 
+                      fontWeight: 500, 
                       padding: '3px 8px', 
                       borderRadius: 'var(--radius-sm)',
                       background: riskStyle.bg,
                       color: riskStyle.color,
-                      border: `1px solid ${riskStyle.border}`
+                      border: `1px solid ${riskStyle.border}`,
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '5px'
                     }}
                   >
+                    {riskStyle.isUrgent && (
+                      <span style={{ width: 6, height: 6, borderRadius: '50%', background: riskStyle.color, display: 'inline-block' }} />
+                    )}
                     {riskStyle.label}
                   </span>
                 </div>
@@ -317,23 +324,23 @@ export default async function LicitacoesPage({ searchParams }: { searchParams: P
                   return (
                     <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', alignItems: 'center', marginTop: '-4px' }}>
                       {isComplete ? (
-                        <span style={{ fontSize: '0.72rem', background: 'rgba(34, 197, 94, 0.15)', color: '#34d399', padding: '2px 8px', borderRadius: '4px', border: '1px solid rgba(34, 197, 94, 0.3)', fontWeight: 600 }}>
-                          ✓ Documentação Completa
+                        <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                          <span style={{ color: 'var(--color-success, #22c55e)' }}>✓</span> Documentação Completa
                         </span>
                       ) : (
                         <>
                           {!hasEdital && (
-                            <span style={{ fontSize: '0.7rem', background: 'rgba(239, 68, 68, 0.15)', color: '#f87171', padding: '2px 6px', borderRadius: '4px', border: '1px solid rgba(239, 68, 68, 0.3)', fontWeight: 600 }}>
+                            <span style={{ fontSize: '0.7rem', color: '#f87171', background: 'rgba(255, 255, 255, 0.02)', padding: '2px 6px', borderRadius: '4px', border: '1px solid rgba(239, 68, 68, 0.25)', fontWeight: 500 }}>
                               ⚠ Falta Edital
                             </span>
                           )}
                           {!hasTR && (
-                            <span style={{ fontSize: '0.7rem', background: 'rgba(245, 158, 11, 0.15)', color: '#fbbf24', padding: '2px 6px', borderRadius: '4px', border: '1px solid rgba(245, 158, 11, 0.3)', fontWeight: 600 }}>
+                            <span style={{ fontSize: '0.7rem', color: '#fbbf24', background: 'rgba(255, 255, 255, 0.02)', padding: '2px 6px', borderRadius: '4px', border: '1px solid rgba(245, 158, 11, 0.25)', fontWeight: 500 }}>
                               ⚠ Falta TR
                             </span>
                           )}
                           {!hasQualificacao && (
-                            <span style={{ fontSize: '0.7rem', background: 'rgba(239, 68, 68, 0.15)', color: '#f87171', padding: '2px 6px', borderRadius: '4px', border: '1px solid rgba(239, 68, 68, 0.3)', fontWeight: 600 }}>
+                            <span style={{ fontSize: '0.7rem', color: '#f87171', background: 'rgba(255, 255, 255, 0.02)', padding: '2px 6px', borderRadius: '4px', border: '1px solid rgba(239, 68, 68, 0.25)', fontWeight: 500 }}>
                               ⚠ Falta Qualificação
                             </span>
                           )}
@@ -358,7 +365,7 @@ export default async function LicitacoesPage({ searchParams }: { searchParams: P
                     <div style={{ fontSize: '0.7rem', textTransform: 'uppercase', color: 'var(--text-muted)', letterSpacing: '0.05em' }}>
                       Valor Estimado
                     </div>
-                    <div style={{ fontSize: '1rem', fontWeight: 700, color: '#60a5fa' }}>
+                    <div style={{ fontSize: '1rem', fontWeight: 700, color: 'var(--text-primary)' }}>
                       {lic.valorEstimado ? formatCurrency(lic.valorEstimado) : 'Sigiloso / Não Inf.'}
                     </div>
                   </div>
@@ -374,12 +381,21 @@ export default async function LicitacoesPage({ searchParams }: { searchParams: P
                         display: 'flex', 
                         alignItems: 'center', 
                         gap: '4px',
-                        color: daysToSession !== null && daysToSession <= 5 ? '#f87171' : 'var(--text-primary)'
+                        color: daysToSession !== null && daysToSession <= 2 
+                          ? '#f87171' 
+                          : daysToSession !== null && daysToSession <= 5 
+                            ? '#fbbf24' 
+                            : 'var(--text-primary)'
                       }}>
-                        <Clock size={13} />
+                        <Clock size={13} style={{ color: 'var(--text-muted)' }} />
                         {formatDate(sessionDate)}
                         {daysToSession !== null && (
-                          <span style={{ fontSize: '0.72rem', opacity: 0.8 }}>({daysToSession}d)</span>
+                          <span style={{ 
+                            fontSize: '0.72rem', 
+                            color: daysToSession <= 2 ? '#f87171' : daysToSession <= 5 ? '#fbbf24' : 'var(--text-muted)' 
+                          }}>
+                            ({daysToSession}d)
+                          </span>
                         )}
                       </div>
                     </div>
@@ -387,31 +403,34 @@ export default async function LicitacoesPage({ searchParams }: { searchParams: P
                 </div>
 
                 {/* AI & Features Tag Bar */}
-                <div style={{ display: 'flex', gap: '8px', alignItems: 'center', fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                <div style={{ display: 'flex', gap: '8px', alignItems: 'center', fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
                   {hasAi ? (
                     <span style={{ 
                       display: 'flex', 
                       alignItems: 'center', 
-                      gap: '4px', 
-                      color: '#a855f7', 
-                      background: 'rgba(168, 85, 247, 0.12)', 
+                      gap: '5px', 
+                      color: 'var(--text-secondary)', 
+                      background: 'rgba(255, 255, 255, 0.03)', 
+                      border: '1px solid var(--border-color)',
                       padding: '3px 8px', 
                       borderRadius: 'var(--radius-sm)',
-                      fontWeight: 600 
+                      fontSize: '0.72rem'
                     }}>
-                      <Sparkles size={13} /> Análise IA Concluída
+                      <Sparkles size={12} style={{ color: '#c084fc' }} /> Análise IA
                     </span>
                   ) : (
                     <span style={{ 
                       display: 'flex', 
                       alignItems: 'center', 
-                      gap: '4px', 
+                      gap: '5px', 
                       color: 'var(--text-muted)', 
-                      background: 'rgba(255,255,255,0.04)', 
+                      background: 'rgba(255, 255, 255, 0.02)', 
+                      border: '1px solid var(--border-color)',
                       padding: '3px 8px', 
-                      borderRadius: 'var(--radius-sm)' 
+                      borderRadius: 'var(--radius-sm)',
+                      fontSize: '0.72rem'
                     }}>
-                      <Sparkles size={13} /> Aguardando IA
+                      <Sparkles size={12} /> Aguardando IA
                     </span>
                   )}
 
@@ -419,13 +438,16 @@ export default async function LicitacoesPage({ searchParams }: { searchParams: P
                     <span style={{ 
                       display: 'flex', 
                       alignItems: 'center', 
-                      gap: '4px', 
-                      color: '#34d399', 
-                      background: 'rgba(16, 185, 129, 0.1)', 
+                      gap: '5px', 
+                      color: 'var(--text-secondary)', 
+                      background: 'rgba(255, 255, 255, 0.03)', 
+                      border: '1px solid var(--border-color)',
                       padding: '3px 8px', 
-                      borderRadius: 'var(--radius-sm)' 
+                      borderRadius: 'var(--radius-sm)',
+                      fontSize: '0.72rem'
                     }}>
-                      <Layers size={13} /> {lic.requisitos.length} requisitos
+                      <Layers size={12} style={{ color: 'var(--text-muted)' }} /> 
+                      <span style={{ color: 'var(--text-primary)', fontWeight: 600 }}>{lic.requisitos.length}</span> requisitos
                     </span>
                   )}
                 </div>

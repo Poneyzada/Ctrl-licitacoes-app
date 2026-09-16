@@ -56,23 +56,24 @@ export default async function LicitacaoDetailsPage({
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap', marginBottom: '4px' }}>
               <span style={{ 
                 fontSize: '0.75rem', 
-                fontWeight: 600, 
+                fontWeight: 500, 
                 padding: '3px 8px', 
                 borderRadius: 'var(--radius-sm)',
-                background: 'rgba(232, 93, 93, 0.15)',
-                color: 'var(--color-primary)',
-                border: '1px solid rgba(232, 93, 93, 0.3)'
+                background: 'rgba(255, 255, 255, 0.03)',
+                color: 'var(--text-secondary)',
+                border: '1px solid var(--border-color)'
               }}>
                 {licitacao.organization?.tradeName || licitacao.organization?.name || 'Sem Empresa'}
               </span>
 
               <span style={{ 
                 fontSize: '0.75rem', 
-                fontWeight: 600, 
+                fontWeight: 500, 
                 padding: '3px 8px', 
                 borderRadius: 'var(--radius-sm)',
-                background: 'rgba(59, 130, 246, 0.15)',
-                color: '#60a5fa',
+                background: 'rgba(255, 255, 255, 0.03)',
+                color: licitacao.status === 'EM_DISPUTA' ? 'var(--color-primary)' : 'var(--text-secondary)',
+                border: '1px solid var(--border-color)'
               }}>
                 {licitacao.status}
               </span>
@@ -93,7 +94,7 @@ export default async function LicitacaoDetailsPage({
               {licitacao.valorEstimado && (
                 <>
                   <span>•</span>
-                  <span style={{ color: '#60a5fa', fontWeight: 600 }}>{formatCurrency(licitacao.valorEstimado)}</span>
+                  <span style={{ color: 'var(--text-primary)', fontWeight: 600 }}>{formatCurrency(licitacao.valorEstimado)}</span>
                 </>
               )}
             </p>

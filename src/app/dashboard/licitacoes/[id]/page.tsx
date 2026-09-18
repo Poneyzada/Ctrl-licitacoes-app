@@ -3,7 +3,7 @@ import { prisma } from '@/lib/prisma';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import LicitacaoTabs from './LicitacaoTabs';
-import { ArrowLeft, Gavel, MapPin, Building2 } from 'lucide-react';
+import { ArrowLeft, Gavel, MapPin, Building2, Edit } from 'lucide-react';
 import { formatCurrency } from '@/lib/utils';
 
 export default async function LicitacaoDetailsPage({ 
@@ -47,7 +47,7 @@ export default async function LicitacaoDetailsPage({
   return (
     <div className="animate-fade-in">
       {/* Detail Page Header */}
-      <div className="page-header" style={{ marginBottom: '20px' }}>
+      <div className="page-header" style={{ marginBottom: '20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '14px' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
           <Link href="/dashboard/licitacoes" className="btn btn-secondary btn-sm" style={{ padding: '8px' }}>
             <ArrowLeft size={18} />
@@ -99,6 +99,17 @@ export default async function LicitacaoDetailsPage({
               )}
             </p>
           </div>
+        </div>
+
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+          <Link 
+            href={`/dashboard/licitacoes/${licitacao.id}/editar`}
+            className="btn btn-secondary btn-sm"
+            style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '8px 14px' }}
+          >
+            <Edit size={16} style={{ color: 'var(--color-primary)' }} />
+            Editar Licitação
+          </Link>
         </div>
       </div>
       

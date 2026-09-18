@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { 
   Plus, Search, Gavel, AlertTriangle, CheckCircle2, 
   Clock, Eye, Sparkles, Building2, MapPin, 
-  Layers, ShieldAlert, ArrowUpRight, Filter
+  Layers, ShieldAlert, ArrowUpRight, Filter, Edit
 } from 'lucide-react';
 
 export const metadata = { title: 'Licitações | LicitaControl' };
@@ -457,17 +457,28 @@ export default async function LicitacoesPage({ searchParams }: { searchParams: P
                   <Link 
                     href={`/dashboard/licitacoes/${lic.id}`} 
                     className="btn btn-secondary btn-sm"
-                    style={{ flex: 1, justifyContent: 'center', display: 'flex', alignItems: 'center', gap: '6px' }}
+                    style={{ flex: 1, justifyContent: 'center', display: 'flex', alignItems: 'center', gap: '5px' }}
+                    title="Ver Ficha Detalhada"
                   >
-                    <Eye size={15} /> Ver Ficha
+                    <Eye size={14} /> Ficha
+                  </Link>
+
+                  <Link 
+                    href={`/dashboard/licitacoes/${lic.id}/editar`} 
+                    className="btn btn-secondary btn-sm"
+                    style={{ flex: 1, justifyContent: 'center', display: 'flex', alignItems: 'center', gap: '5px' }}
+                    title="Editar Dados da Licitação"
+                  >
+                    <Edit size={14} style={{ color: 'var(--color-primary)' }} /> Editar
                   </Link>
 
                   <Link 
                     href={`/dashboard/licitacoes/${lic.id}?tab=analise`} 
                     className="btn btn-primary btn-sm"
-                    style={{ flex: 1, justifyContent: 'center', display: 'flex', alignItems: 'center', gap: '6px' }}
+                    style={{ flex: 1.1, justifyContent: 'center', display: 'flex', alignItems: 'center', gap: '5px' }}
+                    title="Ver Análise Editalícia com IA"
                   >
-                    <Sparkles size={15} /> Análise IA
+                    <Sparkles size={14} /> Análise IA
                   </Link>
                 </div>
               </div>

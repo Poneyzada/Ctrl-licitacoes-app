@@ -39,10 +39,89 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
 
     const { id } = await params;
     const body = await req.json();
+
+    const data: any = {};
+
+    // String fields
+    const stringFields = [
+      'orgaoNome', 'orgaoUasg', 'orgaoUnidade', 'municipio', 'uf',
+      'modalidade', 'numero', 'numeroProcesso', 'pncpId', 'objeto',
+      'objetoResumo', 'tipoServico', 'fase', 'status', 'risco',
+      'plataforma', 'plataformaUrl', 'observacoes', 'resultado',
+      'vencedor', 'fonteOrigem', 'pncpUrl'
+    ];
+    for (const f of stringFields) {
+      if (body[f] !== undefined) {
+        data[f] = body[f] === '' ? null : body[f];
+      }
+    }
+
+    // Foreign Keys
+    if (body.organizationId !== undefined) {
+      data.organizationId = body.organizationId || null;
+    }
+    if (body.consorcioId !== undefined) {
+      data.consorcioId = body.consorcioId || null;
+    }
+    if (body.responsavelId !== undefined) {
+      data.responsavelId = body.responsavelId || null;
+    }
+
+    // Numbers
+    if (body.valorEstimado !== undefined) {
+      data.valorEstimado = (body.valorEstimado === '' || body.valorEstimado === null)
+        ? null
+        : typeof body.valorEstimado === 'number'
+          ? body.valorEstimado
+          : parseFloat(String(body.valorEstimado).replace(/\./g, '').replace(',', '.'));
+    }
+    if (body.valorFinal !== undefined) {
+      data.valorFinal = (body.valorFinal === '' || body.valorFinal === null)
+        ? null
+        : typeof body.valorFinal === 'number'
+          ? body.valorFinal
+          : parseFloat(String(body.valorFinal).replace(/\./g, '').replace(',', '.'));
+    }
+
+    // Booleans
+    const boolFields = [
+      'orcamentoSigiloso', 'permiteConsorcio', 'permiteSubcontrato',
+      'exigeVisita', 'exigeGarantia'
+    ];
+    for (const f of boolFields) {
+      if (body[f] !== undefined) {
+        data[f] = Boolean(body[f]);
+      }
+    }
+
+    // Dates
+    const dateFields = ['dataHoraSessao', 'dataImpugnacao', 'dataEsclarecimento', 'dataResultado'];
+    for (const f of dateFields) {
+      if (body[f] !== undefined) {
+        data[f] = body[f] ? new Date(body[f]) : null;
+      }
+    }
+
     const licitacao = await prisma.licitacao.update({
       where: { id },
-      data: body,
+      data,
     });
+
+    if (session.user?.id) {
+      try {
+        await prisma.auditLog.create({
+          data: {
+            userId: session.user.id,
+            action: 'UPDATE_LICITACAO',
+            entity: 'Licitacao',
+            entityId: id,
+            metadata: JSON.stringify({ fields: Object.keys(data) })
+          }
+        });
+      } catch (auditErr) {
+        console.warn('AuditLog error:', auditErr);
+      }
+    }
 
     return NextResponse.json(licitacao);
   } catch (error) {

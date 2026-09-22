@@ -26,6 +26,24 @@ export default async function DashboardLayout({
       <div className="main-content dashboard-layout">
         <div className="page-wrapper">
           {children}
+          <footer style={{
+            marginTop: '48px',
+            paddingTop: '20px',
+            borderTop: '1px solid rgba(255, 255, 255, 0.04)',
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            fontSize: '0.74rem',
+            color: 'var(--text-muted)',
+            flexWrap: 'wrap',
+            gap: '8px'
+          }}>
+            <span>LicitaControl · Central de Licitações & Gestão de Contratos</span>
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: '5px' }}>
+              <span style={{ opacity: 0.7 }}>Desenvolvido por</span>
+              <strong style={{ color: 'var(--text-secondary)', fontWeight: 600 }}>Tríade Studio</strong>
+            </span>
+          </footer>
         </div>
       </div>
     </div>

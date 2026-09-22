@@ -182,9 +182,26 @@ export default function LoginPage() {
         </div>
 
         {/* Footer */}
-        <p className="login-footer">
-          Lei 14.133/2021 · Nova Lei de Licitações e Contratos
-        </p>
+        <div className="login-footer" style={{ textAlign: 'center', display: 'flex', flexDirection: 'column', gap: '8px', alignItems: 'center' }}>
+          <p style={{ margin: 0 }}>Lei 14.133/2021 · Nova Lei de Licitações e Contratos</p>
+          <div style={{
+            fontSize: '0.72rem',
+            color: 'var(--text-muted)',
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: '5px',
+            letterSpacing: '0.04em',
+            padding: '3px 12px',
+            borderRadius: '999px',
+            background: 'rgba(255, 255, 255, 0.03)',
+            border: '1px solid rgba(255, 255, 255, 0.06)'
+          }}>
+            <span style={{ opacity: 0.65 }}>Desenvolvido por</span>
+            <span style={{ fontWeight: 600, color: 'var(--text-secondary)', letterSpacing: '0.04em' }}>
+              Tríade Studio
+            </span>
+          </div>
+        </div>
       </div>
 
       <style>{`

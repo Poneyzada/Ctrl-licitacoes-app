@@ -173,6 +173,30 @@ export function Sidebar({ user = { name: 'Usuário', role: 'OPERADOR' }, notific
             <LogOut size={18} />
           </button>
         </div>
+
+        {/* Minimalist Agency Signature */}
+        <div style={{
+          padding: '6px 16px 10px',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          fontSize: '0.68rem',
+          color: 'var(--text-muted)',
+          borderTop: '1px solid rgba(255, 255, 255, 0.03)',
+          background: 'rgba(0, 0, 0, 0.12)'
+        }}>
+          <span style={{ fontSize: '0.64rem', opacity: 0.45, letterSpacing: '0.04em' }}>v2.4</span>
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', letterSpacing: '0.03em' }}>
+            <span style={{ opacity: 0.55 }}>by</span>
+            <span style={{ 
+              fontWeight: 600, 
+              color: 'var(--text-secondary)',
+              letterSpacing: '0.04em'
+            }}>
+              Tríade Studio
+            </span>
+          </span>
+        </div>
       </aside>
 
       {/* Mobile Bottom Nav */}
@@ -226,6 +250,15 @@ export function Sidebar({ user = { name: 'Usuário', role: 'OPERADOR' }, notific
                 <LogOut size={18} />
                 Sair da conta
               </button>
+              <div style={{
+                textAlign: 'center',
+                paddingTop: '12px',
+                fontSize: '0.72rem',
+                color: 'var(--text-muted)',
+                letterSpacing: '0.03em'
+              }}>
+                by <strong style={{ color: 'var(--text-secondary)', fontWeight: 600 }}>Tríade Studio</strong>
+              </div>
             </div>
           </div>
         </div>

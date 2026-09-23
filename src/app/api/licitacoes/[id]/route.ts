@@ -94,9 +94,58 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
     if (body.organizationId !== undefined) {
       data.organizationId = body.organizationId || null;
     }
-    if (body.consorcioId !== undefined) {
+
+    // Consórcio handling
+    if (body.formatoParticipacao !== undefined || body.isConsorcio !== undefined || body.consorcioNome !== undefined) {
+      const isConsorcio = Boolean(body.isConsorcio || body.formatoParticipacao === 'CONSORCIO');
+      if (!isConsorcio) {
+        data.consorcioId = null;
+      } else {
+        const existing = await prisma.licitacao.findUnique({
+          where: { id },
+          select: { consorcioId: true }
+        });
+
+        if (existing?.consorcioId) {
+          if (body.consorcioNome) {
+            await prisma.consorcio.update({
+              where: { id: existing.consorcioId },
+              data: {
+                name: body.consorcioNome.trim(),
+                notes: body.consorcioComposicao !== undefined ? (body.consorcioComposicao ? body.consorcioComposicao.trim() : null) : undefined
+              }
+            });
+          }
+          data.consorcioId = existing.consorcioId;
+        } else if (body.consorcioNome) {
+          try {
+            const consorcio = await prisma.consorcio.create({
+              data: {
+                name: body.consorcioNome.trim(),
+                notes: body.consorcioComposicao ? body.consorcioComposicao.trim() : null,
+                membros: (body.organizationId || data.organizationId) ? {
+                  create: [
+                    {
+                      orgId: body.organizationId || data.organizationId,
+                      percentual: 50,
+                      isLider: true,
+                      responsabilidade: 'Empresa Líder / Representante do Consórcio'
+                    }
+                  ]
+                } : undefined
+              }
+            });
+            data.consorcioId = consorcio.id;
+          } catch (cErr) {
+            console.warn('Could not create consorcio in PATCH:', cErr);
+          }
+        }
+        data.permiteConsorcio = true;
+      }
+    } else if (body.consorcioId !== undefined) {
       data.consorcioId = body.consorcioId || null;
     }
+
     if (body.responsavelId !== undefined) {
       data.responsavelId = body.responsavelId || null;
     }

@@ -6,7 +6,7 @@ import Link from 'next/link';
 import { 
   ArrowLeft, Save, Loader2, Gavel, Building2, 
   MapPin, Calendar, DollarSign, FileText, CheckCircle2,
-  AlertTriangle, Trash2, Globe, Shield, Layers
+  AlertTriangle, Trash2, Globe, Shield, Layers, Users
 } from 'lucide-react';
 
 interface EditarLicitacaoFormProps {
@@ -38,7 +38,11 @@ export default function EditarLicitacaoForm({ licitacao, organizations }: Editar
   const [errorMsg, setErrorMsg] = useState('');
 
   const [formData, setFormData] = useState({
-    organizationId: licitacao.organizationId || '',
+    organizationId: licitacao.organizationId || (organizations[0]?.id || ''),
+    formatoParticipacao: (licitacao.consorcioId || licitacao.consorcio) ? 'CONSORCIO' : (licitacao.organizationId || (organizations[0]?.id || '')),
+    isConsorcio: Boolean(licitacao.consorcioId || licitacao.consorcio),
+    consorcioNome: licitacao.consorcio?.name || '',
+    consorcioComposicao: licitacao.consorcio?.notes || '',
     status: licitacao.status || 'EM_ANALISE',
     risco: licitacao.risco || 'BAIXO',
     orgaoNome: licitacao.orgaoNome || '',
@@ -76,9 +80,23 @@ export default function EditarLicitacaoForm({ licitacao, organizations }: Editar
       [name]: type === 'checkbox' ? checked : value
     }));
   };
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    if (formData.isConsorcio) {
+      if (!formData.organizationId) {
+        setErrorMsg('Por favor, selecione qual empresa (UFC ou Pórtico) será a Representante/Líder do Consórcio.');
+        return;
+      }
+      if (!formData.consorcioNome?.trim()) {
+        setErrorMsg('Por favor, informe o Nome do Consórcio.');
+        return;
+      }
+    } else if (!formData.organizationId) {
+      setErrorMsg('Por favor, selecione a Empresa Concorrente.');
+      return;
+    }
+
     setLoading(true);
     setSuccessMsg('');
     setErrorMsg('');
@@ -259,12 +277,39 @@ export default function EditarLicitacaoForm({ licitacao, organizations }: Editar
 
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '16px' }}>
             <div className="form-group">
-              <label className="form-label">Empresa Titular / Concorrente *</label>
-              <select name="organizationId" value={formData.organizationId} onChange={handleChange} className="form-control" required>
-                <option value="">Selecione a empresa...</option>
+              <label className="form-label">Formato de Participação / Concorrente *</label>
+              <select 
+                name="formatoParticipacao" 
+                value={formData.formatoParticipacao} 
+                onChange={(e) => {
+                  const val = e.target.value;
+                  if (val === 'CONSORCIO') {
+                    setFormData(prev => ({
+                      ...prev,
+                      formatoParticipacao: 'CONSORCIO',
+                      isConsorcio: true,
+                      permiteConsorcio: true,
+                      organizationId: prev.organizationId || (organizations[0]?.id || '')
+                    }));
+                  } else {
+                    setFormData(prev => ({
+                      ...prev,
+                      formatoParticipacao: val,
+                      isConsorcio: false,
+                      organizationId: val,
+                      consorcioNome: '',
+                      consorcioComposicao: ''
+                    }));
+                  }
+                }} 
+                className="form-control" 
+                required
+              >
+                <option value="">Selecione a empresa ou consórcio...</option>
                 {organizations.map(org => (
                   <option key={org.id} value={org.id}>{org.tradeName || org.name}</option>
                 ))}
+                <option value="CONSORCIO">🤝 Consórcio de Empresas</option>
               </select>
             </div>
 
@@ -279,6 +324,98 @@ export default function EditarLicitacaoForm({ licitacao, organizations }: Editar
                 required 
               />
             </div>
+
+            {formData.isConsorcio && (
+              <div 
+                style={{ 
+                  gridColumn: '1 / -1',
+                  background: 'rgba(225, 29, 72, 0.05)', 
+                  border: '1px solid rgba(225, 29, 72, 0.3)', 
+                  borderRadius: 'var(--radius-md)', 
+                  padding: '18px',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '16px',
+                  marginTop: '4px'
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '8px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <Users size={18} style={{ color: 'var(--color-primary)' }} />
+                    <span style={{ fontWeight: 600, fontSize: '0.92rem', color: 'var(--text-primary)' }}>
+                      Configurações do Consórcio Firmado
+                    </span>
+                  </div>
+                  <span style={{ fontSize: '0.72rem', background: 'rgba(225, 29, 72, 0.15)', color: 'var(--color-primary)', padding: '2px 8px', borderRadius: 'var(--radius-sm)', fontWeight: 600 }}>
+                    DISPUTA EM CONSÓRCIO
+                  </span>
+                </div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '16px' }}>
+                  <div className="form-group">
+                    <label className="form-label" style={{ fontWeight: 600, color: 'var(--color-primary)' }}>
+                      Empresa Representante / Líder do Consórcio *
+                    </label>
+                    <div style={{ display: 'flex', gap: '10px', marginTop: '6px' }}>
+                      {organizations.map(org => {
+                        const isSelected = formData.organizationId === org.id;
+                        return (
+                          <label 
+                            key={org.id} 
+                            style={{ 
+                              flex: 1, 
+                              display: 'flex', 
+                              alignItems: 'center', 
+                              gap: '8px', 
+                              padding: '10px 14px', 
+                              borderRadius: 'var(--radius-md)', 
+                              border: isSelected ? '1.5px solid var(--color-primary)' : '1px solid var(--border-color)', 
+                              background: isSelected ? 'rgba(225, 29, 72, 0.12)' : 'var(--bg-card)', 
+                              cursor: 'pointer',
+                              fontWeight: isSelected ? 600 : 400,
+                              fontSize: '0.85rem'
+                            }}
+                          >
+                            <input 
+                              type="radio" 
+                              name="consorcioLider" 
+                              value={org.id} 
+                              checked={isSelected}
+                              onChange={() => setFormData(prev => ({ ...prev, organizationId: org.id }))}
+                              style={{ accentColor: 'var(--color-primary)' }}
+                            />
+                            {org.tradeName || org.name}
+                          </label>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  <div className="form-group">
+                    <label className="form-label">Nome do Consórcio *</label>
+                    <input 
+                      name="consorcioNome" 
+                      value={formData.consorcioNome} 
+                      onChange={handleChange} 
+                      className="form-control" 
+                      placeholder="Ex: Consórcio UFC - Construtora Bahia" 
+                      required={formData.isConsorcio}
+                    />
+                  </div>
+
+                  <div className="form-group" style={{ gridColumn: '1 / -1' }}>
+                    <label className="form-label">Composição / Demais Empresas Consorciadas (Opcional)</label>
+                    <input 
+                      name="consorcioComposicao" 
+                      value={formData.consorcioComposicao} 
+                      onChange={handleChange} 
+                      className="form-control" 
+                      placeholder="Ex: UFC Engenharia (Líder - 60%), Empresa Parceira Ltda (40%)" 
+                    />
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
 
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '16px', marginTop: '16px' }}>

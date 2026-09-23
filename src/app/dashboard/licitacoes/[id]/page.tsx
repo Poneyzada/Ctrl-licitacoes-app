@@ -33,7 +33,10 @@ export default async function LicitacaoDetailsPage({
       consorcio: true,
       requisitos: { orderBy: { createdAt: 'asc' } },
       equipe: { include: { professional: { include: { acervos: { where: { deletedAt: null } } } } } },
-      documentos: true,
+      documentos: {
+        include: { uploader: { select: { id: true, name: true, email: true } } },
+        orderBy: { createdAt: 'desc' }
+      },
       editalVersions: true,
       analises: { orderBy: { createdAt: 'desc' } },
       recursosCasos: { orderBy: { prazo: 'asc' } },
@@ -56,14 +59,26 @@ export default async function LicitacaoDetailsPage({
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap', marginBottom: '4px' }}>
               <span style={{ 
                 fontSize: '0.75rem', 
-                fontWeight: 500, 
-                padding: '3px 8px', 
+                fontWeight: 600, 
+                padding: '3px 9px', 
                 borderRadius: 'var(--radius-sm)',
-                background: 'rgba(255, 255, 255, 0.03)',
-                color: 'var(--text-secondary)',
-                border: '1px solid var(--border-color)'
+                background: licitacao.consorcio ? 'rgba(225, 29, 72, 0.12)' : 'rgba(255, 255, 255, 0.03)',
+                color: licitacao.consorcio ? 'var(--color-primary)' : 'var(--text-secondary)',
+                border: licitacao.consorcio ? '1px solid rgba(225, 29, 72, 0.3)' : '1px solid var(--border-color)',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '4px'
               }}>
-                {licitacao.organization?.tradeName || licitacao.organization?.name || 'Sem Empresa'}
+                {licitacao.consorcio ? (
+                  <>
+                    🤝 Consórcio: <strong>{licitacao.consorcio.name}</strong> 
+                    <span style={{ opacity: 0.8, fontSize: '0.7rem' }}>
+                      (Líder: {licitacao.organization?.tradeName || licitacao.organization?.name || 'UFC'})
+                    </span>
+                  </>
+                ) : (
+                  licitacao.organization?.tradeName || licitacao.organization?.name || 'Sem Empresa'
+                )}
               </span>
 
               <span style={{ 

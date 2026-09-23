@@ -7,7 +7,8 @@ import {
   AlertTriangle, CheckCircle2, XCircle, HelpCircle, FileX, 
   Sparkles, Loader2, Calendar, ShieldAlert, ArrowUpRight, 
   MapPin, Building2, Check, RefreshCw, Printer, Copy,
-  Calculator, Download, X, FileCheck
+  Calculator, Download, X, FileCheck, Folder, FolderOpen,
+  Plus, FileUp, UploadCloud, Trash2, ExternalLink, ChevronDown, ChevronRight, Gavel
 } from 'lucide-react';
 import { formatCurrency, formatDate } from '@/lib/utils';
 import { CalculadoraBdiModal } from '@/components/licitacoes/CalculadoraBdiModal';
@@ -1035,26 +1036,637 @@ function TabAnaliseIA({ licitacao }: { licitacao: any }) {
 
 // ─── TAB 3: DOCUMENTOS & EDITAL ──────────────────────────────────
 function TabDocumentos({ licitacao }: { licitacao: any }) {
+  const [docs, setDocs] = useState<any[]>(licitacao.documentos || []);
+  const [modalOpen, setModalOpen] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+
+  // Form state
+  const [categoria, setCategoria] = useState('TERMO_REFERENCIA');
+  const [nome, setNome] = useState('');
+  const [file, setFile] = useState<File | null>(null);
+  const [externalUrl, setExternalUrl] = useState('');
+  const [observacoes, setObservacoes] = useState('');
+
+  const [expandedFolders, setExpandedFolders] = useState<Record<string, boolean>>({
+    folder_edital: true,
+    folder_esclarecimentos: true,
+    folder_habilitacao: true,
+    folder_propostas: true,
+  });
+
+  const toggleFolder = (key: string) => {
+    setExpandedFolders(prev => ({ ...prev, [key]: !prev[key] }));
+  };
+
+  const handleOpenModal = (defaultCategory?: string) => {
+    if (defaultCategory) setCategoria(defaultCategory);
+    setNome('');
+    setFile(null);
+    setExternalUrl('');
+    setObservacoes('');
+    setModalOpen(true);
+  };
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const f = e.target.files?.[0];
+    if (f) {
+      setFile(f);
+      if (!nome) {
+        const cleanName = f.name.replace(/\.[^/.]+$/, '').replace(/[_-]/g, ' ');
+        setNome(cleanName);
+      }
+    }
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!nome.trim()) {
+      alert('Por favor, informe o nome ou título do documento.');
+      return;
+    }
+    if (!file && !externalUrl.trim()) {
+      alert('Por favor, selecione um arquivo para upload ou informe um link externo do documento.');
+      return;
+    }
+
+    setUploading(true);
+    try {
+      const payload = new FormData();
+      payload.append('nome', nome.trim());
+      payload.append('categoria', categoria);
+      payload.append('observacoes', observacoes.trim());
+      if (file) {
+        payload.append('file', file);
+      }
+      if (externalUrl) {
+        payload.append('externalUrl', externalUrl.trim());
+      }
+
+      const res = await fetch(`/api/licitacoes/${licitacao.id}/documentos`, {
+        method: 'POST',
+        body: payload
+      });
+
+      if (res.ok) {
+        const created = await res.json();
+        setDocs(prev => [created, ...prev]);
+        setModalOpen(false);
+      } else {
+        const err = await res.json().catch(() => ({}));
+        alert(`Erro ao registrar documento: ${err.error || 'Falha de comunicação'}`);
+      }
+    } catch (err: any) {
+      console.error(err);
+      alert(`Erro ao enviar documento: ${err.message || 'Erro inesperado'}`);
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const handleDelete = async (docId: string, docName: string) => {
+    if (!confirm(`Deseja realmente remover o documento "${docName}" desta licitação?`)) {
+      return;
+    }
+    setDeletingId(docId);
+    try {
+      const res = await fetch(`/api/licitacoes/${licitacao.id}/documentos?docId=${docId}`, {
+        method: 'DELETE'
+      });
+      if (res.ok) {
+        setDocs(prev => prev.filter(d => d.id !== docId));
+      } else {
+        alert('Erro ao excluir documento.');
+      }
+    } catch (err) {
+      console.error(err);
+      alert('Erro de conexão ao excluir.');
+    } finally {
+      setDeletingId(null);
+    }
+  };
+
+  const downloadOrOpenDoc = (doc: any) => {
+    if (!doc.storageUrl) {
+      alert('Arquivo sem link de visualização disponível.');
+      return;
+    }
+    if (doc.storageUrl.startsWith('data:')) {
+      const a = document.createElement('a');
+      a.href = doc.storageUrl;
+      a.download = doc.nome.includes('.') ? doc.nome : `${doc.nome}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+    } else {
+      window.open(doc.storageUrl, '_blank');
+    }
+  };
+
+  const FOLDERS = [
+    {
+      id: 'folder_edital',
+      title: '1. Peças do Edital & Anexos Técnicos',
+      description: 'Termo de Referência (TR), Matriz de Riscos, Projeto Básico/Executivo, Orçamento e Cronograma.',
+      categories: ['EDITAL', 'TERMO_REFERENCIA', 'MATRIZ_RISCO', 'PROJETO_BASICO', 'ORCAMENTO_BDI', 'CRONOGRAMA'],
+      color: '#3b82f6',
+      defaultCategory: 'TERMO_REFERENCIA'
+    },
+    {
+      id: 'folder_esclarecimentos',
+      title: '2. Pedidos de Esclarecimento & Impugnações',
+      description: 'Pedidos de Esclarecimento, Respostas do Órgão, Impugnações ao Edital, Retificações e Julgamentos.',
+      categories: ['ESCLARECIMENTO', 'IMPUGNACAO_DECISAO', 'RETIFICACAO', 'SUSPENSAO', 'SINE_DIE', 'REABERTURA', 'CONSOLIDACAO'],
+      color: '#f59e0b',
+      defaultCategory: 'ESCLARECIMENTO'
+    },
+    {
+      id: 'folder_habilitacao',
+      title: '3. Habilitação & Acervo Técnico da Concorrente',
+      description: 'Habilitação Jurídica, Fiscal, Trabalhista, Qualificação Econômica e Atestados Técnicos (CATs).',
+      categories: ['HABILITACAO', 'ADVERSARIO', 'DILIGENCIA_RECURSO'],
+      color: '#10b981',
+      defaultCategory: 'HABILITACAO'
+    },
+    {
+      id: 'folder_propostas',
+      title: '4. Propostas Comerciais, Atas & Contrato',
+      description: 'Proposta Técnica/Metodologia, Proposta de Preços, Planilhas Preenchidas, Atas da Sessão e Contrato.',
+      categories: ['PROPOSTA_TECNICA', 'PROPOSTA_COMERCIAL', 'ATA_RESULTADO', 'CONTRATO', 'OUTROS'],
+      color: '#ec4899',
+      defaultCategory: 'PROPOSTA_COMERCIAL'
+    }
+  ];
+
+  const CATEGORIA_META: Record<string, { label: string; badgeBg: string; badgeColor: string }> = {
+    TERMO_REFERENCIA: { label: 'Termo de Referência (TR)', badgeBg: 'rgba(59, 130, 246, 0.15)', badgeColor: '#60a5fa' },
+    MATRIZ_RISCO: { label: 'Matriz de Riscos', badgeBg: 'rgba(239, 68, 68, 0.15)', badgeColor: '#f87171' },
+    PROJETO_BASICO: { label: 'Projeto Básico / Executivo', badgeBg: 'rgba(139, 92, 246, 0.15)', badgeColor: '#a78bfa' },
+    ORCAMENTO_BDI: { label: 'Planilha Orçamentária / BDI', badgeBg: 'rgba(16, 185, 129, 0.15)', badgeColor: '#34d399' },
+    CRONOGRAMA: { label: 'Cronograma Físico-Financeiro', badgeBg: 'rgba(6, 182, 212, 0.15)', badgeColor: '#22d3ee' },
+    EDITAL: { label: 'Edital do Certame', badgeBg: 'rgba(99, 102, 241, 0.15)', badgeColor: '#818cf8' },
+    RETIFICACAO: { label: 'Retificação de Edital', badgeBg: 'rgba(245, 158, 11, 0.15)', badgeColor: '#fbbf24' },
+    ESCLARECIMENTO: { label: 'Esclarecimento / Circular', badgeBg: 'rgba(234, 179, 8, 0.15)', badgeColor: '#facc15' },
+    IMPUGNACAO_DECISAO: { label: 'Impugnação / Julgamento', badgeBg: 'rgba(249, 115, 22, 0.15)', badgeColor: '#fb923c' },
+    HABILITACAO: { label: 'Habilitação / Certidões', badgeBg: 'rgba(20, 184, 166, 0.15)', badgeColor: '#2dd4bf' },
+    PROPOSTA_TECNICA: { label: 'Proposta Técnica', badgeBg: 'rgba(168, 85, 247, 0.15)', badgeColor: '#c084fc' },
+    PROPOSTA_COMERCIAL: { label: 'Proposta Comercial', badgeBg: 'rgba(34, 197, 94, 0.15)', badgeColor: '#4ade80' },
+    ATA_RESULTADO: { label: 'Ata da Sessão / Resultado', badgeBg: 'rgba(100, 116, 139, 0.15)', badgeColor: '#94a3b8' },
+    CONTRATO: { label: 'Minuta / Contrato', badgeBg: 'rgba(14, 165, 233, 0.15)', badgeColor: '#38bdf8' },
+    OUTROS: { label: 'Outro Documento', badgeBg: 'rgba(255, 255, 255, 0.08)', badgeColor: 'var(--text-secondary)' },
+  };
+
+  const formatSize = (bytes?: number) => {
+    if (!bytes) return '';
+    if (bytes < 1024) return `${bytes} B`;
+    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+  };
+
   return (
-    <div className="card">
-      <h3 style={{ fontSize: '1.05rem', fontWeight: 700, marginBottom: '14px' }}>
-        Documentos do Certame & Versões do Edital
-      </h3>
-      {licitacao.documentos?.length === 0 ? (
-        <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem' }}>
-          Nenhum arquivo anexado a esta licitação.
-        </p>
-      ) : (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-          {licitacao.documentos?.map((doc: any) => (
-            <div key={doc.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 14px', background: 'var(--bg-elevated)', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-color)' }}>
-              <div>
-                <div style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{doc.nome}</div>
-                <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>{doc.categoria} • {doc.status}</div>
-              </div>
-              <button className="btn btn-secondary btn-sm">Baixar</button>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+      {/* Top Header Card */}
+      <div className="card" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '16px' }}>
+        <div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <FolderOpen size={22} style={{ color: 'var(--color-primary)' }} />
+            <h3 style={{ fontSize: '1.2rem', fontWeight: 700, color: 'var(--text-primary)' }}>
+              Dossiê Documental & Pastas da Licitação
+            </h3>
+          </div>
+          <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', marginTop: '4px' }}>
+            Gestão estruturada em pastas técnicas: Termo de Referência, Matriz de Riscos, Projeto Básico, Esclarecimentos e Propostas.
+          </p>
+        </div>
+
+        <button 
+          onClick={() => handleOpenModal()} 
+          className="btn btn-primary"
+          style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 18px', fontWeight: 600 }}
+        >
+          <UploadCloud size={18} />
+          Enviar / Registrar Documento
+        </button>
+      </div>
+
+      {/* Folders Summary Stats */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '12px' }}>
+        <div style={{ padding: '14px', background: 'var(--bg-card)', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-color)', display: 'flex', alignItems: 'center', gap: '12px' }}>
+          <div style={{ width: '40px', height: '40px', borderRadius: '10px', background: 'rgba(59, 130, 246, 0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#60a5fa' }}>
+            <FileText size={20} />
+          </div>
+          <div>
+            <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Peças do Edital & TR</div>
+            <div style={{ fontSize: '1.2rem', fontWeight: 800, color: 'var(--text-primary)' }}>
+              {docs.filter(d => ['EDITAL', 'TERMO_REFERENCIA', 'MATRIZ_RISCO', 'PROJETO_BASICO', 'ORCAMENTO_BDI', 'CRONOGRAMA'].includes(d.categoria)).length}
             </div>
-          ))}
+          </div>
+        </div>
+
+        <div style={{ padding: '14px', background: 'var(--bg-card)', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-color)', display: 'flex', alignItems: 'center', gap: '12px' }}>
+          <div style={{ width: '40px', height: '40px', borderRadius: '10px', background: 'rgba(245, 158, 11, 0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fbbf24' }}>
+            <AlertTriangle size={20} />
+          </div>
+          <div>
+            <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Esclarecimentos / Impugn.</div>
+            <div style={{ fontSize: '1.2rem', fontWeight: 800, color: 'var(--text-primary)' }}>
+              {docs.filter(d => ['ESCLARECIMENTO', 'IMPUGNACAO_DECISAO', 'RETIFICACAO', 'SUSPENSAO', 'SINE_DIE', 'REABERTURA'].includes(d.categoria)).length}
+            </div>
+          </div>
+        </div>
+
+        <div style={{ padding: '14px', background: 'var(--bg-card)', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-color)', display: 'flex', alignItems: 'center', gap: '12px' }}>
+          <div style={{ width: '40px', height: '40px', borderRadius: '10px', background: 'rgba(16, 185, 129, 0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#34d399' }}>
+            <FileCheck size={20} />
+          </div>
+          <div>
+            <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Habilitação & Acervo</div>
+            <div style={{ fontSize: '1.2rem', fontWeight: 800, color: 'var(--text-primary)' }}>
+              {docs.filter(d => ['HABILITACAO', 'ADVERSARIO', 'DILIGENCIA_RECURSO'].includes(d.categoria)).length}
+            </div>
+          </div>
+        </div>
+
+        <div style={{ padding: '14px', background: 'var(--bg-card)', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-color)', display: 'flex', alignItems: 'center', gap: '12px' }}>
+          <div style={{ width: '40px', height: '40px', borderRadius: '10px', background: 'rgba(236, 72, 153, 0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#f472b6' }}>
+            <Gavel size={20} />
+          </div>
+          <div>
+            <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Propostas & Atas</div>
+            <div style={{ fontSize: '1.2rem', fontWeight: 800, color: 'var(--text-primary)' }}>
+              {docs.filter(d => ['PROPOSTA_TECNICA', 'PROPOSTA_COMERCIAL', 'ATA_RESULTADO', 'CONTRATO', 'OUTROS'].includes(d.categoria)).length}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Automatic Folders List */}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+        {FOLDERS.map(folder => {
+          const folderDocs = docs.filter(d => folder.categories.includes(d.categoria));
+          const isExpanded = expandedFolders[folder.id];
+
+          return (
+            <div 
+              key={folder.id} 
+              className="card" 
+              style={{ 
+                padding: '0', 
+                overflow: 'hidden', 
+                border: folderDocs.length > 0 ? `1px solid ${folder.color}40` : '1px solid var(--border-color)',
+                transition: 'border-color 0.2s ease'
+              }}
+            >
+              {/* Folder Header */}
+              <div 
+                style={{ 
+                  padding: '16px 20px', 
+                  background: 'var(--bg-card)', 
+                  display: 'flex', 
+                  justifyContent: 'space-between', 
+                  alignItems: 'center', 
+                  flexWrap: 'wrap', 
+                  gap: '12px',
+                  cursor: 'pointer',
+                  borderBottom: isExpanded && folderDocs.length > 0 ? '1px solid var(--border-color)' : 'none'
+                }}
+                onClick={() => toggleFolder(folder.id)}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                  <div style={{ color: folder.color, display: 'flex', alignItems: 'center' }}>
+                    {isExpanded ? <FolderOpen size={24} /> : <Folder size={24} />}
+                  </div>
+                  <div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <h4 style={{ fontSize: '1rem', fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>
+                        {folder.title}
+                      </h4>
+                      <span 
+                        style={{ 
+                          fontSize: '0.72rem', 
+                          fontWeight: 600, 
+                          padding: '2px 8px', 
+                          borderRadius: '12px', 
+                          background: folderDocs.length > 0 ? `${folder.color}25` : 'rgba(255, 255, 255, 0.06)', 
+                          color: folderDocs.length > 0 ? folder.color : 'var(--text-muted)' 
+                        }}
+                      >
+                        {folderDocs.length} {folderDocs.length === 1 ? 'documento' : 'documentos'}
+                      </span>
+                    </div>
+                    <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginTop: '2px' }}>
+                      {folder.description}
+                    </div>
+                  </div>
+                </div>
+
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }} onClick={e => e.stopPropagation()}>
+                  <button 
+                    onClick={() => handleOpenModal(folder.defaultCategory)} 
+                    className="btn btn-secondary btn-sm"
+                    style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.78rem', padding: '6px 12px' }}
+                  >
+                    <Plus size={14} />
+                    Adicionar nesta pasta
+                  </button>
+                  <button 
+                    onClick={() => toggleFolder(folder.id)} 
+                    style={{ background: 'transparent', border: 'none', color: 'var(--text-secondary)', cursor: 'pointer', padding: '4px' }}
+                  >
+                    {isExpanded ? <ChevronDown size={18} /> : <ChevronRight size={18} />}
+                  </button>
+                </div>
+              </div>
+
+              {/* Folder Documents Content */}
+              {isExpanded && (
+                <div style={{ padding: '16px 20px', background: 'var(--bg-elevated)' }}>
+                  {folderDocs.length === 0 ? (
+                    <div 
+                      onClick={() => handleOpenModal(folder.defaultCategory)}
+                      style={{ 
+                        padding: '24px', 
+                        border: '1.5px dashed var(--border-color)', 
+                        borderRadius: 'var(--radius-md)', 
+                        textAlign: 'center', 
+                        cursor: 'pointer',
+                        background: 'rgba(255, 255, 255, 0.01)',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        alignItems: 'center',
+                        gap: '8px'
+                      }}
+                    >
+                      <FileUp size={24} style={{ color: folder.color, opacity: 0.6 }} />
+                      <div style={{ fontSize: '0.88rem', color: 'var(--text-secondary)', fontWeight: 500 }}>
+                        Nenhum documento anexado nesta pasta ainda.
+                      </div>
+                      <div style={{ fontSize: '0.78rem', color: folder.color, fontWeight: 600 }}>
+                        Clique aqui para enviar Termo de Referência, Matriz de Riscos ou outros arquivos
+                      </div>
+                    </div>
+                  ) : (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                      {folderDocs.map((doc: any) => {
+                        const meta = CATEGORIA_META[doc.categoria] || CATEGORIA_META.OUTROS;
+                        const isDeleting = deletingId === doc.id;
+
+                        return (
+                          <div 
+                            key={doc.id} 
+                            style={{ 
+                              display: 'flex', 
+                              justifyContent: 'space-between', 
+                              alignItems: 'center', 
+                              padding: '12px 16px', 
+                              background: 'var(--bg-card)', 
+                              borderRadius: 'var(--radius-md)', 
+                              border: '1px solid var(--border-color)',
+                              flexWrap: 'wrap',
+                              gap: '12px'
+                            }}
+                          >
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', minWidth: '240px', flex: 1 }}>
+                              <div style={{ width: '36px', height: '36px', borderRadius: '8px', background: meta.badgeBg, display: 'flex', alignItems: 'center', justifyContent: 'center', color: meta.badgeColor, flexShrink: 0 }}>
+                                <FileText size={18} />
+                              </div>
+                              <div>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                                  <span style={{ fontWeight: 600, color: 'var(--text-primary)', fontSize: '0.92rem' }}>
+                                    {doc.nome}
+                                  </span>
+                                  <span style={{ fontSize: '0.7rem', padding: '2px 8px', borderRadius: '4px', background: meta.badgeBg, color: meta.badgeColor, fontWeight: 600 }}>
+                                    {meta.label}
+                                  </span>
+                                </div>
+                                <div style={{ fontSize: '0.76rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '10px', marginTop: '3px', flexWrap: 'wrap' }}>
+                                  {doc.tamanhoBytes > 0 && <span>Tamanho: {formatSize(doc.tamanhoBytes)}</span>}
+                                  {doc.createdAt && <span>Enviado em: {new Date(doc.createdAt).toLocaleString('pt-BR')}</span>}
+                                  {doc.uploader?.name && <span>Por: {doc.uploader.name}</span>}
+                                </div>
+                                {doc.textoExtraido && doc.textoExtraido.startsWith('Obs:') && (
+                                  <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: '4px', fontStyle: 'italic' }}>
+                                    {doc.textoExtraido}
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                              {doc.storageUrl && (
+                                <button 
+                                  onClick={() => downloadOrOpenDoc(doc)}
+                                  className="btn btn-secondary btn-sm"
+                                  style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.78rem' }}
+                                  title="Baixar ou Visualizar Documento"
+                                >
+                                  {doc.storageUrl.startsWith('http') ? <ExternalLink size={14} /> : <Download size={14} />}
+                                  {doc.storageUrl.startsWith('http') ? 'Acessar Link' : 'Baixar / Ver'}
+                                </button>
+                              )}
+                              <button 
+                                onClick={() => handleDelete(doc.id, doc.nome)}
+                                disabled={isDeleting}
+                                className="btn btn-secondary btn-sm"
+                                style={{ padding: '6px 8px', color: '#f87171' }}
+                                title="Excluir Documento"
+                              >
+                                {isDeleting ? <Loader2 size={14} className="animate-spin" /> : <Trash2 size={14} />}
+                              </button>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Upload & Registration Modal */}
+      {modalOpen && (
+        <div style={{
+          position: 'fixed',
+          inset: 0,
+          background: 'rgba(0,0,0,0.75)',
+          backdropFilter: 'blur(4px)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 9999,
+          padding: '16px'
+        }}>
+          <div className="card" style={{ maxWidth: '600px', width: '100%', maxHeight: '90vh', overflowY: 'auto' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--border-color)', paddingBottom: '14px', marginBottom: '16px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <UploadCloud size={20} style={{ color: 'var(--color-primary)' }} />
+                <h3 style={{ fontSize: '1.15rem', fontWeight: 700, margin: 0 }}>
+                  Enviar / Registrar Documento da Licitação
+                </h3>
+              </div>
+              <button 
+                onClick={() => setModalOpen(false)}
+                style={{ background: 'transparent', border: 'none', color: 'var(--text-muted)', cursor: 'pointer' }}
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+              {/* Pasta / Categoria */}
+              <div className="form-group">
+                <label className="form-label" style={{ fontWeight: 600 }}>
+                  Pasta / Tipo de Documento *
+                </label>
+                <select 
+                  value={categoria} 
+                  onChange={e => setCategoria(e.target.value)} 
+                  className="form-control"
+                  required
+                >
+                  <optgroup label="1. Peças do Edital & Anexos Técnicos">
+                    <option value="TERMO_REFERENCIA">Termo de Referência (TR)</option>
+                    <option value="MATRIZ_RISCO">Matriz de Riscos</option>
+                    <option value="PROJETO_BASICO">Projeto Básico / Executivo</option>
+                    <option value="ORCAMENTO_BDI">Planilha Orçamentária / BDI</option>
+                    <option value="CRONOGRAMA">Cronograma Físico-Financeiro</option>
+                    <option value="EDITAL">Edital do Certame</option>
+                  </optgroup>
+                  <optgroup label="2. Esclarecimentos & Impugnações">
+                    <option value="ESCLARECIMENTO">Pedido de Esclarecimento / Circular</option>
+                    <option value="IMPUGNACAO_DECISAO">Impugnação ao Edital / Decisão</option>
+                    <option value="RETIFICACAO">Retificação do Edital</option>
+                    <option value="SUSPENSAO">Aviso de Suspensão / Sine Die</option>
+                    <option value="REABERTURA">Aviso de Reabertura de Prazos</option>
+                  </optgroup>
+                  <optgroup label="3. Habilitação & Acervo">
+                    <option value="HABILITACAO">Documentação de Habilitação / Certidões</option>
+                    <option value="ADVERSARIO">Dossiê Documental de Concorrente</option>
+                    <option value="DILIGENCIA_RECURSO">Diligência / Recurso Administrativo</option>
+                  </optgroup>
+                  <optgroup label="4. Propostas Comerciais & Atas">
+                    <option value="PROPOSTA_TECNICA">Proposta Técnica / Metodologia</option>
+                    <option value="PROPOSTA_COMERCIAL">Proposta Comercial / Preços</option>
+                    <option value="ATA_RESULTADO">Ata da Sessão / Resultado</option>
+                    <option value="CONTRATO">Minuta / Contrato Assinado</option>
+                    <option value="OUTROS">Outros Documentos / Ofícios</option>
+                  </optgroup>
+                </select>
+              </div>
+
+              {/* Título do Documento */}
+              <div className="form-group">
+                <label className="form-label" style={{ fontWeight: 600 }}>
+                  Nome / Título do Documento *
+                </label>
+                <input 
+                  type="text" 
+                  value={nome} 
+                  onChange={e => setNome(e.target.value)} 
+                  className="form-control" 
+                  placeholder="Ex: Anexo II - Termo de Referência Consolidado" 
+                  required 
+                />
+              </div>
+
+              {/* Arquivo do Documento (Upload) */}
+              <div className="form-group">
+                <label className="form-label" style={{ fontWeight: 600 }}>
+                  Arquivo do Documento (Upload)
+                </label>
+                <div style={{
+                  border: '1.5px dashed var(--border-color)',
+                  borderRadius: 'var(--radius-md)',
+                  padding: '20px',
+                  textAlign: 'center',
+                  background: 'var(--bg-elevated)',
+                  cursor: 'pointer'
+                }}>
+                  <input 
+                    type="file" 
+                    id="doc-file-input"
+                    onChange={handleFileChange}
+                    accept=".pdf,.docx,.doc,.xlsx,.xls,.dwg,.zip,.png,.jpg,.jpeg"
+                    style={{ display: 'none' }}
+                  />
+                  <label htmlFor="doc-file-input" style={{ cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px' }}>
+                    <FileUp size={28} style={{ color: 'var(--color-primary)' }} />
+                    {file ? (
+                      <div style={{ color: 'var(--text-primary)', fontWeight: 600, fontSize: '0.9rem' }}>
+                        ✓ {file.name} ({formatSize(file.size)})
+                      </div>
+                    ) : (
+                      <>
+                        <div style={{ fontSize: '0.88rem', fontWeight: 600, color: 'var(--text-primary)' }}>
+                          Clique para selecionar ou arraste o arquivo aqui
+                        </div>
+                        <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                          PDF, Word, Excel, DWG ou ZIP (até 10 MB)
+                        </div>
+                      </>
+                    )}
+                  </label>
+                </div>
+              </div>
+
+              {/* Ou Link Externo */}
+              <div className="form-group">
+                <label className="form-label">OU Link Externo (Google Drive, Portal de Compras)</label>
+                <input 
+                  type="url" 
+                  value={externalUrl} 
+                  onChange={e => setExternalUrl(e.target.value)} 
+                  className="form-control" 
+                  placeholder="https://drive.google.com/... ou https://compras.gov.br/..." 
+                />
+              </div>
+
+              {/* Observações */}
+              <div className="form-group">
+                <label className="form-label">Observações / Detalhes (Opcional)</label>
+                <textarea 
+                  value={observacoes} 
+                  onChange={e => setObservacoes(e.target.value)} 
+                  className="form-control" 
+                  rows={2} 
+                  placeholder="Ex: Versão aprovada pela comissão em 23/09 com as alterações da cláusula 7." 
+                />
+              </div>
+
+              {/* Buttons */}
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '8px' }}>
+                <button 
+                  type="button" 
+                  onClick={() => setModalOpen(false)} 
+                  className="btn btn-secondary"
+                  disabled={uploading}
+                >
+                  Cancelar
+                </button>
+                <button 
+                  type="submit" 
+                  className="btn btn-primary"
+                  disabled={uploading}
+                  style={{ display: 'flex', alignItems: 'center', gap: '8px', fontWeight: 600 }}
+                >
+                  {uploading ? (
+                    <>
+                      <Loader2 size={16} className="animate-spin" />
+                      Registrando documento...
+                    </>
+                  ) : (
+                    <>
+                      <CheckCircle2 size={16} />
+                      Salvar e Registrar Documento
+                    </>
+                  )}
+                </button>
+              </div>
+            </form>
+          </div>
         </div>
       )}
     </div>

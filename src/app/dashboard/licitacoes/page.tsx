@@ -244,7 +244,11 @@ export default async function LicitacoesPage({ searchParams }: { searchParams: P
                         border: '1px solid var(--border-color)'
                       }}
                     >
-                      {lic.organization?.tradeName || lic.organization?.name || lic.consorcio?.name || 'Sem Empresa'}
+                      {lic.consorcio ? (
+                        <span>🤝 {lic.consorcio.name} <span style={{ opacity: 0.75, fontSize: '0.66rem' }}>({lic.organization?.tradeName || 'UFC'})</span></span>
+                      ) : (
+                        lic.organization?.tradeName || lic.organization?.name || 'Sem Empresa'
+                      )}
                     </span>
 
                     <span 

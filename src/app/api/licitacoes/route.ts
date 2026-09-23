@@ -118,6 +118,34 @@ export async function POST(req: Request) {
     const modalidade = VALID_MODALIDADES.includes(body.modalidade) ? body.modalidade : null;
     const tipoServico = VALID_TIPO_SERVICO.includes(body.tipoServico) ? body.tipoServico : null;
 
+    // Consórcio handling
+    let consorcioId = body.consorcioId || null;
+    const isConsorcio = Boolean(body.isConsorcio || body.formatoParticipacao === 'CONSORCIO' || body.consorcioNome);
+
+    if (isConsorcio && body.consorcioNome && !consorcioId) {
+      try {
+        const consorcio = await prisma.consorcio.create({
+          data: {
+            name: body.consorcioNome.trim(),
+            notes: body.consorcioComposicao ? body.consorcioComposicao.trim() : null,
+            membros: body.organizationId ? {
+              create: [
+                {
+                  orgId: body.organizationId,
+                  percentual: 50,
+                  isLider: true,
+                  responsabilidade: 'Empresa Líder / Representante do Consórcio'
+                }
+              ]
+            } : undefined
+          }
+        });
+        consorcioId = consorcio.id;
+      } catch (cErr) {
+        console.warn('Could not create consorcio record:', cErr);
+      }
+    }
+
     const licitacao = await prisma.licitacao.create({
       data: {
         orgaoNome: body.orgaoNome,
@@ -137,11 +165,12 @@ export async function POST(req: Request) {
         dataEsclarecimento,
         valorEstimado: parseNum(body.valorEstimado),
         orcamentoSigiloso: Boolean(body.orcamentoSigiloso),
-        permiteConsorcio: Boolean(body.permiteConsorcio),
+        permiteConsorcio: isConsorcio ? true : Boolean(body.permiteConsorcio),
         permiteSubcontrato: Boolean(body.permiteSubcontrato),
         exigeVisita: Boolean(body.exigeVisita),
         exigeGarantia: Boolean(body.exigeGarantia),
         organizationId: body.organizationId || null,
+        consorcioId: isConsorcio ? consorcioId : null,
         observacoes: body.observacoes || null,
         createdBy: session.user?.id || null,
       }

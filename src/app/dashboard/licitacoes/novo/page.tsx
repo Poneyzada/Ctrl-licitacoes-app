@@ -142,11 +142,12 @@ export default function NovaLicitacaoPage() {
         const data = await res.json();
         router.push(`/dashboard/licitacoes/${data.id}`);
       } else {
-        alert('Erro ao criar licitação');
+        const data = await res.json().catch(() => ({}));
+        alert(`Erro ao criar licitação: ${data.error || 'Verifique a conexão com o banco de dados.'}`);
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error(error);
-      alert('Erro ao conectar com servidor');
+      alert(`Erro ao conectar com servidor: ${error?.message || 'Falha de rede'}`);
     } finally {
       setLoading(false);
     }

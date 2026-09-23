@@ -42,11 +42,38 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
 
     const data: any = {};
 
+    const VALID_MODALIDADES = [
+      'CONCORRENCIA_ELETRONICA',
+      'LICITACAO_PRESENCIAL',
+      'CHAMAMENTO',
+      'PREGAO_ELETRONICO',
+      'DISPENSA',
+    ];
+
+    const VALID_TIPO_SERVICO = [
+      'ELABORACAO_PROJETOS',
+      'PROJETO_INFRAESTRUTURA',
+      'CONTRATACAO_INTEGRADA',
+      'EXECUCAO',
+      'EXECUCAO_INFRAESTRUTURA',
+      'SERVICOS_HIDRICOS',
+      'FISCALIZACAO',
+      'ASSESSORAMENTO',
+      'GERENCIAMENTO',
+      'MANUTENCAO',
+      'SUPERVISAO',
+      'PAVIMENTACAO_INFRAESTRUTURA',
+      'EXECUCAO_EDIFICACOES',
+      'OBRAS_RODOVIARIAS',
+      'SUPERVISAO_FISCALIZACAO',
+      'ASSESSORAMENTO_GERENCIAMENTO',
+    ];
+
     // String fields
     const stringFields = [
       'orgaoNome', 'orgaoUasg', 'orgaoUnidade', 'municipio', 'uf',
-      'modalidade', 'numero', 'numeroProcesso', 'pncpId', 'objeto',
-      'objetoResumo', 'tipoServico', 'fase', 'status', 'risco',
+      'numero', 'numeroProcesso', 'pncpId', 'objeto',
+      'objetoResumo', 'fase', 'status', 'risco',
       'plataforma', 'plataformaUrl', 'observacoes', 'resultado',
       'vencedor', 'fonteOrigem', 'pncpUrl'
     ];
@@ -54,6 +81,13 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
       if (body[f] !== undefined) {
         data[f] = body[f] === '' ? null : body[f];
       }
+    }
+
+    if (body.modalidade !== undefined) {
+      data.modalidade = VALID_MODALIDADES.includes(body.modalidade) ? body.modalidade : null;
+    }
+    if (body.tipoServico !== undefined) {
+      data.tipoServico = VALID_TIPO_SERVICO.includes(body.tipoServico) ? body.tipoServico : null;
     }
 
     // Foreign Keys

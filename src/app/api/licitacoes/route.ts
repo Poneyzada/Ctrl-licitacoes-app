@@ -88,20 +88,50 @@ export async function POST(req: Request) {
     const dataImpugnacao = parseDate(body.dataImpugnacao);
     const dataEsclarecimento = parseDate(body.dataEsclarecimento);
 
+    const VALID_MODALIDADES = [
+      'CONCORRENCIA_ELETRONICA',
+      'LICITACAO_PRESENCIAL',
+      'CHAMAMENTO',
+      'PREGAO_ELETRONICO',
+      'DISPENSA',
+    ];
+
+    const VALID_TIPO_SERVICO = [
+      'ELABORACAO_PROJETOS',
+      'PROJETO_INFRAESTRUTURA',
+      'CONTRATACAO_INTEGRADA',
+      'EXECUCAO',
+      'EXECUCAO_INFRAESTRUTURA',
+      'SERVICOS_HIDRICOS',
+      'FISCALIZACAO',
+      'ASSESSORAMENTO',
+      'GERENCIAMENTO',
+      'MANUTENCAO',
+      'SUPERVISAO',
+      'PAVIMENTACAO_INFRAESTRUTURA',
+      'EXECUCAO_EDIFICACOES',
+      'OBRAS_RODOVIARIAS',
+      'SUPERVISAO_FISCALIZACAO',
+      'ASSESSORAMENTO_GERENCIAMENTO',
+    ];
+
+    const modalidade = VALID_MODALIDADES.includes(body.modalidade) ? body.modalidade : null;
+    const tipoServico = VALID_TIPO_SERVICO.includes(body.tipoServico) ? body.tipoServico : null;
+
     const licitacao = await prisma.licitacao.create({
       data: {
         orgaoNome: body.orgaoNome,
         orgaoUasg: body.orgaoUasg || null,
         municipio: body.municipio || null,
         uf: body.uf || null,
-        modalidade: body.modalidade || null,
+        modalidade,
         numero: body.numero || null,
         numeroProcesso: body.numeroProcesso || null,
         plataforma: body.plataforma || null,
         plataformaUrl: body.plataformaUrl || null,
         objeto: body.objeto,
         objetoResumo: body.objetoResumo || null,
-        tipoServico: body.tipoServico || null,
+        tipoServico,
         dataHoraSessao,
         dataImpugnacao,
         dataEsclarecimento,

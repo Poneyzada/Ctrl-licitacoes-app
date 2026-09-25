@@ -803,6 +803,26 @@ model PlatformRegistration {
   @@map("platform_registrations")
 }
 
+model PlataformaPortal {
+  id                  String    @id @default(cuid())
+  nome                String
+  url                 String?
+  tipo                String?   @default("FEDERAL")
+  ufcStatus           String?   @default("CREDENCIADO")
+  porticoStatus       String?   @default("CREDENCIADO")
+  validadeCertificado DateTime?
+  responsavel         String?
+  loginUfc            String?
+  loginPortico        String?
+  observacoes         String?
+  storageUrl          String?
+  storageKey          String?
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+
+  @@map("plataformas_licitacao")
+}
+
 // ─── RECURSOS & PRAZOS ───
 model RecursoCaso {
   id           String      @id @default(cuid())

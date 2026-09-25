@@ -69,6 +69,11 @@ export default function EmpresasPage() {
   const [editingCat, setEditingCat] = useState<any>(null);
   const [savingEditCat, setSavingEditCat] = useState(false);
 
+  // Modal Dossiê & Detalhes da CAT / Atestado
+  const [selectedCatDetails, setSelectedCatDetails] = useState<any>(null);
+  const [catDetailsModalOpen, setCatDetailsModalOpen] = useState(false);
+  const [catSearch, setCatSearch] = useState('');
+
   // Modal Novo Profissional / Engenheiro
   const [modalProfOpen, setModalProfOpen] = useState(false);
   const [savingProf, setSavingProf] = useState(false);
@@ -521,6 +526,84 @@ export default function EmpresasPage() {
     }
   };
 
+  const handleSaveEditCat = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingCat) return;
+
+    setSavingEditCat(true);
+    try {
+      const res = await fetch(`/api/acervo/${editingCat.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          numeroCat: editingCat.numeroCat,
+          numeroAtestado: editingCat.numeroAtestado,
+          numeroContrato: editingCat.numeroContrato,
+          emitente: editingCat.emitente,
+          objeto: editingCat.objeto,
+          tipoServico: editingCat.tipoServico,
+          areaTecnica: editingCat.areaTecnica,
+          local: editingCat.local,
+          uf: editingCat.uf,
+          responsavelTecnico: editingCat.responsavelTecnico,
+          urlOrigem: editingCat.urlOrigem,
+          storageUrl: editingCat.storageUrl,
+          observacoes: editingCat.observacoes
+        })
+      });
+
+      if (res.ok) {
+        const updatedCat = await res.json();
+        setModalEditCatOpen(false);
+        if (selectedCatDetails?.id === editingCat.id) {
+          setSelectedCatDetails(updatedCat);
+        }
+        if (selectedEmpresa) {
+          openCompanyManagement(selectedEmpresa, 'acervos');
+        }
+        loadAllData();
+        alert('Atestado / CAT atualizado com sucesso!');
+      } else {
+        alert('Erro ao atualizar CAT');
+      }
+    } catch (err) {
+      console.error(err);
+      alert('Erro de conexão ao salvar');
+    } finally {
+      setSavingEditCat(false);
+    }
+  };
+
+  const handleQuickAttachFileToCat = async (catId: string, url: string, name?: string) => {
+    if (!url) return;
+    try {
+      const res = await fetch(`/api/acervo/${catId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          storageUrl: url,
+          urlOrigem: url.startsWith('http') ? url : undefined
+        })
+      });
+      if (res.ok) {
+        const updated = await res.json();
+        if (selectedCatDetails?.id === catId) {
+          setSelectedCatDetails(updated);
+        }
+        if (selectedEmpresa) {
+          openCompanyManagement(selectedEmpresa, 'acervos');
+        }
+        loadAllData();
+        alert('Documento anexado à CAT com sucesso!');
+      } else {
+        alert('Erro ao anexar documento');
+      }
+    } catch (err) {
+      console.error(err);
+      alert('Erro ao conectar com servidor');
+    }
+  };
+
   const filteredEmpresas = empresas.filter(e => {
     if (!searchQuery) return true;
     const q = searchQuery.toLowerCase();
@@ -703,17 +786,49 @@ export default function EmpresasPage() {
 
                       {/* Métricas da Empresa */}
                       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '8px', marginBottom: '18px' }}>
-                        <div style={{ background: 'rgba(255, 255, 255, 0.02)', padding: '8px', borderRadius: 'var(--radius-sm)', textAlign: 'center' }}>
-                          <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', display: 'block' }}>Atestados</span>
+                        <div 
+                          onClick={() => openCompanyManagement(emp, 'acervos')}
+                          style={{ 
+                            background: 'rgba(96, 165, 250, 0.05)', 
+                            padding: '8px', 
+                            borderRadius: 'var(--radius-sm)', 
+                            textAlign: 'center',
+                            cursor: 'pointer',
+                            border: '1px solid rgba(96, 165, 250, 0.25)',
+                            transition: 'all 0.2s'
+                          }}
+                          title="Clique para abrir todos os atestados e CATs desta empresa"
+                        >
+                          <span style={{ fontSize: '0.7rem', color: '#60a5fa', display: 'block', fontWeight: 600 }}>Acervo / CATs</span>
                           <strong style={{ fontSize: '1.05rem', color: '#60a5fa' }}>{emp._count?.acervo || 0}</strong>
                         </div>
-                        <div style={{ background: 'rgba(255, 255, 255, 0.02)', padding: '8px', borderRadius: 'var(--radius-sm)', textAlign: 'center' }}>
+                        <div 
+                          onClick={() => openCompanyManagement(emp, 'profissionais')}
+                          style={{ 
+                            background: 'rgba(255, 255, 255, 0.02)', 
+                            padding: '8px', 
+                            borderRadius: 'var(--radius-sm)', 
+                            textAlign: 'center',
+                            cursor: 'pointer'
+                          }}
+                          title="Ver engenheiros e quadro técnico"
+                        >
                           <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', display: 'block' }}>RTs / Equipe</span>
                           <strong style={{ fontSize: '1.05rem', color: '#34d399' }}>
                             {professionals.filter(p => p.orgId === emp.id).length}
                           </strong>
                         </div>
-                        <div style={{ background: 'rgba(255, 255, 255, 0.02)', padding: '8px', borderRadius: 'var(--radius-sm)', textAlign: 'center' }}>
+                        <div 
+                          onClick={() => openCompanyManagement(emp, 'certidoes')}
+                          style={{ 
+                            background: 'rgba(255, 255, 255, 0.02)', 
+                            padding: '8px', 
+                            borderRadius: 'var(--radius-sm)', 
+                            textAlign: 'center',
+                            cursor: 'pointer'
+                          }}
+                          title="Ver certidões e habilitação"
+                        >
                           <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', display: 'block' }}>Certidões</span>
                           <strong style={{ fontSize: '1.05rem', color: '#fbbf24' }}>{emp._count?.complianceDocs || 0}</strong>
                         </div>
@@ -725,8 +840,9 @@ export default function EmpresasPage() {
                         onClick={() => openCompanyManagement(emp, 'acervos')}
                         className="btn btn-secondary btn-sm"
                         style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}
+                        title="Acessar o acervo técnico e CATs desta empresa"
                       >
-                        <Layers size={14} /> Dossiê & CATs
+                        <Layers size={14} style={{ color: '#60a5fa' }} /> Dossiê & CATs
                       </button>
                       <button 
                         onClick={() => openCompanyManagement(emp, 'dados')}
@@ -735,6 +851,16 @@ export default function EmpresasPage() {
                       >
                         <Edit3 size={14} /> Gerenciar
                       </button>
+                      <a 
+                        href={`/dashboard/acervo?orgId=${emp.id}`}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="btn btn-ghost btn-sm"
+                        style={{ padding: '6px 10px', color: 'var(--text-muted)' }}
+                        title="Abrir no Acervo Geral"
+                      >
+                        <ExternalLink size={14} />
+                      </a>
                     </div>
                   </div>
                 );
@@ -1006,29 +1132,20 @@ export default function EmpresasPage() {
       {/* MODAL: PASTA TÉCNICA DO PROFISSIONAL (DOSSIÊ DE CATs)      */}
       {/* ─────────────────────────────────────────────────────────── */}
       {dossieModalOpen && selectedProfDossie && (
-        <div style={{
-          position: 'fixed',
-          inset: 0,
-          background: 'rgba(0, 0, 0, 0.85)',
-          backdropFilter: 'blur(6px)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          zIndex: 9999,
-          padding: '20px'
-        }}>
+        <div 
+          className="modal-overlay"
+          onClick={() => setDossieModalOpen(false)}
+        >
           <div 
-            className="card" 
+            className="card modal-dialog-card" 
             style={{ 
               maxWidth: '850px', 
-              width: '100%', 
-              maxHeight: '90vh', 
-              overflowY: 'auto',
               background: 'var(--bg-surface)',
               border: '1px solid var(--border-color-strong)',
               borderRadius: 'var(--radius-xl)',
               padding: '28px'
             }}
+            onClick={(e) => e.stopPropagation()}
           >
             {/* Cabeçalho da Pasta */}
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', borderBottom: '1px solid var(--border-color)', paddingBottom: '18px', marginBottom: '20px' }}>
@@ -1201,29 +1318,20 @@ export default function EmpresasPage() {
       {/* MODAL: CADASTRAR NOVA EMPRESA (COM ÁREAS E CARTÃO CNPJ)     */}
       {/* ─────────────────────────────────────────────────────────── */}
       {modalOpen && (
-        <div style={{
-          position: 'fixed',
-          inset: 0,
-          background: 'rgba(0, 0, 0, 0.85)',
-          backdropFilter: 'blur(6px)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          zIndex: 9999,
-          padding: '20px'
-        }}>
+        <div 
+          className="modal-overlay"
+          onClick={() => setModalOpen(false)}
+        >
           <div 
-            className="card" 
+            className="card modal-dialog-card" 
             style={{ 
               maxWidth: '680px', 
-              width: '100%', 
-              maxHeight: '90vh', 
-              overflowY: 'auto',
               background: 'var(--bg-surface)',
               border: '1px solid var(--border-color-strong)',
               borderRadius: 'var(--radius-xl)',
               padding: '28px'
             }}
+            onClick={(e) => e.stopPropagation()}
           >
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
@@ -1395,27 +1503,20 @@ export default function EmpresasPage() {
       {/* MODAL: NOVO PROFISSIONAL / ENGENHEIRO                       */}
       {/* ─────────────────────────────────────────────────────────── */}
       {modalProfOpen && (
-        <div style={{
-          position: 'fixed',
-          inset: 0,
-          background: 'rgba(0, 0, 0, 0.85)',
-          backdropFilter: 'blur(6px)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          zIndex: 9999,
-          padding: '20px'
-        }}>
+        <div 
+          className="modal-overlay"
+          onClick={() => setModalProfOpen(false)}
+        >
           <div 
-            className="card" 
+            className="card modal-dialog-card" 
             style={{ 
-              maxWidth: '620px', 
-              width: '100%', 
+              maxWidth: '640px', 
               background: 'var(--bg-surface)',
               border: '1px solid var(--border-color-strong)',
               borderRadius: 'var(--radius-xl)',
               padding: '28px'
             }}
+            onClick={(e) => e.stopPropagation()}
           >
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
@@ -1658,27 +1759,20 @@ export default function EmpresasPage() {
       {/* MODAL: EDITAR PROFISSIONAL                                  */}
       {/* ─────────────────────────────────────────────────────────── */}
       {editProfModalOpen && editingProf && (
-        <div style={{
-          position: 'fixed',
-          inset: 0,
-          background: 'rgba(0, 0, 0, 0.85)',
-          backdropFilter: 'blur(6px)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          zIndex: 9999,
-          padding: '20px'
-        }}>
+        <div 
+          className="modal-overlay"
+          onClick={() => setEditProfModalOpen(false)}
+        >
           <div 
-            className="card" 
+            className="card modal-dialog-card" 
             style={{ 
-              maxWidth: '620px', 
-              width: '100%', 
+              maxWidth: '640px', 
               background: 'var(--bg-surface)',
               border: '1px solid var(--border-color-strong)',
               borderRadius: 'var(--radius-xl)',
               padding: '28px'
             }}
+            onClick={(e) => e.stopPropagation()}
           >
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
@@ -1925,27 +2019,20 @@ export default function EmpresasPage() {
       {/* MODAL: VINCULAR CAT DIRETA AO PROFISSIONAL                  */}
       {/* ─────────────────────────────────────────────────────────── */}
       {modalProfCatOpen && selectedProfDossie && (
-        <div style={{
-          position: 'fixed',
-          inset: 0,
-          background: 'rgba(0, 0, 0, 0.85)',
-          backdropFilter: 'blur(6px)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          zIndex: 10000,
-          padding: '20px'
-        }}>
+        <div 
+          className="modal-overlay"
+          onClick={() => setModalProfCatOpen(false)}
+        >
           <div 
-            className="card" 
+            className="card modal-dialog-card" 
             style={{ 
               maxWidth: '600px', 
-              width: '100%', 
               background: 'var(--bg-surface)',
               border: '1px solid var(--border-color-strong)',
               borderRadius: 'var(--radius-xl)',
               padding: '26px'
             }}
+            onClick={(e) => e.stopPropagation()}
           >
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '18px' }}>
               <div>
@@ -2056,29 +2143,20 @@ export default function EmpresasPage() {
       {/* MODAL: GERENCIAMENTO COMPLETO DA EMPRESA                   */}
       {/* ─────────────────────────────────────────────────────────── */}
       {companyModalOpen && selectedEmpresa && (
-        <div style={{
-          position: 'fixed',
-          inset: 0,
-          background: 'rgba(0, 0, 0, 0.85)',
-          backdropFilter: 'blur(6px)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          zIndex: 9999,
-          padding: '20px'
-        }}>
+        <div 
+          className="modal-overlay"
+          onClick={() => setCompanyModalOpen(false)}
+        >
           <div 
-            className="card" 
+            className="card modal-dialog-card" 
             style={{ 
-              maxWidth: '900px', 
-              width: '100%', 
-              maxHeight: '90vh', 
-              overflowY: 'auto',
+              maxWidth: '960px', 
               background: 'var(--bg-surface)',
               border: '1px solid var(--border-color-strong)',
               borderRadius: 'var(--radius-xl)',
               padding: '28px'
             }}
+            onClick={(e) => e.stopPropagation()}
           >
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
               <div>
@@ -2126,11 +2204,33 @@ export default function EmpresasPage() {
                 {/* Aba Acervos da Empresa */}
                 {companyTab === 'acervos' && (
                   <div>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
-                      <h4 style={{ fontSize: '0.95rem', fontWeight: 600 }}>Atestados da Empresa</h4>
-                      <button onClick={() => setModalCatOpen(true)} className="btn btn-primary btn-sm">
-                        <Plus size={14} /> Cadastrar Novo Atestado
-                      </button>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', flexWrap: 'wrap', gap: '10px' }}>
+                      <div style={{ position: 'relative', flex: '1 1 240px' }}>
+                        <Search size={14} style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
+                        <input 
+                          type="text"
+                          value={catSearch}
+                          onChange={(e) => setCatSearch(e.target.value)}
+                          placeholder="Filtrar por CAT, emitente ou objeto..."
+                          className="form-control"
+                          style={{ paddingLeft: '32px', height: '36px', fontSize: '0.82rem', width: '100%' }}
+                        />
+                      </div>
+                      <div style={{ display: 'flex', gap: '8px' }}>
+                        <a 
+                          href={`/dashboard/acervo?orgId=${selectedEmpresa.id}`} 
+                          target="_blank" 
+                          rel="noreferrer"
+                          className="btn btn-secondary btn-sm"
+                          style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}
+                          title="Abrir no Acervo Técnico Geral para filtros avançados e simulador"
+                        >
+                          <ExternalLink size={13} style={{ color: '#60a5fa' }} /> Ver no Acervo Geral
+                        </a>
+                        <button onClick={() => setModalCatOpen(true)} className="btn btn-primary btn-sm" style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+                          <Plus size={14} /> Novo Atestado
+                        </button>
+                      </div>
                     </div>
 
                     {!selectedEmpresa.acervo || selectedEmpresa.acervo.length === 0 ? (
@@ -2146,28 +2246,90 @@ export default function EmpresasPage() {
                               <th>Órgão Emitente</th>
                               <th>Objeto</th>
                               <th>Local</th>
-                              <th style={{ textAlign: 'right' }}>Documento</th>
+                              <th>Documento</th>
+                              <th style={{ textAlign: 'right' }}>Ações</th>
                             </tr>
                           </thead>
                           <tbody>
-                            {selectedEmpresa.acervo.map((cat: any) => (
-                              <tr key={cat.id}>
+                            {selectedEmpresa.acervo
+                              .filter((cat: any) => {
+                                if (!catSearch) return true;
+                                const q = catSearch.toLowerCase();
+                                return (
+                                  (cat.numeroCat && cat.numeroCat.toLowerCase().includes(q)) ||
+                                  (cat.numeroAtestado && cat.numeroAtestado.toLowerCase().includes(q)) ||
+                                  (cat.emitente && cat.emitente.toLowerCase().includes(q)) ||
+                                  (cat.objeto && cat.objeto.toLowerCase().includes(q)) ||
+                                  (cat.responsavelTecnico && cat.responsavelTecnico.toLowerCase().includes(q))
+                                );
+                              })
+                              .map((cat: any) => (
+                              <tr 
+                                key={cat.id} 
+                                style={{ cursor: 'pointer', transition: 'background 0.15s' }}
+                                onClick={() => {
+                                  setSelectedCatDetails(cat);
+                                  setCatDetailsModalOpen(true);
+                                }}
+                              >
                                 <td>
-                                  <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.82rem', color: '#60a5fa' }}>
+                                  <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.82rem', color: '#60a5fa', fontWeight: 600 }}>
                                     {cat.numeroCat || cat.numeroAtestado || 'S/N'}
                                   </span>
                                 </td>
                                 <td style={{ fontSize: '0.82rem' }}>{cat.emitente}</td>
-                                <td style={{ fontSize: '0.82rem', maxWidth: '300px' }}>{cat.objeto}</td>
+                                <td style={{ fontSize: '0.82rem', maxWidth: '280px' }} title={cat.objeto}>
+                                  <div style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                    {cat.objeto}
+                                  </div>
+                                </td>
                                 <td style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>{cat.uf || 'CE'}</td>
-                                <td style={{ textAlign: 'right' }}>
+                                <td>
                                   {cat.urlOrigem || cat.storageUrl ? (
-                                    <a href={cat.urlOrigem || cat.storageUrl} target="_blank" rel="noreferrer" className="btn btn-secondary btn-sm" style={{ padding: '4px 8px', fontSize: '0.75rem' }}>
-                                      <ExternalLink size={12} /> Ver
-                                    </a>
+                                    <button 
+                                      type="button"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        downloadOrOpenDoc(cat.urlOrigem || cat.storageUrl, `CAT_${cat.numeroCat || 'atestado'}.pdf`);
+                                      }}
+                                      className="btn btn-secondary btn-sm" 
+                                      style={{ padding: '3px 8px', fontSize: '0.74rem', display: 'inline-flex', alignItems: 'center', gap: '4px' }}
+                                    >
+                                      <ExternalLink size={12} /> Abrir
+                                    </button>
                                   ) : (
-                                    <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>-</span>
+                                    <span style={{ fontSize: '0.74rem', color: '#f87171' }}>Pendente</span>
                                   )}
+                                </td>
+                                <td style={{ textAlign: 'right' }}>
+                                  <div style={{ display: 'inline-flex', gap: '4px', alignItems: 'center' }}>
+                                    <button
+                                      type="button"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        setSelectedCatDetails(cat);
+                                        setCatDetailsModalOpen(true);
+                                      }}
+                                      className="btn btn-secondary btn-sm"
+                                      style={{ padding: '3px 8px', fontSize: '0.74rem', display: 'inline-flex', alignItems: 'center', gap: '4px' }}
+                                      title="Visualizar Dossiê Técnico Completo da CAT"
+                                    >
+                                      <Eye size={12} style={{ color: '#60a5fa' }} /> Dossiê
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        setEditingCat(cat);
+                                        setModalEditCatOpen(true);
+                                      }}
+                                      className="btn btn-ghost btn-sm"
+                                      style={{ padding: '3px 6px' }}
+                                      title="Editar Informações da CAT"
+                                    >
+                                      <Edit3 size={13} />
+                                    </button>
+                                  </div>
                                 </td>
                               </tr>
                             ))}
@@ -2335,27 +2497,20 @@ export default function EmpresasPage() {
 
       {/* Modal Nova CAT para Empresa */}
       {modalCatOpen && (
-        <div style={{
-          position: 'fixed',
-          inset: 0,
-          background: 'rgba(0, 0, 0, 0.85)',
-          backdropFilter: 'blur(6px)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          zIndex: 10000,
-          padding: '20px'
-        }}>
+        <div 
+          className="modal-overlay"
+          onClick={() => setModalCatOpen(false)}
+        >
           <div 
-            className="card" 
+            className="card modal-dialog-card" 
             style={{ 
-              maxWidth: '600px', 
-              width: '100%', 
+              maxWidth: '620px', 
               background: 'var(--bg-surface)',
               border: '1px solid var(--border-color-strong)',
               borderRadius: 'var(--radius-xl)',
               padding: '26px'
             }}
+            onClick={(e) => e.stopPropagation()}
           >
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '18px' }}>
               <h3 style={{ fontSize: '1.2rem', fontWeight: 700 }}>Cadastrar Atestado / CAT para a Empresa</h3>
@@ -2431,7 +2586,7 @@ export default function EmpresasPage() {
               </div>
 
               <div className="form-group">
-                <label className="form-label">Link do Documento</label>
+                <label className="form-label">Link do Documento / Google Drive</label>
                 <input 
                   value={newCatData.urlOrigem} 
                   onChange={(e) => setNewCatData({ ...newCatData, urlOrigem: e.target.value })}
@@ -2453,27 +2608,20 @@ export default function EmpresasPage() {
 
       {/* Modal Nova Certidão para Empresa */}
       {modalCertidaoOpen && (
-        <div style={{
-          position: 'fixed',
-          inset: 0,
-          background: 'rgba(0, 0, 0, 0.85)',
-          backdropFilter: 'blur(6px)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          zIndex: 10000,
-          padding: '20px'
-        }}>
+        <div 
+          className="modal-overlay"
+          onClick={() => setModalCertidaoOpen(false)}
+        >
           <div 
-            className="card" 
+            className="card modal-dialog-card" 
             style={{ 
-              maxWidth: '550px', 
-              width: '100%', 
+              maxWidth: '560px', 
               background: 'var(--bg-surface)',
               border: '1px solid var(--border-color-strong)',
               borderRadius: 'var(--radius-xl)',
               padding: '26px'
             }}
+            onClick={(e) => e.stopPropagation()}
           >
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '18px' }}>
               <h3 style={{ fontSize: '1.2rem', fontWeight: 700 }}>Nova Certidão de Habilitação</h3>
@@ -2542,6 +2690,335 @@ export default function EmpresasPage() {
                 <button type="button" onClick={() => setModalCertidaoOpen(false)} className="btn btn-secondary">Cancelar</button>
                 <button type="submit" disabled={savingCertidao} className="btn btn-primary">
                   {savingCertidao ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />} Salvar Certidão
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ─────────────────────────────────────────────────────────── */}
+      {/* MODAL: DOSSIÊ & DETALHES COMPLETOS DA CAT                   */}
+      {/* ─────────────────────────────────────────────────────────── */}
+      {catDetailsModalOpen && selectedCatDetails && (
+        <div 
+          className="modal-overlay"
+          onClick={() => setCatDetailsModalOpen(false)}
+        >
+          <div 
+            className="card modal-dialog-card" 
+            style={{ 
+              maxWidth: '720px', 
+              background: 'var(--bg-surface)',
+              border: '1px solid var(--border-color-strong)',
+              borderRadius: 'var(--radius-xl)',
+              padding: '28px'
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Header */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', borderBottom: '1px solid var(--border-color)', paddingBottom: '16px', marginBottom: '20px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                <div style={{ width: '42px', height: '42px', borderRadius: 'var(--radius-md)', background: 'linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff' }}>
+                  <Award size={22} />
+                </div>
+                <div>
+                  <h3 style={{ fontSize: '1.25rem', fontWeight: 700, color: 'var(--text-primary)' }}>
+                    Atestado / CAT nº {selectedCatDetails.numeroCat || selectedCatDetails.numeroAtestado || 'S/N'}
+                  </h3>
+                  <p style={{ fontSize: '0.82rem', color: 'var(--text-secondary)' }}>
+                    {selectedCatDetails.emitente} • {selectedCatDetails.local || ''} ({selectedCatDetails.uf || 'CE'})
+                  </p>
+                </div>
+              </div>
+              <button onClick={() => setCatDetailsModalOpen(false)} className="btn btn-ghost btn-sm">
+                <X size={20} />
+              </button>
+            </div>
+
+            {/* Corpo com Ficha Técnica Completa */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+              {/* Objeto */}
+              <div style={{ background: 'rgba(255, 255, 255, 0.02)', padding: '14px 16px', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-color)' }}>
+                <span style={{ fontSize: '0.72rem', textTransform: 'uppercase', letterSpacing: '0.05em', color: '#60a5fa', fontWeight: 700, display: 'block', marginBottom: '6px' }}>
+                  Objeto dos Serviços Executados
+                </span>
+                <p style={{ fontSize: '0.88rem', color: 'var(--text-primary)', lineHeight: 1.5, margin: 0 }}>
+                  {selectedCatDetails.objeto}
+                </p>
+              </div>
+
+              {/* Informações Complementares */}
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '12px' }}>
+                <div style={{ background: 'rgba(255, 255, 255, 0.02)', padding: '10px 14px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-color)' }}>
+                  <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', display: 'block' }}>Contrato Vinculado</span>
+                  <strong style={{ fontSize: '0.88rem', color: 'var(--text-primary)' }}>{selectedCatDetails.numeroContrato || 'Não informado'}</strong>
+                </div>
+                <div style={{ background: 'rgba(255, 255, 255, 0.02)', padding: '10px 14px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-color)' }}>
+                  <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', display: 'block' }}>Responsável Técnico</span>
+                  <strong style={{ fontSize: '0.88rem', color: '#34d399' }}>{selectedCatDetails.responsavelTecnico || 'Não especificado'}</strong>
+                </div>
+                <div style={{ background: 'rgba(255, 255, 255, 0.02)', padding: '10px 14px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-color)' }}>
+                  <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', display: 'block' }}>Área Técnica</span>
+                  <strong style={{ fontSize: '0.88rem', color: 'var(--text-primary)' }}>{selectedCatDetails.areaTecnica || 'Infraestrutura / Obras Civis'}</strong>
+                </div>
+                <div style={{ background: 'rgba(255, 255, 255, 0.02)', padding: '10px 14px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-color)' }}>
+                  <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', display: 'block' }}>Período de Execução</span>
+                  <strong style={{ fontSize: '0.84rem', color: '#fbbf24' }}>
+                    {selectedCatDetails.periodoInicio ? formatDate(selectedCatDetails.periodoInicio) : 'Início N/I'} até {selectedCatDetails.periodoFim ? formatDate(selectedCatDetails.periodoFim) : 'Concluído'}
+                  </strong>
+                </div>
+              </div>
+
+              {/* Quantitativos se houver */}
+              {selectedCatDetails.quantitativos && selectedCatDetails.quantitativos !== '[]' && (
+                <div style={{ background: 'rgba(255, 255, 255, 0.02)', padding: '14px 16px', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-color)' }}>
+                  <span style={{ fontSize: '0.72rem', textTransform: 'uppercase', letterSpacing: '0.05em', color: '#fbbf24', fontWeight: 700, display: 'block', marginBottom: '8px' }}>
+                    Quantitativos & Parcelas de Maior Relevância
+                  </span>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+                    {(() => {
+                      try {
+                        const parsed = typeof selectedCatDetails.quantitativos === 'string' ? JSON.parse(selectedCatDetails.quantitativos) : selectedCatDetails.quantitativos;
+                        if (Array.isArray(parsed)) {
+                          return parsed.map((q: any, idx: number) => (
+                            <span key={idx} style={{ background: 'rgba(245, 158, 11, 0.1)', border: '1px solid rgba(245, 158, 11, 0.25)', padding: '4px 10px', borderRadius: 'var(--radius-sm)', fontSize: '0.8rem', color: '#fbbf24' }}>
+                              <strong>{q.quantidade || q.qtd} {q.unidade || q.und}</strong> {q.descricao || q.item}
+                            </span>
+                          ));
+                        }
+                      } catch(e) {}
+                      return <span style={{ fontSize: '0.82rem', color: 'var(--text-secondary)' }}>{String(selectedCatDetails.quantitativos)}</span>;
+                    })()}
+                  </div>
+                </div>
+              )}
+
+              {/* Documento / Arquivo do Atestado */}
+              <div style={{
+                background: selectedCatDetails.storageUrl || selectedCatDetails.urlOrigem ? 'rgba(34, 197, 94, 0.08)' : 'rgba(239, 68, 68, 0.08)',
+                border: `1px solid ${selectedCatDetails.storageUrl || selectedCatDetails.urlOrigem ? 'rgba(34, 197, 94, 0.25)' : 'rgba(239, 68, 68, 0.25)'}`,
+                borderRadius: 'var(--radius-md)',
+                padding: '14px 16px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                flexWrap: 'wrap',
+                gap: '12px'
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                  <FileText size={22} style={{ color: selectedCatDetails.storageUrl || selectedCatDetails.urlOrigem ? '#34d399' : '#f87171' }} />
+                  <div>
+                    <div style={{ fontWeight: 600, fontSize: '0.88rem', color: 'var(--text-primary)' }}>
+                      {selectedCatDetails.storageUrl || selectedCatDetails.urlOrigem ? 'Documento / CAT Anexado' : 'Atestado Sem Documento Anexo'}
+                    </div>
+                    <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                      {selectedCatDetails.storageUrl || selectedCatDetails.urlOrigem ? 'Comprovante oficial disponível para visualização e download' : 'Anexe o PDF ou cole o link do Google Drive abaixo'}
+                    </div>
+                  </div>
+                </div>
+
+                {selectedCatDetails.storageUrl || selectedCatDetails.urlOrigem ? (
+                  <button
+                    type="button"
+                    onClick={() => downloadOrOpenDoc(selectedCatDetails.storageUrl || selectedCatDetails.urlOrigem, `CAT_${selectedCatDetails.numeroCat || 'atestado'}.pdf`)}
+                    className="btn btn-success btn-sm"
+                    style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}
+                  >
+                    <Download size={14} /> Abrir / Baixar Atestado
+                  </button>
+                ) : null}
+              </div>
+
+              {/* Se não tiver anexo ou quiser atualizar */}
+              <div style={{ background: 'rgba(255, 255, 255, 0.02)', padding: '14px 16px', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-color)' }}>
+                <span style={{ fontSize: '0.78rem', fontWeight: 600, color: 'var(--text-secondary)', display: 'block', marginBottom: '8px' }}>
+                  {selectedCatDetails.storageUrl || selectedCatDetails.urlOrigem ? 'Substituir / Atualizar Arquivo' : 'Anexar Documento Agora'}
+                </span>
+                <div style={{ display: 'flex', gap: '10px', alignItems: 'center', flexWrap: 'wrap' }}>
+                  <label className="btn btn-secondary btn-sm" style={{ cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+                    <FileUp size={14} />
+                    Selecionar Arquivo PDF / Imagem
+                    <input 
+                      type="file" 
+                      accept=".pdf,image/*" 
+                      style={{ display: 'none' }}
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (file) {
+                          const reader = new FileReader();
+                          reader.onload = () => {
+                            const result = reader.result as string;
+                            handleQuickAttachFileToCat(selectedCatDetails.id, result, file.name);
+                          };
+                          reader.readAsDataURL(file);
+                        }
+                      }}
+                    />
+                  </label>
+                  <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>ou</span>
+                  <input 
+                    type="url"
+                    placeholder="Cole o link do Google Drive / link público da CAT e aperte Enter..."
+                    className="form-control"
+                    style={{ flex: 1, minWidth: '220px', height: '34px', fontSize: '0.8rem' }}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault();
+                        const val = (e.target as HTMLInputElement).value;
+                        if (val) handleQuickAttachFileToCat(selectedCatDetails.id, val);
+                      }
+                    }}
+                    onBlur={(e) => {
+                      if (e.target.value) handleQuickAttachFileToCat(selectedCatDetails.id, e.target.value);
+                    }}
+                  />
+                </div>
+              </div>
+
+              {/* Botões do Rodapé */}
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', borderTop: '1px solid var(--border-color)', paddingTop: '16px', marginTop: '6px' }}>
+                <button 
+                  type="button"
+                  onClick={() => {
+                    setEditingCat(selectedCatDetails);
+                    setCatDetailsModalOpen(false);
+                    setModalEditCatOpen(true);
+                  }}
+                  className="btn btn-secondary btn-sm"
+                  style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}
+                >
+                  <Edit3 size={14} /> Editar Dados da CAT
+                </button>
+                <button 
+                  type="button" 
+                  onClick={() => setCatDetailsModalOpen(false)} 
+                  className="btn btn-primary btn-sm"
+                >
+                  Fechar
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ─────────────────────────────────────────────────────────── */}
+      {/* MODAL: EDITAR CAT / ATESTADO DA EMPRESA                    */}
+      {/* ─────────────────────────────────────────────────────────── */}
+      {modalEditCatOpen && editingCat && (
+        <div 
+          className="modal-overlay"
+          onClick={() => setModalEditCatOpen(false)}
+        >
+          <div 
+            className="card modal-dialog-card" 
+            style={{ 
+              maxWidth: '640px', 
+              background: 'var(--bg-surface)',
+              border: '1px solid var(--border-color-strong)',
+              borderRadius: 'var(--radius-xl)',
+              padding: '28px'
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '18px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <div style={{ width: '38px', height: '38px', borderRadius: 'var(--radius-md)', background: 'var(--gradient-primary)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff' }}>
+                  <Edit3 size={18} />
+                </div>
+                <div>
+                  <h3 style={{ fontSize: '1.2rem', fontWeight: 700 }}>Editar Atestado / CAT</h3>
+                  <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>Atualize os dados e anexo do atestado técnico</p>
+                </div>
+              </div>
+              <button onClick={() => setModalEditCatOpen(false)} className="btn btn-ghost btn-sm">
+                <X size={20} />
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveEditCat} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                <div className="form-group">
+                  <label className="form-label">Número da CAT</label>
+                  <input 
+                    value={editingCat.numeroCat || ''} 
+                    onChange={(e) => setEditingCat({ ...editingCat, numeroCat: e.target.value })}
+                    className="form-control"
+                    placeholder="Ex: 0000000943442"
+                  />
+                </div>
+                <div className="form-group">
+                  <label className="form-label">Número do Atestado / Contrato</label>
+                  <input 
+                    value={editingCat.numeroAtestado || editingCat.numeroContrato || ''} 
+                    onChange={(e) => setEditingCat({ ...editingCat, numeroAtestado: e.target.value, numeroContrato: e.target.value })}
+                    className="form-control"
+                    placeholder="Ex: 2062/2019"
+                  />
+                </div>
+              </div>
+
+              <div className="form-group">
+                <label className="form-label">Órgão Emitente / Contratante *</label>
+                <input 
+                  value={editingCat.emitente || ''} 
+                  onChange={(e) => setEditingCat({ ...editingCat, emitente: e.target.value })}
+                  className="form-control" 
+                  required
+                />
+              </div>
+
+              <div className="form-group">
+                <label className="form-label">Objeto dos Serviços Executados *</label>
+                <textarea 
+                  value={editingCat.objeto || ''} 
+                  onChange={(e) => setEditingCat({ ...editingCat, objeto: e.target.value })}
+                  className="form-control" 
+                  rows={3}
+                  required
+                />
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                <div className="form-group">
+                  <label className="form-label">Responsável Técnico</label>
+                  <input 
+                    value={editingCat.responsavelTecnico || ''} 
+                    onChange={(e) => setEditingCat({ ...editingCat, responsavelTecnico: e.target.value })}
+                    className="form-control"
+                    placeholder="Nome do Engenheiro RT"
+                  />
+                </div>
+                <div className="form-group">
+                  <label className="form-label">Local / UF</label>
+                  <input 
+                    value={editingCat.uf || ''} 
+                    onChange={(e) => setEditingCat({ ...editingCat, uf: e.target.value, local: e.target.value })}
+                    className="form-control"
+                    placeholder="Ex: Maceió / AL"
+                  />
+                </div>
+              </div>
+
+              {/* Anexo de Arquivo / URL */}
+              <div className="form-group">
+                <label className="form-label">Link ou Anexo da CAT (Google Drive ou PDF)</label>
+                <input 
+                  value={editingCat.urlOrigem || editingCat.storageUrl || ''} 
+                  onChange={(e) => setEditingCat({ ...editingCat, urlOrigem: e.target.value, storageUrl: e.target.value })}
+                  className="form-control"
+                  placeholder="https://drive.google.com/... ou URL do PDF"
+                />
+              </div>
+
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '10px' }}>
+                <button type="button" onClick={() => setModalEditCatOpen(false)} className="btn btn-secondary">
+                  Cancelar
+                </button>
+                <button type="submit" disabled={savingEditCat} className="btn btn-primary" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  {savingEditCat ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
+                  Salvar Alterações
                 </button>
               </div>
             </form>

@@ -503,26 +503,14 @@ export default function PlataformasPage() {
       {/* MODAL: EDITAR PLATAFORMA / PORTAL                           */}
       {/* ─────────────────────────────────────────────────────────── */}
       {modalEditOpen && editingPlat && (
-        <div style={{
-          position: 'fixed',
-          inset: 0,
-          background: 'rgba(0, 0, 0, 0.85)',
-          backdropFilter: 'blur(6px)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          zIndex: 9999,
-          padding: '20px'
-        }}
-        onClick={() => setModalEditOpen(false)}
+        <div 
+          className="modal-overlay"
+          onClick={() => setModalEditOpen(false)}
         >
           <div 
-            className="card" 
+            className="card modal-dialog-card" 
             style={{ 
               maxWidth: '640px', 
-              width: '100%', 
-              maxHeight: '90vh', 
-              overflowY: 'auto',
               background: 'var(--bg-surface)',
               border: '1px solid var(--border-color-strong)',
               borderRadius: 'var(--radius-xl)',
@@ -815,26 +803,14 @@ export default function PlataformasPage() {
       {/* MODAL: CADASTRAR NOVA PLATAFORMA                            */}
       {/* ─────────────────────────────────────────────────────────── */}
       {modalNewOpen && (
-        <div style={{
-          position: 'fixed',
-          inset: 0,
-          background: 'rgba(0, 0, 0, 0.85)',
-          backdropFilter: 'blur(6px)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          zIndex: 9999,
-          padding: '20px'
-        }}
-        onClick={() => setModalNewOpen(false)}
+        <div 
+          className="modal-overlay"
+          onClick={() => setModalNewOpen(false)}
         >
           <div 
-            className="card" 
+            className="card modal-dialog-card" 
             style={{ 
               maxWidth: '640px', 
-              width: '100%', 
-              maxHeight: '90vh', 
-              overflowY: 'auto',
               background: 'var(--bg-surface)',
               border: '1px solid var(--border-color-strong)',
               borderRadius: 'var(--radius-xl)',

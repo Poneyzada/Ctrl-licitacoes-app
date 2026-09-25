@@ -42,6 +42,21 @@ export default function AcervoPage() {
     semCat: 0,
   });
 
+  const [organizations, setOrganizations] = useState<any[]>([]);
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      const urlOrg = params.get('orgId') || params.get('org');
+      const urlSearch = params.get('search');
+      if (urlOrg) setOrgFilter(urlOrg);
+      if (urlSearch) setSearch(urlSearch);
+    }
+    fetch('/api/empresas').then(r => r.json()).then(data => {
+      if (Array.isArray(data)) setOrganizations(data);
+    }).catch(console.error);
+  }, []);
+
   useEffect(() => {
     fetchAcervos();
   }, [search, orgFilter, ufFilter]);
@@ -309,6 +324,9 @@ export default function AcervoPage() {
             <option value="">Empresa: Todas</option>
             <option value="UFC">UFC Engenharia</option>
             <option value="PORTICO">Pórtico Construções</option>
+            {organizations.map(org => (
+              <option key={org.id} value={org.id}>{org.tradeName || org.name}</option>
+            ))}
           </select>
 
           <select 
@@ -490,26 +508,14 @@ export default function AcervoPage() {
 
       {/* Modal Editar Acervo */}
       {editModalOpen && editingAcervo && (
-        <div style={{
-          position: 'fixed',
-          inset: 0,
-          background: 'rgba(0, 0, 0, 0.85)',
-          backdropFilter: 'blur(6px)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          zIndex: 9999,
-          padding: '20px'
-        }}
-        onClick={() => setEditModalOpen(false)}
+        <div 
+          className="modal-overlay"
+          onClick={() => setEditModalOpen(false)}
         >
           <div 
-            className="card" 
+            className="card modal-dialog-card" 
             style={{ 
               maxWidth: '680px', 
-              width: '100%', 
-              maxHeight: '90vh', 
-              overflowY: 'auto',
               background: 'var(--bg-surface)',
               border: '1px solid var(--border-color-strong)',
               borderRadius: 'var(--radius-xl)',
@@ -615,18 +621,15 @@ export default function AcervoPage() {
 
       {/* Simulador Modal */}
       {simuladorOpen && (
-        <div style={{
-          position: 'fixed',
-          inset: 0,
-          background: 'rgba(0, 0, 0, 0.8)',
-          backdropFilter: 'blur(4px)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          zIndex: 999,
-          padding: '20px'
-        }}>
-          <div className="card" style={{ maxWidth: '800px', width: '100%', maxHeight: '90vh', overflowY: 'auto' }}>
+        <div 
+          className="modal-overlay"
+          onClick={() => setSimuladorOpen(false)}
+        >
+          <div 
+            className="card modal-dialog-card" 
+            style={{ maxWidth: '800px' }}
+            onClick={(e) => e.stopPropagation()}
+          >
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                 <Sparkles size={20} style={{ color: '#a855f7' }} />

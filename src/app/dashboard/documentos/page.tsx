@@ -514,26 +514,14 @@ export default function DocumentosPage() {
 
       {/* Modal Ver & Renovar Documento */}
       {renovarModalOpen && selectedDoc && (
-        <div style={{
-          position: 'fixed',
-          inset: 0,
-          background: 'rgba(0, 0, 0, 0.85)',
-          backdropFilter: 'blur(6px)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          zIndex: 9999,
-          padding: '20px'
-        }}
-        onClick={() => setRenovarModalOpen(false)}
+        <div 
+          className="modal-overlay"
+          onClick={() => setRenovarModalOpen(false)}
         >
           <div 
-            className="card" 
+            className="card modal-dialog-card" 
             style={{ 
               maxWidth: '620px', 
-              width: '100%', 
-              maxHeight: '90vh', 
-              overflowY: 'auto',
               background: 'var(--bg-surface)',
               border: '1px solid var(--border-color-strong)',
               borderRadius: 'var(--radius-xl)',
@@ -754,26 +742,14 @@ export default function DocumentosPage() {
 
       {/* Modal Novo Documento */}
       {modalOpen && (
-        <div style={{
-          position: 'fixed',
-          inset: 0,
-          background: 'rgba(0, 0, 0, 0.85)',
-          backdropFilter: 'blur(6px)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          zIndex: 9999,
-          padding: '20px'
-        }}
-        onClick={() => setModalOpen(false)}
+        <div 
+          className="modal-overlay"
+          onClick={() => setModalOpen(false)}
         >
           <div 
-            className="card" 
+            className="card modal-dialog-card" 
             style={{ 
               maxWidth: '600px', 
-              width: '100%', 
-              maxHeight: '90vh', 
-              overflowY: 'auto',
               background: 'var(--bg-surface)',
               border: '1px solid var(--border-color-strong)',
               borderRadius: 'var(--radius-xl)',

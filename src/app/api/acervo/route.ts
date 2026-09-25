@@ -16,7 +16,21 @@ export async function GET(req: Request) {
 
     const whereClause: any = { deletedAt: null };
     
-    if (orgId) whereClause.orgId = orgId;
+    if (orgId) {
+      const upper = orgId.toUpperCase();
+      if (upper === 'UFC') {
+        whereClause.organization = { name: { contains: 'UFC', mode: 'insensitive' } };
+      } else if (upper === 'PORTICO' || upper === 'PÓRTICO') {
+        whereClause.organization = {
+          OR: [
+            { name: { contains: 'Pórtico', mode: 'insensitive' } },
+            { name: { contains: 'Portico', mode: 'insensitive' } }
+          ]
+        };
+      } else {
+        whereClause.orgId = orgId;
+      }
+    }
     if (professionalId) whereClause.professionalId = professionalId;
     if (tipoServico) whereClause.tipoServico = tipoServico;
     if (uf) whereClause.uf = uf;

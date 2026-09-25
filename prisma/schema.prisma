@@ -686,6 +686,8 @@ model Professional {
   especializacoes String?  // JSON array
   areasExperiencia String? // JSON array
   resumoProfissional String?
+  storageKey      String?
+  storageUrl      String?
   ativo           Boolean  @default(true)
   deletedAt       DateTime?
   createdAt       DateTime @default(now())

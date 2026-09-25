@@ -29,7 +29,9 @@ export default function DocumentosPage() {
     emissao: '',
     vencimento: '',
     semVencimento: false,
-    observacoes: ''
+    observacoes: '',
+    storageUrl: '',
+    storageKey: ''
   });
 
   // Modal Ver / Renovar State
@@ -41,9 +43,28 @@ export default function DocumentosPage() {
     vencimento: '',
     semVencimento: false,
     observacoes: '',
-    status: 'VIGENTE'
+    status: 'VIGENTE',
+    storageUrl: '',
+    storageKey: ''
   });
   const [updating, setUpdating] = useState(false);
+
+  const downloadOrOpenDoc = (url: string, name: string) => {
+    if (!url) {
+      alert('Arquivo sem anexo ou link de visualização disponível.');
+      return;
+    }
+    if (url.startsWith('data:')) {
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = name && name.includes('.') ? name : `${name || 'documento'}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+    } else {
+      window.open(url, '_blank');
+    }
+  };
 
   const [stats, setStats] = useState({
     validos: 0,
@@ -144,7 +165,9 @@ export default function DocumentosPage() {
           emissao: '',
           vencimento: '',
           semVencimento: false,
-          observacoes: ''
+          observacoes: '',
+          storageUrl: '',
+          storageKey: ''
         });
         fetchDocuments();
       } else {
@@ -166,7 +189,9 @@ export default function DocumentosPage() {
       vencimento: doc.vencimento ? doc.vencimento.split('T')[0] : '',
       semVencimento: doc.semVencimento || false,
       observacoes: doc.observacoes || '',
-      status: doc.status || 'VIGENTE'
+      status: doc.status || 'VIGENTE',
+      storageUrl: doc.storageUrl || '',
+      storageKey: doc.storageKey || ''
     });
     setRenovarModalOpen(true);
   };
@@ -408,6 +433,30 @@ export default function DocumentosPage() {
                       {doc.numero && (
                         <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Nº {doc.numero}</div>
                       )}
+                      {doc.storageUrl && (
+                        <button
+                          type="button"
+                          onClick={() => downloadOrOpenDoc(doc.storageUrl, doc.storageKey || doc.nome)}
+                          style={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '4px',
+                            fontSize: '0.72rem',
+                            color: 'var(--color-primary)',
+                            background: 'rgba(232, 93, 93, 0.1)',
+                            border: '1px solid rgba(232, 93, 93, 0.25)',
+                            borderRadius: '4px',
+                            padding: '2px 7px',
+                            marginTop: '4px',
+                            cursor: 'pointer'
+                          }}
+                          title="Abrir / Baixar arquivo anexado"
+                        >
+                          <FileText size={11} />
+                          <span>{doc.storageKey || 'Ver Anexo'}</span>
+                          <Download size={10} style={{ opacity: 0.8 }} />
+                        </button>
+                      )}
                     </td>
 
                     <td>
@@ -433,14 +482,27 @@ export default function DocumentosPage() {
                     </td>
 
                     <td>
-                      <button 
-                        onClick={() => handleOpenRenovar(doc)}
-                        className="btn btn-secondary btn-sm" 
-                        style={{ padding: '5px 12px', fontSize: '0.78rem', display: 'flex', alignItems: 'center', gap: '5px' }}
-                      >
-                        <RefreshCw size={13} style={{ color: 'var(--color-primary)' }} />
-                        Ver / Renovar
-                      </button>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                        {doc.storageUrl && (
+                          <button
+                            type="button"
+                            onClick={() => downloadOrOpenDoc(doc.storageUrl, doc.storageKey || doc.nome)}
+                            className="btn btn-ghost btn-sm"
+                            style={{ padding: '5px 8px', color: 'var(--color-primary)' }}
+                            title="Baixar / Abrir Arquivo Anexo"
+                          >
+                            <Download size={14} />
+                          </button>
+                        )}
+                        <button 
+                          onClick={() => handleOpenRenovar(doc)}
+                          className="btn btn-secondary btn-sm" 
+                          style={{ padding: '5px 12px', fontSize: '0.78rem', display: 'flex', alignItems: 'center', gap: '5px' }}
+                        >
+                          <RefreshCw size={13} style={{ color: 'var(--color-primary)' }} />
+                          Ver / Renovar
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 );
@@ -548,6 +610,110 @@ export default function DocumentosPage() {
                 />
                 Certidão sem prazo de validade (indeterminado)
               </label>
+
+              {/* Campo de Anexo / Documento na Renovação */}
+              <div className="form-group">
+                <label className="form-label" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <span>Documento Anexo / Certidão (PDF ou Imagem)</span>
+                  <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Opcional</span>
+                </label>
+
+                {renovarData.storageUrl ? (
+                  <div style={{
+                    background: 'var(--bg-elevated)',
+                    border: '1px solid var(--border-color)',
+                    borderRadius: 'var(--radius-md)',
+                    padding: '12px 14px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    gap: '12px'
+                  }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px', minWidth: 0 }}>
+                      <FileText size={22} style={{ color: 'var(--color-primary)', flexShrink: 0 }} />
+                      <div style={{ minWidth: 0 }}>
+                        <div style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                          {renovarData.storageKey || selectedDoc.nome}
+                        </div>
+                        <div style={{ fontSize: '0.75rem', color: '#22c55e' }}>
+                          ✓ Arquivo vinculado à certidão
+                        </div>
+                      </div>
+                    </div>
+                    <div style={{ display: 'flex', gap: '6px', alignItems: 'center', flexShrink: 0 }}>
+                      <button
+                        type="button"
+                        onClick={() => downloadOrOpenDoc(renovarData.storageUrl, renovarData.storageKey || selectedDoc.nome)}
+                        className="btn btn-secondary btn-sm"
+                        style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', fontSize: '0.78rem' }}
+                      >
+                        <Eye size={13} /> Visualizar / Baixar
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setRenovarData(prev => ({ ...prev, storageUrl: '', storageKey: '' }))}
+                        className="btn btn-ghost btn-sm"
+                        style={{ color: '#ef4444', padding: '6px' }}
+                        title="Substituir / Remover arquivo"
+                      >
+                        <Trash2 size={15} />
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <div style={{
+                    border: '1px dashed var(--border-color-strong)',
+                    borderRadius: 'var(--radius-md)',
+                    padding: '14px',
+                    background: 'rgba(255,255,255,0.02)',
+                    textAlign: 'center'
+                  }}>
+                    <input
+                      type="file"
+                      id="renovarFileInput"
+                      accept=".pdf,.png,.jpg,.jpeg,.doc,.docx"
+                      style={{ display: 'none' }}
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (file) {
+                          if (file.size > 15 * 1024 * 1024) {
+                            alert('O arquivo deve ter no máximo 15MB.');
+                            return;
+                          }
+                          const reader = new FileReader();
+                          reader.onload = (ev) => {
+                            setRenovarData(prev => ({
+                              ...prev,
+                              storageUrl: ev.target?.result as string,
+                              storageKey: file.name
+                            }));
+                          };
+                          reader.readAsDataURL(file);
+                        }
+                      }}
+                    />
+                    <label
+                      htmlFor="renovarFileInput"
+                      className="btn btn-secondary btn-sm"
+                      style={{ cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '8px' }}
+                    >
+                      <FileUp size={15} style={{ color: 'var(--color-primary)' }} />
+                      Anexar Nova Certidão (PDF / Imagem)
+                    </label>
+                    <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: '6px' }}>
+                      ou informe um link externo abaixo:
+                    </div>
+                    <input
+                      type="url"
+                      value={renovarData.storageUrl?.startsWith('data:') ? '' : renovarData.storageUrl}
+                      onChange={(e) => setRenovarData(prev => ({ ...prev, storageUrl: e.target.value, storageKey: e.target.value ? 'Link Externo' : '' }))}
+                      className="form-control"
+                      placeholder="https://..."
+                      style={{ marginTop: '6px', fontSize: '0.82rem' }}
+                    />
+                  </div>
+                )}
+              </div>
 
               <div className="form-group">
                 <label className="form-label">Observações / Chave de Validação</label>
@@ -723,6 +889,101 @@ export default function DocumentosPage() {
                 />
                 Documento sem prazo de validade (ex: Balanço, Contrato Social)
               </label>
+
+              {/* Campo de Anexo da Certidão */}
+              <div className="form-group">
+                <label className="form-label" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <span>Anexo da Certidão / Documento (PDF, Imagem ou Link)</span>
+                  <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Opcional</span>
+                </label>
+
+                <div style={{
+                  border: '1px dashed var(--border-color-strong)',
+                  borderRadius: 'var(--radius-md)',
+                  padding: '16px',
+                  background: 'rgba(255,255,255,0.02)',
+                  textAlign: 'center'
+                }}>
+                  {newDoc.storageUrl ? (
+                    <div style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      background: 'var(--bg-elevated)',
+                      padding: '10px 14px',
+                      borderRadius: 'var(--radius-sm)',
+                      border: '1px solid var(--border-color)'
+                    }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px', minWidth: 0 }}>
+                        <FileText size={20} style={{ color: 'var(--color-primary)', flexShrink: 0 }} />
+                        <div style={{ textAlign: 'left', minWidth: 0 }}>
+                          <div style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                            {newDoc.storageKey || 'Documento Anexado'}
+                          </div>
+                          <div style={{ fontSize: '0.75rem', color: '#22c55e' }}>
+                            ✓ Arquivo pronto para envio
+                          </div>
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setNewDoc(prev => ({ ...prev, storageUrl: '', storageKey: '' }))}
+                        className="btn btn-ghost btn-sm"
+                        style={{ color: '#ef4444', padding: '6px', flexShrink: 0 }}
+                        title="Remover anexo"
+                      >
+                        <Trash2 size={16} />
+                      </button>
+                    </div>
+                  ) : (
+                    <div>
+                      <input
+                        type="file"
+                        id="newDocFileInput"
+                        accept=".pdf,.png,.jpg,.jpeg,.doc,.docx"
+                        style={{ display: 'none' }}
+                        onChange={(e) => {
+                          const file = e.target.files?.[0];
+                          if (file) {
+                            if (file.size > 15 * 1024 * 1024) {
+                              alert('O arquivo deve ter no máximo 15MB.');
+                              return;
+                            }
+                            const reader = new FileReader();
+                            reader.onload = (ev) => {
+                              setNewDoc(prev => ({
+                                ...prev,
+                                storageUrl: ev.target?.result as string,
+                                storageKey: file.name
+                              }));
+                            };
+                            reader.readAsDataURL(file);
+                          }
+                        }}
+                      />
+                      <label
+                        htmlFor="newDocFileInput"
+                        className="btn btn-secondary btn-sm"
+                        style={{ cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '8px' }}
+                      >
+                        <FileUp size={16} style={{ color: 'var(--color-primary)' }} />
+                        Escolher Arquivo do Computador (PDF / Imagem)
+                      </label>
+                      <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '8px' }}>
+                        ou informe um link externo abaixo (Google Drive, Portal SEFAZ, etc.)
+                      </div>
+                      <input
+                        type="url"
+                        value={newDoc.storageUrl.startsWith('data:') ? '' : newDoc.storageUrl}
+                        onChange={(e) => setNewDoc(prev => ({ ...prev, storageUrl: e.target.value, storageKey: e.target.value ? 'Link Externo' : '' }))}
+                        className="form-control"
+                        placeholder="https://..."
+                        style={{ marginTop: '8px', fontSize: '0.82rem' }}
+                      />
+                    </div>
+                  )}
+                </div>
+              </div>
 
               <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '10px' }}>
                 <button type="button" onClick={() => setModalOpen(false)} className="btn btn-secondary">

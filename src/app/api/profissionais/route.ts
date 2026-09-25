@@ -43,6 +43,8 @@ export async function POST(req: Request) {
         situacaoConselho: body.situacaoConselho || 'ATIVO',
         formacao: body.formacao,
         resumoProfissional: body.resumoProfissional,
+        storageKey: body.storageKey || null,
+        storageUrl: body.storageUrl || null,
         ativo: true
       }
     });

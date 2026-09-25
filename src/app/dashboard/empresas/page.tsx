@@ -5,7 +5,7 @@ import {
   Building2, Users, FileText, Briefcase, Plus, 
   Phone, Mail, MapPin, ShieldCheck, Loader2, X, Save, Layers,
   Download, Edit3, Trash2, Calendar, CheckCircle2, AlertTriangle,
-  ExternalLink, Search, Check, Shield, UserPlus, FileUp, Award, FolderOpen
+  ExternalLink, Search, Check, Shield, UserPlus, FileUp, Award, FolderOpen, Eye
 } from 'lucide-react';
 import { formatDate } from '@/lib/utils';
 
@@ -81,7 +81,9 @@ export default function EmpresasPage() {
     numeroConselho: '',
     situacaoConselho: 'ATIVO',
     formacao: 'Engenharia Civil',
-    resumoProfissional: ''
+    resumoProfissional: '',
+    storageUrl: '',
+    storageKey: ''
   });
 
   // Modal Editar Profissional
@@ -89,6 +91,23 @@ export default function EmpresasPage() {
   const [editingProf, setEditingProf] = useState<any>(null);
   const [editProfData, setEditProfData] = useState<any>({});
   const [savingEditProf, setSavingEditProf] = useState(false);
+
+  const downloadOrOpenDoc = (url: string, name: string) => {
+    if (!url) {
+      alert('Arquivo sem anexo ou link de visualização disponível.');
+      return;
+    }
+    if (url.startsWith('data:')) {
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = name && name.includes('.') ? name : `${name || 'documento'}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+    } else {
+      window.open(url, '_blank');
+    }
+  };
 
   // Modal Pasta Técnica do Profissional (Dossiê de CATs & Certidões)
   const [selectedProfDossie, setSelectedProfDossie] = useState<any>(null);
@@ -306,7 +325,9 @@ export default function EmpresasPage() {
           numeroConselho: '',
           situacaoConselho: 'ATIVO',
           formacao: 'Engenharia Civil',
-          resumoProfissional: ''
+          resumoProfissional: '',
+          storageUrl: '',
+          storageKey: ''
         });
         loadAllData();
         alert('Profissional cadastrado com sucesso!');
@@ -338,7 +359,9 @@ export default function EmpresasPage() {
       numeroConselho: prof.numeroConselho || '',
       situacaoConselho: prof.situacaoConselho || 'ATIVO',
       formacao: prof.formacao || '',
-      resumoProfissional: prof.resumoProfissional || ''
+      resumoProfissional: prof.resumoProfissional || '',
+      storageUrl: prof.storageUrl || '',
+      storageKey: prof.storageKey || ''
     });
     setEditProfModalOpen(true);
   };
@@ -856,6 +879,32 @@ export default function EmpresasPage() {
                                 <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
                                   {prof.funcao || 'Responsável Técnico'} • {prof.formacao || 'Engenharia Civil'}
                                 </span>
+                                {prof.storageUrl && (
+                                  <div>
+                                    <button
+                                      type="button"
+                                      onClick={() => downloadOrOpenDoc(prof.storageUrl, prof.storageKey || prof.nome)}
+                                      style={{
+                                        display: 'inline-flex',
+                                        alignItems: 'center',
+                                        gap: '4px',
+                                        fontSize: '0.72rem',
+                                        color: 'var(--color-primary)',
+                                        background: 'rgba(232, 93, 93, 0.1)',
+                                        border: '1px solid rgba(232, 93, 93, 0.25)',
+                                        borderRadius: '4px',
+                                        padding: '2px 7px',
+                                        marginTop: '4px',
+                                        cursor: 'pointer'
+                                      }}
+                                      title="Abrir / Baixar anexo do profissional"
+                                    >
+                                      <FileText size={11} />
+                                      <span>{prof.storageKey || 'Ver Anexo'}</span>
+                                      <Download size={10} style={{ opacity: 0.8 }} />
+                                    </button>
+                                  </div>
+                                )}
                               </div>
                             </div>
                           </td>
@@ -905,6 +954,17 @@ export default function EmpresasPage() {
                           </td>
                           <td style={{ textAlign: 'right' }}>
                             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '6px' }}>
+                              {prof.storageUrl && (
+                                <button
+                                  type="button"
+                                  onClick={() => downloadOrOpenDoc(prof.storageUrl, prof.storageKey || prof.nome)}
+                                  className="btn btn-ghost btn-sm"
+                                  style={{ padding: '6px 8px', color: 'var(--color-primary)' }}
+                                  title="Baixar / Abrir Anexo do Profissional"
+                                >
+                                  <Download size={14} />
+                                </button>
+                              )}
                               <button 
                                 onClick={() => openDossie(prof)}
                                 className="btn btn-secondary btn-sm"
@@ -1014,11 +1074,46 @@ export default function EmpresasPage() {
 
             {/* Resumo Profissional / Dossiê */}
             {selectedProfDossie.resumoProfissional && (
-              <div style={{ background: 'rgba(255, 255, 255, 0.03)', padding: '12px 16px', borderRadius: 'var(--radius-md)', marginBottom: '22px', border: '1px solid var(--border-color)' }}>
+              <div style={{ background: 'rgba(255, 255, 255, 0.03)', padding: '12px 16px', borderRadius: 'var(--radius-md)', marginBottom: '18px', border: '1px solid var(--border-color)' }}>
                 <strong style={{ fontSize: '0.8rem', color: '#60a5fa', display: 'block', marginBottom: '4px' }}>Qualificação & Experiência:</strong>
                 <p style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', margin: 0 }}>
                   {selectedProfDossie.resumoProfissional}
                 </p>
+              </div>
+            )}
+
+            {/* Documento / Dossiê Anexo do Profissional */}
+            {selectedProfDossie.storageUrl && (
+              <div style={{
+                background: 'rgba(232, 93, 93, 0.08)',
+                border: '1px solid rgba(232, 93, 93, 0.25)',
+                borderRadius: 'var(--radius-md)',
+                padding: '12px 16px',
+                marginBottom: '20px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                gap: '12px'
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', minWidth: 0 }}>
+                  <FileText size={22} style={{ color: 'var(--color-primary)', flexShrink: 0 }} />
+                  <div style={{ minWidth: 0 }}>
+                    <div style={{ fontWeight: 600, fontSize: '0.88rem', color: 'var(--text-primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                      {selectedProfDossie.storageKey || 'Dossiê / Documento do Profissional'}
+                    </div>
+                    <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                      Arquivo anexado ao cadastro do profissional (Carteira, Diploma ou Currículo)
+                    </div>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => downloadOrOpenDoc(selectedProfDossie.storageUrl, selectedProfDossie.storageKey || selectedProfDossie.nome)}
+                  className="btn btn-primary btn-sm"
+                  style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', fontSize: '0.78rem', flexShrink: 0 }}
+                >
+                  <Eye size={14} /> Abrir / Baixar Documento
+                </button>
               </div>
             )}
 
@@ -1446,8 +1541,103 @@ export default function EmpresasPage() {
                   onChange={(e) => setNewProfData({ ...newProfData, resumoProfissional: e.target.value })}
                   className="form-control" 
                   rows={2}
-                  placeholder="Descreva a atuação principal, tempo de experiência e especialidades técnicas..."
+                  placeholder="Descreva a atuação principal, tempo de experiência e especialidades técnicas..." 
                 />
+              </div>
+
+              {/* Campo de Anexo do Profissional */}
+              <div className="form-group">
+                <label className="form-label" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <span>Anexo do Profissional (Dossiê, Carteira CREA/CAU, Diploma, Currículo)</span>
+                  <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Opcional</span>
+                </label>
+
+                <div style={{
+                  border: '1px dashed var(--border-color-strong)',
+                  borderRadius: 'var(--radius-md)',
+                  padding: '16px',
+                  background: 'rgba(255,255,255,0.02)',
+                  textAlign: 'center'
+                }}>
+                  {newProfData.storageUrl ? (
+                    <div style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      background: 'var(--bg-elevated)',
+                      padding: '10px 14px',
+                      borderRadius: 'var(--radius-sm)',
+                      border: '1px solid var(--border-color)'
+                    }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px', minWidth: 0 }}>
+                        <FileText size={20} style={{ color: 'var(--color-primary)', flexShrink: 0 }} />
+                        <div style={{ textAlign: 'left', minWidth: 0 }}>
+                          <div style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                            {newProfData.storageKey || 'Documento Anexado'}
+                          </div>
+                          <div style={{ fontSize: '0.75rem', color: '#22c55e' }}>
+                            ✓ Arquivo pronto para vincular
+                          </div>
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setNewProfData(prev => ({ ...prev, storageUrl: '', storageKey: '' }))}
+                        className="btn btn-ghost btn-sm"
+                        style={{ color: '#ef4444', padding: '6px', flexShrink: 0 }}
+                        title="Remover anexo"
+                      >
+                        <Trash2 size={16} />
+                      </button>
+                    </div>
+                  ) : (
+                    <div>
+                      <input
+                        type="file"
+                        id="newProfFileInput"
+                        accept=".pdf,.png,.jpg,.jpeg,.doc,.docx"
+                        style={{ display: 'none' }}
+                        onChange={(e) => {
+                          const file = e.target.files?.[0];
+                          if (file) {
+                            if (file.size > 15 * 1024 * 1024) {
+                              alert('O arquivo deve ter no máximo 15MB.');
+                              return;
+                            }
+                            const reader = new FileReader();
+                            reader.onload = (ev) => {
+                              setNewProfData(prev => ({
+                                ...prev,
+                                storageUrl: ev.target?.result as string,
+                                storageKey: file.name
+                              }));
+                            };
+                            reader.readAsDataURL(file);
+                          }
+                        }}
+                      />
+                      <label
+                        htmlFor="newProfFileInput"
+                        className="btn btn-secondary btn-sm"
+                        style={{ cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '8px' }}
+                      >
+                        <FileUp size={16} style={{ color: 'var(--color-primary)' }} />
+                        Escolher Arquivo do Computador (PDF / Imagem)
+                      </label>
+                      <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '8px' }}>
+                        ou informe um link externo abaixo (Google Drive, etc.)
+                      </div>
+                      <input
+                        type="url"
+                        value={newProfData.storageUrl.startsWith('data:') ? '' : newProfData.storageUrl}
+                        onChange={(e) => setNewProfData(prev => ({ ...prev, storageUrl: e.target.value, storageKey: e.target.value ? 'Link Externo' : '' }))}
+                        className="form-control"
+                        placeholder="https://..."
+                        style={{ marginTop: '8px', fontSize: '0.82rem' }}
+                      />
+                    </div>
+                  )}
+                </div>
               </div>
 
               <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '12px' }}>
@@ -1611,6 +1801,110 @@ export default function EmpresasPage() {
                   className="form-control" 
                   rows={2}
                 />
+              </div>
+
+              {/* Campo de Anexo do Profissional */}
+              <div className="form-group">
+                <label className="form-label" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <span>Documento Anexo / Dossiê (PDF ou Imagem)</span>
+                  <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Opcional</span>
+                </label>
+
+                {editProfData.storageUrl ? (
+                  <div style={{
+                    background: 'var(--bg-elevated)',
+                    border: '1px solid var(--border-color)',
+                    borderRadius: 'var(--radius-md)',
+                    padding: '12px 14px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    gap: '12px'
+                  }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px', minWidth: 0 }}>
+                      <FileText size={22} style={{ color: 'var(--color-primary)', flexShrink: 0 }} />
+                      <div style={{ minWidth: 0 }}>
+                        <div style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                          {editProfData.storageKey || 'Documento do Profissional'}
+                        </div>
+                        <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                          Arquivo anexado ao cadastro
+                        </div>
+                      </div>
+                    </div>
+                    <div style={{ display: 'flex', gap: '6px', alignItems: 'center', flexShrink: 0 }}>
+                      <button
+                        type="button"
+                        onClick={() => downloadOrOpenDoc(editProfData.storageUrl, editProfData.storageKey || editProfData.nome)}
+                        className="btn btn-secondary btn-sm"
+                        style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', fontSize: '0.78rem' }}
+                      >
+                        <Eye size={13} /> Visualizar / Baixar
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setEditProfData((prev: any) => ({ ...prev, storageUrl: '', storageKey: '' }))}
+                        className="btn btn-ghost btn-sm"
+                        style={{ color: '#ef4444', padding: '6px' }}
+                        title="Remover arquivo"
+                      >
+                        <Trash2 size={15} />
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <div style={{
+                    border: '1px dashed var(--border-color-strong)',
+                    borderRadius: 'var(--radius-md)',
+                    padding: '14px',
+                    background: 'rgba(255,255,255,0.02)',
+                    textAlign: 'center'
+                  }}>
+                    <input
+                      type="file"
+                      id="editProfFileInput"
+                      accept=".pdf,.png,.jpg,.jpeg,.doc,.docx"
+                      style={{ display: 'none' }}
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (file) {
+                          if (file.size > 15 * 1024 * 1024) {
+                            alert('O arquivo deve ter no máximo 15MB.');
+                            return;
+                          }
+                          const reader = new FileReader();
+                          reader.onload = (ev) => {
+                            setEditProfData((prev: any) => ({
+                              ...prev,
+                              storageUrl: ev.target?.result as string,
+                              storageKey: file.name
+                            }));
+                          };
+                          reader.readAsDataURL(file);
+                        }
+                      }}
+                    />
+                    <label
+                      htmlFor="editProfFileInput"
+                      className="btn btn-secondary btn-sm"
+                      style={{ cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '8px' }}
+                    >
+                      <FileUp size={15} style={{ color: 'var(--color-primary)' }} />
+                      Anexar Documento / Dossiê (PDF / Imagem)
+                    </label>
+                    <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: '6px' }}>
+                      ou informe um link externo abaixo:
+                    </div>
+                    <input
+                      type="url"
+                      value={editProfData.storageUrl?.startsWith('data:') ? '' : editProfData.storageUrl}
+                      onChange={(e) => setEditProfData((prev: any) => ({ ...prev, storageUrl: e.target.value, storageKey: e.target.value ? 'Link Externo' : '' }))}
+                      className="form-control"
+                      placeholder="https://..."
+                      style={{ marginTop: '6px', fontSize: '0.82rem' }}
+                    />
+                  </div>
+                )}
               </div>
 
               <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '12px' }}>
